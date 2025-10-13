@@ -14,6 +14,7 @@ interface ToolCall {
 
 interface ToolResult {
   id: string;
+  toolName: string;
   result: string;
 }
 

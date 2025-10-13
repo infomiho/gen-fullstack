@@ -99,7 +99,8 @@ export abstract class BaseStrategy {
     toolName: string,
     args: Record<string, unknown>,
   ): void {
-    socket.emit('tool_call', { name: toolName, args });
+    const id = `tool-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    socket.emit('tool_call', { id, name: toolName, args });
   }
 
   /**
@@ -114,7 +115,8 @@ export abstract class BaseStrategy {
     toolName: string,
     result: string,
   ): void {
-    socket.emit('tool_result', { toolName, result });
+    const id = `result-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    socket.emit('tool_result', { id, toolName, result });
   }
 
   /**

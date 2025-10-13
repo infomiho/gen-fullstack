@@ -22,6 +22,7 @@ export interface ToolCall {
 
 export interface ToolResult {
   id: string;
+  toolName: string;
   result: string;
 }
 

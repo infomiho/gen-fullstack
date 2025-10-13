@@ -1,9 +1,11 @@
 interface ToolCall {
+  id: string;
   name: string;
   args: Record<string, unknown>;
 }
 
 interface ToolResult {
+  id: string;
   toolName: string;
   result: string;
 }
@@ -33,9 +35,9 @@ export function ToolCallDisplay({ toolCalls, toolResults }: ToolCallDisplayProps
       {/* Tool Calls */}
       {toolCalls.length > 0 && (
         <div className="space-y-2">
-          {toolCalls.map((toolCall, index) => (
+          {toolCalls.map((toolCall) => (
             <div
-              key={index}
+              key={toolCall.id}
               className="bg-blue-50 border border-blue-200 rounded-lg p-3"
             >
               <div className="flex items-center gap-2 mb-2">
@@ -59,9 +61,9 @@ export function ToolCallDisplay({ toolCalls, toolResults }: ToolCallDisplayProps
       {toolResults.length > 0 && (
         <div className="space-y-2">
           <h4 className="text-md font-semibold text-gray-600">Results</h4>
-          {toolResults.map((result, index) => (
+          {toolResults.map((result) => (
             <div
-              key={index}
+              key={result.id}
               className="bg-green-50 border border-green-200 rounded-lg p-3"
             >
               <div className="flex items-center gap-2 mb-2">
