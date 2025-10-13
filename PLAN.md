@@ -14,7 +14,7 @@ Build a demonstration harness for showcasing iterative improvements in full-stac
 - **Validation**: Zod 3.24 + Prettier 3.4
 - **Unit Tests**: Vitest 3.2 with @testing-library/react 16
 - **LLM Integration**: Vercel AI SDK 5.0 + OpenAI provider
-- **Models**: GPT-4o (dev), GPT-4.1 (production), o4-mini (reasoning)
+- **Models**: GPT-5-mini (default), GPT-5 (premium), GPT-5-nano (budget)
 - **Generated Apps**: Vite-based full-stack apps
 
 ### Architecture Decision: Vercel AI SDK
@@ -35,24 +35,29 @@ Build a demonstration harness for showcasing iterative improvements in full-stac
 - Tool results don't auto-stream (only inputs), but acceptable for our use case
 - Additional dependency, but worth it for developer experience and reduced boilerplate
 
-### Model Selection: OpenAI GPT-4 Family
+### Model Selection: GPT-5 Progressive Upgrade Strategy
 
-**Decision**: Using GPT-4o for development and production
+**Decision**: Using GPT-5 family for development and production
 
-**Current Implementation**: `gpt-4o` (default)
-- Pricing: $2.50/$10 per 1M tokens (input/output)
-- Fast and cost-effective for code generation
-- Excellent balance of performance and price
-- 128K context window
+**Released**: August 2025
 
-**Alternative Models**:
-- `gpt-4-turbo`: Premium option ($10/$30 per 1M tokens) for complex scenarios
-- `gpt-3.5-turbo`: Budget option ($0.50/$1.50 per 1M tokens) for simple demos
+**Current Implementation**: `gpt-5-mini` (default)
+- Pricing: $0.25/$2 per 1M tokens (input/output)
+- Excellent for code generation with best cost/performance balance
+- Context: 272K input / 128K output tokens
+- Fast and reliable for full-stack app generation
+
+**Available Models**:
+- `gpt-5-mini`: Default model ($0.25/$2 per 1M tokens) - best balance
+- `gpt-5`: Premium option ($1.25/$10 per 1M tokens) - 74.9% SWE-bench Verified, 94.6% AIME 2025
+- `gpt-5-nano`: Budget option ($0.05/$0.40 per 1M tokens) - ultra-fast for simple demos
 
 **Rationale**:
-- gpt-4o provides excellent code generation quality at reasonable cost
-- Can upgrade to gpt-4-turbo for more complex generation scenarios
+- GPT-5 models provide state-of-the-art code generation with massive context windows
+- gpt-5-mini offers 10x cost savings vs gpt-4o with better performance
+- 272K input context allows including entire codebases and extensive documentation
 - Model selection is configurable via MODEL_CONFIG in llm.service.ts
+- Can upgrade to gpt-5 premium for complex scenarios requiring maximum capability
 
 ### Core Components
 
