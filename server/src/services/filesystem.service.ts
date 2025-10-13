@@ -38,6 +38,13 @@ export function getSandboxPath(sessionId: string): string {
  * @throws Error if path is outside sandbox
  */
 function validatePath(filePath: string, sessionId: string): void {
+  // Check for Windows-style paths (even on Unix systems for security)
+  if (filePath.includes('\\') || /^[a-zA-Z]:/.test(filePath)) {
+    throw new Error(
+      `Path traversal detected: "${filePath}" contains Windows-style path separators or drive letters`
+    );
+  }
+
   const sandboxPath = getSandboxPath(sessionId);
   const resolvedPath = path.resolve(sandboxPath, filePath);
 

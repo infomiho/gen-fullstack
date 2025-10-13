@@ -35,33 +35,24 @@ Build a demonstration harness for showcasing iterative improvements in full-stac
 - Tool results don't auto-stream (only inputs), but acceptable for our use case
 - Additional dependency, but worth it for developer experience and reduced boilerplate
 
-### Model Selection: Progressive Upgrade Strategy
+### Model Selection: OpenAI GPT-4 Family
 
-**Decision**: Start with GPT-4o, upgrade to GPT-4.1 for production
+**Decision**: Using GPT-4o for development and production
 
-**Phase 2 (Development)**: `gpt-4o`
-- 2x faster than GPT-4-Turbo, half the price
-- 5x higher rate limits (good for testing)
-- 33.2% on SWE-bench Verified (sufficient for development)
-- Cost-effective for iteration and debugging
+**Current Implementation**: `gpt-4o` (default)
+- Pricing: $2.50/$10 per 1M tokens (input/output)
+- Fast and cost-effective for code generation
+- Excellent balance of performance and price
+- 128K context window
 
-**Phase 5+ (Production)**: `gpt-4-1`
-- 54.6% on SWE-bench Verified (vs 33.2% for GPT-4o)
-- 30% more efficient tool calling (critical for our 4-tool workflow)
-- 50% less likely to repeat unnecessary edits
-- 2% extraneous edits (down from 9% in GPT-4o)
-- Best-in-class for software engineering tasks
-
-**Special Strategy**: `o4-mini` for "Plan First" demos
-- 68.1% on SWE-bench Verified
-- Advanced reasoning capabilities
-- Better for complex planning tasks
-- Showcase deliberative vs reactive approaches
+**Alternative Models**:
+- `gpt-4-turbo`: Premium option ($10/$30 per 1M tokens) for complex scenarios
+- `gpt-3.5-turbo`: Budget option ($0.50/$1.50 per 1M tokens) for simple demos
 
 **Rationale**:
-- Save costs during development with GPT-4o
-- Upgrade to GPT-4.1 for demos to showcase best results
-- Use o4-mini to demonstrate advanced reasoning in Phase 5
+- gpt-4o provides excellent code generation quality at reasonable cost
+- Can upgrade to gpt-4-turbo for more complex generation scenarios
+- Model selection is configurable via MODEL_CONFIG in llm.service.ts
 
 ### Core Components
 

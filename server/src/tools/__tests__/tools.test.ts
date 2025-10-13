@@ -12,8 +12,8 @@ describe('Tools', () => {
   let testDir: string;
 
   beforeEach(async () => {
-    // Create a temporary test directory
-    testDir = join(tmpdir(), `gen-fullstack-test-${Date.now()}`);
+    // Create a temporary test directory (unique per test with random suffix)
+    testDir = join(tmpdir(), `gen-fullstack-test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
     await mkdir(testDir, { recursive: true });
 
     // Mock getSandboxPath to use our test directory
