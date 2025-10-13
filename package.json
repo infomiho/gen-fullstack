@@ -4,7 +4,7 @@
   "private": true,
   "packageManager": "pnpm@9.15.5",
   "scripts": {
-    "dev": "concurrently -n server,client -c blue,green \"pnpm -w --filter gen-fullstack-server dev\" \"pnpm -w --filter gen-fullstack-client dev\"",
+    "dev": "pnpm -r --parallel run dev",
     "dev:server": "pnpm --filter server dev",
     "dev:client": "pnpm --filter client dev",
     "build": "pnpm --filter server build && pnpm --filter client build",
@@ -17,7 +17,6 @@
     "clean": "pnpm -r clean && rm -rf node_modules"
   },
   "devDependencies": {
-    "concurrently": "^9.2.1",
     "typescript": "^5.9.0"
   }
 }
