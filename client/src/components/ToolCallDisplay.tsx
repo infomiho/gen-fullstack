@@ -49,7 +49,12 @@ export function ToolCallDisplay({ toolCalls, toolResults }: ToolCallDisplayProps
   }, [toolCalls, toolResults]);
 
   if (mergedExecutions.length === 0) {
-    return null;
+    return (
+      <div className="text-center py-8 text-gray-400">
+        <div className="text-4xl mb-2">🔧</div>
+        <div className="text-sm">No tool executions yet</div>
+      </div>
+    );
   }
 
   return (
@@ -83,15 +88,8 @@ export function ToolCallDisplay({ toolCalls, toolResults }: ToolCallDisplayProps
               )}
             </div>
 
-            {/* Parameters */}
-            <div className="text-sm mb-2">
-              <div className="text-gray-600 mb-1">Parameters:</div>
-              <pre className={`bg-white p-2 rounded border overflow-x-auto text-xs ${
-                execution.isComplete ? 'border-green-100' : 'border-blue-100'
-              }`}>
-                {JSON.stringify(execution.args, null, 2)}
-              </pre>
-            </div>
+            {/* Custom formatted parameters */}
+            {renderToolParameters(execution.name, execution.args, execution.isComplete)}
 
             {/* Result (only shown when complete) */}
             {execution.isComplete && execution.result && (
@@ -105,6 +103,91 @@ export function ToolCallDisplay({ toolCalls, toolResults }: ToolCallDisplayProps
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Render tool parameters with custom formatting based on tool type
+ */
+function renderToolParameters(
+  toolName: string,
+  args: Record<string, unknown>,
+  isComplete: boolean
+): JSX.Element {
+  const borderColor = isComplete ? 'border-green-100' : 'border-blue-100';
+
+  // Custom formatting for writeFile
+  if (toolName === 'writeFile') {
+    const { filePath, content } = args as { filePath?: string; content?: string };
+    return (
+      <div className="text-sm space-y-2">
+        {filePath && (
+          <div>
+            <span className="text-gray-600">File: </span>
+            <span className="font-mono text-xs bg-white px-2 py-1 rounded border border-gray-200">
+              {filePath}
+            </span>
+          </div>
+        )}
+        {content && (
+          <div>
+            <div className="text-gray-600 mb-1">Content:</div>
+            <pre className={`bg-white p-2 rounded border ${borderColor} overflow-x-auto text-xs max-h-32`}>
+              {truncate(content, 300)}
+            </pre>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Custom formatting for readFile
+  if (toolName === 'readFile') {
+    const { filePath } = args as { filePath?: string };
+    return (
+      <div className="text-sm">
+        <span className="text-gray-600">File: </span>
+        <span className="font-mono text-xs bg-white px-2 py-1 rounded border border-gray-200">
+          {filePath || 'unknown'}
+        </span>
+      </div>
+    );
+  }
+
+  // Custom formatting for listFiles
+  if (toolName === 'listFiles') {
+    const { dirPath } = args as { dirPath?: string };
+    return (
+      <div className="text-sm">
+        <span className="text-gray-600">Directory: </span>
+        <span className="font-mono text-xs bg-white px-2 py-1 rounded border border-gray-200">
+          {dirPath || '.'}
+        </span>
+      </div>
+    );
+  }
+
+  // Custom formatting for executeCommand
+  if (toolName === 'executeCommand') {
+    const { command } = args as { command?: string };
+    return (
+      <div className="text-sm">
+        <div className="text-gray-600 mb-1">Command:</div>
+        <pre className={`bg-white p-2 rounded border ${borderColor} overflow-x-auto text-xs font-mono`}>
+          {command || 'unknown'}
+        </pre>
+      </div>
+    );
+  }
+
+  // Default: show raw JSON for unknown tools
+  return (
+    <div className="text-sm">
+      <div className="text-gray-600 mb-1">Parameters:</div>
+      <pre className={`bg-white p-2 rounded border ${borderColor} overflow-x-auto text-xs`}>
+        {JSON.stringify(args, null, 2)}
+      </pre>
     </div>
   );
 }
