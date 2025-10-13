@@ -1,0 +1,23 @@
+{
+  "name": "gen-fullstack",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@9.15.5",
+  "scripts": {
+    "dev": "concurrently -n server,client -c blue,green \"pnpm dev:server\" \"pnpm dev:client\"",
+    "dev:server": "pnpm --filter server dev",
+    "dev:client": "pnpm --filter client dev",
+    "build": "pnpm --filter server build && pnpm --filter client build",
+    "test": "pnpm -r test:run",
+    "test:watch": "pnpm -r --parallel test",
+    "test:ui": "pnpm -r --parallel test:ui",
+    "typecheck": "pnpm -r typecheck",
+    "format": "pnpm -r format",
+    "lint": "pnpm -r lint",
+    "clean": "pnpm -r clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "typescript": "^5.9.0"
+  }
+}
