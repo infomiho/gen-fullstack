@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^2.0.52",
+    "@gen-fullstack/shared": "workspace:*",
     "ai": "^5.0.68",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",

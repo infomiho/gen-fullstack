@@ -2,24 +2,7 @@ import type { Socket } from 'socket.io';
 import type { LanguageModelV1 } from 'ai';
 import { getModel, calculateCost, type ModelName } from '../services/llm.service.js';
 import { initializeSandbox } from '../services/filesystem.service.js';
-
-/**
- * Generation metrics tracked during app generation
- */
-export interface GenerationMetrics {
-  /** Total tokens used (input + output) */
-  totalTokens: number;
-  /** Input tokens used */
-  inputTokens: number;
-  /** Output tokens generated */
-  outputTokens: number;
-  /** Estimated cost in USD */
-  cost: number;
-  /** Total time taken in milliseconds */
-  duration: number;
-  /** Number of steps/iterations taken */
-  steps: number;
-}
+import type { GenerationMetrics } from '../types/index.js';
 
 /**
  * Base abstract class for app generation strategies

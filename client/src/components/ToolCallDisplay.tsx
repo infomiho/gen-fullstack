@@ -1,14 +1,4 @@
-interface ToolCall {
-  id: string;
-  name: string;
-  args: Record<string, unknown>;
-}
-
-interface ToolResult {
-  id: string;
-  toolName: string;
-  result: string;
-}
+import type { ToolCall, ToolResult } from '@gen-fullstack/shared';
 
 interface ToolCallDisplayProps {
   toolCalls: ToolCall[];

@@ -1,29 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
-
-interface LLMMessage {
-  role: 'system' | 'user' | 'assistant';
-  content: string;
-}
-
-interface ToolCall {
-  id: string;
-  name: string;
-  args: Record<string, unknown>;
-}
-
-interface ToolResult {
-  id: string;
-  toolName: string;
-  result: string;
-}
-
-interface GenerationMetrics {
-  success: boolean;
-  tokensUsed?: number;
-  timeElapsed?: number;
-  iterations?: number;
-}
+import type { LLMMessage, ToolCall, ToolResult, GenerationMetrics } from '@gen-fullstack/shared';
 
 interface UseWebSocketReturn {
   socket: Socket | null;
@@ -90,7 +67,7 @@ export function useWebSocket(): UseWebSocketReturn {
           ...prev,
           {
             role: 'system' as const,
-            content: `Generation completed: ${metrics.success ? 'Success' : 'Failed'}`,
+            content: `Generation completed! Tokens: ${metrics.totalTokens}, Cost: $${metrics.cost.toFixed(4)}, Duration: ${(metrics.duration / 1000).toFixed(1)}s`,
           },
         ];
         return newMessages.slice(-MAX_MESSAGES);

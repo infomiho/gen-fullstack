@@ -1,0 +1,82 @@
+import { z } from 'zod';
+
+/**
+ * Shared types and schemas for Gen Fullstack
+ *
+ * This package contains all types shared between client and server to ensure
+ * type safety and prevent mismatches.
+ */
+
+// ============================================================================
+// WebSocket Event Schemas
+// ============================================================================
+
+export const StartGenerationSchema = z.object({
+  prompt: z.string().min(1),
+  strategy: z.enum(['naive', 'plan-first', 'template', 'compiler-check', 'building-blocks']),
+});
+
+export type StartGenerationPayload = z.infer<typeof StartGenerationSchema>;
+
+// ============================================================================
+// LLM Message Types
+// ============================================================================
+
+export interface LLMMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+export interface ToolCall {
+  id: string;
+  name: string;
+  args: Record<string, unknown>;
+}
+
+export interface ToolResult {
+  id: string;
+  toolName: string;
+  result: string;
+}
+
+// ============================================================================
+// Generation Metrics
+// ============================================================================
+
+export interface GenerationMetrics {
+  strategy?: string;
+  model?: string;
+  totalTokens: number;
+  inputTokens: number;
+  outputTokens: number;
+  cost: number;
+  duration: number;
+  steps: number;
+}
+
+// ============================================================================
+// WebSocket Events (Server → Client)
+// ============================================================================
+
+export interface ServerToClientEvents {
+  llm_message: (message: LLMMessage) => void;
+  tool_call: (toolCall: ToolCall) => void;
+  tool_result: (result: ToolResult) => void;
+  file_updated: (data: { path: string; content: string }) => void;
+  app_started: (data: { url: string; pid: number }) => void;
+  app_log: (data: { type: 'stdout' | 'stderr'; message: string }) => void;
+  compilation_error: (data: { errors: string[] }) => void;
+  generation_complete: (metrics: GenerationMetrics) => void;
+  error: (message: string) => void;
+}
+
+// ============================================================================
+// WebSocket Events (Client → Server)
+// ============================================================================
+
+export interface ClientToServerEvents {
+  start_generation: (payload: StartGenerationPayload) => void;
+  stop_generation: () => void;
+  restart_app: () => void;
+  clear_workspace: () => void;
+}
