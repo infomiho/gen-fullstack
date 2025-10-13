@@ -18,7 +18,7 @@ import * as commandService from '../services/command.service.js';
  */
 export const writeFile = tool({
   description: 'Write content to a file. Creates directories if needed. Use this to create or update any file in the project.',
-  parameters: z.object({
+  inputSchema: z.object({
     path: z.string().describe('Relative path to the file (e.g., "src/App.tsx", "package.json")'),
     content: z.string().describe('Full content to write to the file'),
   }),
@@ -36,7 +36,7 @@ export const writeFile = tool({
  */
 export const readFile = tool({
   description: 'Read the content of an existing file. Use this to check current file contents before making changes.',
-  parameters: z.object({
+  inputSchema: z.object({
     path: z.string().describe('Relative path to the file to read (e.g., "src/App.tsx")'),
   }),
   execute: async ({ path }, { experimental_context: context }) => {
@@ -53,7 +53,7 @@ export const readFile = tool({
  */
 export const listFiles = tool({
   description: 'List all files and directories in a given path. Use this to explore the project structure.',
-  parameters: z.object({
+  inputSchema: z.object({
     directory: z.string().optional().default('.').describe('Relative path to the directory (default: "." for root)'),
   }),
   execute: async ({ directory }, { experimental_context: context }) => {
@@ -76,7 +76,7 @@ export const executeCommand = tool({
   description: `Execute a shell command in the project directory.
 Allowed commands: ${commandService.getAllowedCommands().join(', ')}.
 Use this to install packages (pnpm install), run builds (pnpm build), or execute the app.`,
-  parameters: z.object({
+  inputSchema: z.object({
     command: z.string().describe('Command to execute (e.g., "pnpm install", "pnpm dev", "pnpm build")'),
   }),
   execute: async ({ command }, { experimental_context: context }) => {
