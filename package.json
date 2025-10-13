@@ -4,7 +4,7 @@
   "private": true,
   "packageManager": "pnpm@9.15.5",
   "scripts": {
-    "dev": "concurrently -n server,client -c blue,green \"pnpm dev:server\" \"pnpm dev:client\"",
+    "dev": "concurrently -n server,client -c blue,green \"pnpm -w --filter gen-fullstack-server dev\" \"pnpm -w --filter gen-fullstack-client dev\"",
     "dev:server": "pnpm --filter server dev",
     "dev:client": "pnpm --filter client dev",
     "build": "pnpm --filter server build && pnpm --filter client build",
