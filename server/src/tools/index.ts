@@ -17,7 +17,8 @@ import * as commandService from '../services/command.service.js';
  * All paths are relative to the session sandbox directory.
  */
 export const writeFile = tool({
-  description: 'Write content to a file. Creates directories if needed. Use this to create or update any file in the project.',
+  description:
+    'Write content to a file. Creates directories if needed. Use this to create or update any file in the project.',
   inputSchema: z.object({
     path: z.string().describe('Relative path to the file (e.g., "src/App.tsx", "package.json")'),
     content: z.string().describe('Full content to write to the file'),
@@ -35,7 +36,8 @@ export const writeFile = tool({
  * Use this to check what's already in a file before modifying it.
  */
 export const readFile = tool({
-  description: 'Read the content of an existing file. Use this to check current file contents before making changes.',
+  description:
+    'Read the content of an existing file. Use this to check current file contents before making changes.',
   inputSchema: z.object({
     path: z.string().describe('Relative path to the file to read (e.g., "src/App.tsx")'),
   }),
@@ -52,16 +54,23 @@ export const readFile = tool({
  * Use this to explore the project structure.
  */
 export const listFiles = tool({
-  description: 'List all files and directories in a given path. Use this to explore the project structure.',
+  description:
+    'List all files and directories in a given path. Use this to explore the project structure.',
   inputSchema: z.object({
-    directory: z.string().optional().default('.').describe('Relative path to the directory (default: "." for root)'),
+    directory: z
+      .string()
+      .optional()
+      .default('.')
+      .describe('Relative path to the directory (default: "." for root)'),
   }),
   execute: async ({ directory }, { experimental_context: context }) => {
     const sessionId = (context as { sessionId: string }).sessionId;
     const files = await filesystemService.listFiles(sessionId, directory);
 
     // Format output for LLM
-    const fileList = files.map(f => `${f.type === 'directory' ? '📁' : '📄'} ${f.name}`).join('\n');
+    const fileList = files
+      .map((f) => `${f.type === 'directory' ? '📁' : '📄'} ${f.name}`)
+      .join('\n');
     return `Contents of "${directory}":\n${fileList}`;
   },
 });
@@ -75,9 +84,11 @@ export const listFiles = tool({
 export const executeCommand = tool({
   description: `Execute a shell command in the project directory.
 Allowed commands: ${commandService.getAllowedCommands().join(', ')}.
-Use this to install packages (pnpm install), run builds (pnpm build), or execute the app.`,
+Use this to install packages (npm install), run builds (npm build), or execute the app.`,
   inputSchema: z.object({
-    command: z.string().describe('Command to execute (e.g., "pnpm install", "pnpm dev", "pnpm build")'),
+    command: z
+      .string()
+      .describe('Command to execute (e.g., "npm install", "npm dev", "npm build")'),
   }),
   execute: async ({ command }, { experimental_context: context }) => {
     const sessionId = (context as { sessionId: string }).sessionId;

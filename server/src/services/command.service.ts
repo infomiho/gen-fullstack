@@ -12,7 +12,6 @@ const execAsync = promisify(exec);
  */
 const COMMAND_WHITELIST = [
   'npm',
-  'pnpm',
   'node',
   'tsc',
   'vite',
@@ -67,34 +66,30 @@ function validateCommand(command: string): void {
 
   // Check if base command is in whitelist
   const isWhitelisted = COMMAND_WHITELIST.some(
-    allowed => baseCommand === allowed || baseCommand.startsWith(`${allowed}`)
+    (allowed) => baseCommand === allowed || baseCommand.startsWith(`${allowed}`),
   );
 
   if (!isWhitelisted) {
     throw new Error(
       `Command "${baseCommand}" is not whitelisted. ` +
-      `Allowed commands: ${COMMAND_WHITELIST.join(', ')}`
+        `Allowed commands: ${COMMAND_WHITELIST.join(', ')}`,
     );
   }
 
   // Additional security checks
   if (command.includes('&&') || command.includes('||') || command.includes(';')) {
-    throw new Error(
-      'Command chaining with &&, ||, or ; is not allowed for security reasons'
-    );
+    throw new Error('Command chaining with &&, ||, or ; is not allowed for security reasons');
   }
 
   // Check for command substitution and variable expansion
   if (command.includes('`') || command.includes('$(') || /\$[A-Za-z_]/.test(command)) {
     throw new Error(
-      'Command substitution with `, $(), or $VAR is not allowed for security reasons'
+      'Command substitution with `, $(), or $VAR is not allowed for security reasons',
     );
   }
 
   if (command.includes('|')) {
-    throw new Error(
-      'Pipe operator | is not allowed for security reasons'
-    );
+    throw new Error('Pipe operator | is not allowed for security reasons');
   }
 }
 
@@ -160,7 +155,7 @@ export async function executeCommand(
 
     console.log(
       `[Command] Success (${executionTime}ms): ${command} ` +
-      `(stdout: ${stdout.length} bytes, stderr: ${stderr.length} bytes)`
+        `(stdout: ${stdout.length} bytes, stderr: ${stderr.length} bytes)`,
     );
 
     return result;

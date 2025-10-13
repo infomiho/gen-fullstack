@@ -28,7 +28,7 @@ You have access to four tools to build applications:
 1. writeFile - Create/update files with content
 2. readFile - Read existing file contents
 3. listFiles - List files in a directory
-4. executeCommand - Run commands (pnpm install, pnpm dev, etc.)
+4. executeCommand - Run commands (npm install, npm dev, etc.)
 
 GUIDELINES:
 1. Create a complete Vite + React + TypeScript application
@@ -46,7 +46,7 @@ GUIDELINES:
    - TypeScript for type safety
    - Clean, readable code
 
-4. After creating files, run "pnpm install" to install dependencies
+4. After creating files, run "npm install" to install dependencies
 
 5. Keep it simple but functional - focus on working code
 
@@ -61,11 +61,7 @@ IMPORTANT:
 Now, generate the application based on the user's requirements.`;
   }
 
-  async generateApp(
-    prompt: string,
-    socket: Socket,
-    sessionId: string,
-  ): Promise<GenerationMetrics> {
+  async generateApp(prompt: string, socket: Socket, sessionId: string): Promise<GenerationMetrics> {
     const startTime = Date.now();
     this.logStart(sessionId, prompt);
 
@@ -102,9 +98,10 @@ Now, generate the application based on the user's requirements.`;
             socket.emit('tool_result', {
               id: `result-${toolResult.toolCallId}`,
               toolName: toolResult.toolName,
-              result: typeof toolResult.result === 'string'
-                ? toolResult.result
-                : JSON.stringify(toolResult.result),
+              result:
+                typeof toolResult.result === 'string'
+                  ? toolResult.result
+                  : JSON.stringify(toolResult.result),
             });
           }
         },

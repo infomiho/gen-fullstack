@@ -6,7 +6,7 @@ import { join } from 'path';
 import { mkdir, rm, writeFile as fsWriteFile } from 'fs/promises';
 import { tmpdir } from 'os';
 
-describe('Tools', () => {
+describe.sequential('Tools', () => {
   const sessionId = 'test-session-123';
   const context = { experimental_context: { sessionId } };
   let testDir: string;
@@ -17,7 +17,8 @@ describe('Tools', () => {
     await mkdir(testDir, { recursive: true });
 
     // Mock getSandboxPath to use our test directory
-    vi.spyOn(filesystemService, 'getSandboxPath' as any).mockReturnValue(testDir);
+    // Use mockImplementation to capture testDir by reference
+    vi.spyOn(filesystemService, 'getSandboxPath').mockImplementation(() => testDir);
   });
 
   afterEach(async () => {

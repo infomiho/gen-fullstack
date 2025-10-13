@@ -53,12 +53,6 @@ describe('Command Service', () => {
       expect(result.success).toBe(true);
       expect(result.stdout).toMatch(/\d+\.\d+\.\d+/);
     });
-
-    it('should execute pnpm command', async () => {
-      const result = await executeCommand(sessionId, 'pnpm --version');
-      expect(result.success).toBe(true);
-      expect(result.stdout).toMatch(/\d+\.\d+\.\d+/);
-    });
   });
 
   describe('Command validation', () => {
@@ -76,48 +70,42 @@ describe('Command Service', () => {
 
     nonWhitelistedCommands.forEach((cmd) => {
       it(`should reject non-whitelisted command: ${cmd}`, async () => {
-        await expect(
-          executeCommand(sessionId, cmd)
-        ).rejects.toThrow('not whitelisted');
+        await expect(executeCommand(sessionId, cmd)).rejects.toThrow('not whitelisted');
       });
     });
   });
 
   describe('Command chaining prevention', () => {
     it('should reject commands with &&', async () => {
-      await expect(
-        executeCommand(sessionId, 'echo "test" && echo "chained"')
-      ).rejects.toThrow('chaining');
+      await expect(executeCommand(sessionId, 'echo "test" && echo "chained"')).rejects.toThrow(
+        'chaining',
+      );
     });
 
     it('should reject commands with ||', async () => {
-      await expect(
-        executeCommand(sessionId, 'echo "test" || echo "fallback"')
-      ).rejects.toThrow('chaining');
+      await expect(executeCommand(sessionId, 'echo "test" || echo "fallback"')).rejects.toThrow(
+        'chaining',
+      );
     });
 
     it('should reject commands with semicolon', async () => {
-      await expect(
-        executeCommand(sessionId, 'echo "test"; echo "another"')
-      ).rejects.toThrow('chaining');
+      await expect(executeCommand(sessionId, 'echo "test"; echo "another"')).rejects.toThrow(
+        'chaining',
+      );
     });
 
     it('should reject commands with pipe operator', async () => {
-      await expect(
-        executeCommand(sessionId, 'echo "test" | grep test')
-      ).rejects.toThrow('Pipe operator');
+      await expect(executeCommand(sessionId, 'echo "test" | grep test')).rejects.toThrow(
+        'Pipe operator',
+      );
     });
 
     it('should reject commands with backticks', async () => {
-      await expect(
-        executeCommand(sessionId, 'echo `whoami`')
-      ).rejects.toThrow('substitution');
+      await expect(executeCommand(sessionId, 'echo `whoami`')).rejects.toThrow('substitution');
     });
 
     it('should reject commands with $() substitution', async () => {
-      await expect(
-        executeCommand(sessionId, 'echo $(whoami)')
-      ).rejects.toThrow('substitution');
+      await expect(executeCommand(sessionId, 'echo $(whoami)')).rejects.toThrow('substitution');
     });
   });
 
@@ -155,7 +143,7 @@ describe('Command Service', () => {
       // Generate output longer than 50K chars
       const result = await executeCommand(
         sessionId,
-        'node -e "console.log(\\"x\\".repeat(60000))"'
+        'node -e "console.log(\\"x\\".repeat(60000))"',
       );
 
       expect(result.stdout.length).toBeLessThanOrEqual(50000 + 100); // Allow small buffer
@@ -191,10 +179,7 @@ describe('Command Service', () => {
     });
 
     it('should handle commands with multiple arguments', async () => {
-      const result = await executeCommand(
-        sessionId,
-        'echo "arg1" "arg2" "arg3"'
-      );
+      const result = await executeCommand(sessionId, 'echo "arg1" "arg2" "arg3"');
       expect(result.success).toBe(true);
       expect(result.stdout).toContain('arg1');
       expect(result.stdout).toContain('arg2');
@@ -202,10 +187,7 @@ describe('Command Service', () => {
     });
 
     it('should handle quoted arguments with spaces', async () => {
-      const result = await executeCommand(
-        sessionId,
-        'echo "Hello World with spaces"'
-      );
+      const result = await executeCommand(sessionId, 'echo "Hello World with spaces"');
       expect(result.success).toBe(true);
       expect(result.stdout).toContain('Hello World with spaces');
     });
@@ -227,9 +209,7 @@ describe('Command Service', () => {
 
   describe('Security edge cases', () => {
     it('should reject command with environment variable expansion', async () => {
-      await expect(
-        executeCommand(sessionId, 'echo $HOME')
-      ).rejects.toThrow('substitution');
+      await expect(executeCommand(sessionId, 'echo $HOME')).rejects.toThrow('substitution');
     });
 
     it('should allow commands with glob patterns', async () => {
@@ -240,15 +220,11 @@ describe('Command Service', () => {
     });
 
     it('should reject empty command', async () => {
-      await expect(
-        executeCommand(sessionId, '')
-      ).rejects.toThrow();
+      await expect(executeCommand(sessionId, '')).rejects.toThrow();
     });
 
     it('should reject whitespace-only command', async () => {
-      await expect(
-        executeCommand(sessionId, '   ')
-      ).rejects.toThrow();
+      await expect(executeCommand(sessionId, '   ')).rejects.toThrow();
     });
   });
 });
