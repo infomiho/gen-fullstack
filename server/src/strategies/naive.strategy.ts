@@ -102,8 +102,8 @@ Now, generate the application based on the user's requirements.`;
           case 'tool-call':
             // Emit tool call event
             stepCount++;
-            this.emitToolCall(socket, part.toolName, part.args);
-            console.log(`[${this.getName()}] Tool call #${stepCount}: ${part.toolName}`, part.args);
+            this.emitToolCall(socket, part.toolName, part.input);
+            console.log(`[${this.getName()}] Tool call #${stepCount}: ${part.toolName}`, part.input);
             break;
 
           case 'tool-result':
@@ -129,10 +129,10 @@ Now, generate the application based on the user's requirements.`;
       // Calculate metrics
       const duration = Date.now() - startTime;
       const metrics = this.calculateMetrics(
-        usage.promptTokens,
-        usage.completionTokens,
+        usage.promptTokens || 0,
+        usage.completionTokens || 0,
         duration,
-        steps.length,
+        steps?.length || 0,
       );
 
       // Log completion
