@@ -131,7 +131,7 @@ describe('Filesystem Service', () => {
     it('should throw error for non-existent files', async () => {
       await expect(
         readFile(sessionId, 'nonexistent.txt')
-      ).rejects.toThrow('ENOENT');
+      ).rejects.toThrow('File not found');
     });
 
     it('should reject path traversal attempts', async () => {
@@ -161,30 +161,36 @@ describe('Filesystem Service', () => {
     it('should list files in root directory', async () => {
       const result = await listFiles(sessionId, '.');
 
-      expect(result).toContain('file1.txt');
-      expect(result).toContain('file2.js');
-      expect(result).toContain('subdir/');
-      expect(result).toContain('.hidden');
+      const names = result.map(f => f.name);
+      expect(names).toContain('file1.txt');
+      expect(names).toContain('file2.js');
+      expect(names).toContain('subdir');
+      expect(names).toContain('.hidden');
     });
 
     it('should list files in subdirectory', async () => {
       const result = await listFiles(sessionId, 'subdir');
 
-      expect(result).toContain('nested.txt');
+      const names = result.map(f => f.name);
+      expect(names).toContain('nested.txt');
     });
 
     it('should indicate directories with trailing slash', async () => {
       const result = await listFiles(sessionId, '.');
 
-      expect(result).toContain('subdir/');
-      expect(result).not.toContain('file1.txt/');
+      const subdirEntry = result.find(f => f.name === 'subdir');
+      expect(subdirEntry?.type).toBe('directory');
+
+      const file1Entry = result.find(f => f.name === 'file1.txt');
+      expect(file1Entry?.type).toBe('file');
     });
 
     it('should show message for empty directory', async () => {
       await writeFile(sessionId, 'empty_dir/.gitkeep', '');
       const result = await listFiles(sessionId, 'empty_dir');
 
-      expect(result).toContain('.gitkeep');
+      const names = result.map(f => f.name);
+      expect(names).toContain('.gitkeep');
     });
 
     it('should throw error for non-existent directory', async () => {

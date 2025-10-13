@@ -69,16 +69,12 @@ describe('Tools', () => {
   });
 
   describe('readFile tool', () => {
-    beforeEach(async () => {
-      // Create test files
-      await fsWriteFile(join(testDir, 'test.txt'), 'Test content', 'utf-8');
-      await mkdir(join(testDir, 'subdir'), { recursive: true });
-      await fsWriteFile(join(testDir, 'subdir/nested.txt'), 'Nested content', 'utf-8');
-    });
-
     it('should read a file successfully', async () => {
+      // Create test file for this specific test
+      await fsWriteFile(join(testDir, 'read-test.txt'), 'Test content', 'utf-8');
+
       const result = await readFile.execute!(
-        { path: 'test.txt' },
+        { path: 'read-test.txt' },
         context as any
       );
 
@@ -86,8 +82,12 @@ describe('Tools', () => {
     });
 
     it('should read nested files', async () => {
+      // Create nested file for this specific test
+      await mkdir(join(testDir, 'read-subdir'), { recursive: true });
+      await fsWriteFile(join(testDir, 'read-subdir/nested.txt'), 'Nested content', 'utf-8');
+
       const result = await readFile.execute!(
-        { path: 'subdir/nested.txt' },
+        { path: 'read-subdir/nested.txt' },
         context as any
       );
 
@@ -116,28 +116,32 @@ describe('Tools', () => {
   });
 
   describe('listFiles tool', () => {
-    beforeEach(async () => {
+    it('should list files in root directory', async () => {
       // Create test directory structure
-      await mkdir(join(testDir, 'subdir'), { recursive: true });
+      await mkdir(join(testDir, 'list-subdir'), { recursive: true });
       await fsWriteFile(join(testDir, 'file1.txt'), 'Content 1', 'utf-8');
       await fsWriteFile(join(testDir, 'file2.js'), 'Content 2', 'utf-8');
-      await fsWriteFile(join(testDir, 'subdir/nested.txt'), 'Nested', 'utf-8');
-    });
+      await fsWriteFile(join(testDir, 'list-subdir/nested.txt'), 'Nested', 'utf-8');
 
-    it('should list files in root directory', async () => {
       const result = await listFiles.execute!(
-        { path: '.' },
+        { directory: '.' },
         context as any
       );
 
+      // Formatted with emojis now
       expect(result).toContain('file1.txt');
       expect(result).toContain('file2.js');
-      expect(result).toContain('subdir/');
+      expect(result).toContain('list-subdir');
+      expect(result).toContain('Contents of');
     });
 
     it('should list files in subdirectory', async () => {
+      // Create test directory structure
+      await mkdir(join(testDir, 'list2-subdir'), { recursive: true });
+      await fsWriteFile(join(testDir, 'list2-subdir/nested.txt'), 'Nested', 'utf-8');
+
       const result = await listFiles.execute!(
-        { path: 'subdir' },
+        { directory: 'list2-subdir' },
         context as any
       );
 
@@ -145,14 +149,15 @@ describe('Tools', () => {
     });
 
     it('should show empty directory message', async () => {
-      await mkdir(join(testDir, 'empty'), { recursive: true });
+      await mkdir(join(testDir, 'empty-dir'), { recursive: true });
 
       const result = await listFiles.execute!(
-        { path: 'empty' },
+        { directory: 'empty-dir' },
         context as any
       );
 
-      expect(result).toContain('empty');
+      expect(result).toContain('Contents of');
+      expect(result).toContain('empty-dir');
     });
 
     it('should reject invalid paths (path traversal)', async () => {
@@ -160,7 +165,7 @@ describe('Tools', () => {
 
       await expect(
         listFiles.execute!(
-          { path: '../outside' },
+          { directory: '../outside' },
           context as any
         )
       ).rejects.toThrow();
@@ -223,12 +228,14 @@ describe('Tools', () => {
     });
 
     it('should handle command errors gracefully', async () => {
-      await expect(
-        executeCommand.execute!(
-          { command: 'ls nonexistent-file-xyz.txt' },
-          context as any
-        )
-      ).rejects.toThrow();
+      const result = await executeCommand.execute!(
+        { command: 'ls nonexistent-file-xyz.txt' },
+        context as any
+      );
+
+      // executeCommand returns formatted results, doesn't throw
+      expect(result).toContain('failed');
+      expect(result).toContain('exit code');
     });
   });
 });

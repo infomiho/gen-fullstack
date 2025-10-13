@@ -24,9 +24,9 @@ const COMMAND_WHITELIST = [
 ] as const;
 
 /**
- * Maximum execution timeout in milliseconds
+ * Default execution timeout in milliseconds
  */
-const EXECUTION_TIMEOUT_MS = 120000; // 2 minutes
+const DEFAULT_EXECUTION_TIMEOUT_MS = 120000; // 2 minutes
 
 /**
  * Maximum output size in characters to prevent memory issues
@@ -118,11 +118,13 @@ function truncateOutput(output: string): string {
  *
  * @param sessionId - Session identifier
  * @param command - Command to execute
+ * @param timeoutMs - Optional timeout in milliseconds (default: 120000ms / 2 minutes)
  * @returns Command execution result
  */
 export async function executeCommand(
   sessionId: string,
   command: string,
+  timeoutMs: number = DEFAULT_EXECUTION_TIMEOUT_MS,
 ): Promise<CommandResult> {
   const startTime = Date.now();
 
@@ -137,7 +139,7 @@ export async function executeCommand(
   try {
     const { stdout, stderr } = await execAsync(command, {
       cwd: sandboxPath,
-      timeout: EXECUTION_TIMEOUT_MS,
+      timeout: timeoutMs,
       maxBuffer: MAX_OUTPUT_SIZE * 2, // Buffer for both stdout and stderr
       env: {
         ...process.env,
@@ -167,10 +169,10 @@ export async function executeCommand(
 
     // Handle timeout
     if (error.killed && error.signal === 'SIGTERM') {
-      console.error(`[Command] Timeout after ${EXECUTION_TIMEOUT_MS}ms: ${command}`);
+      console.error(`[Command] Timeout after ${timeoutMs}ms: ${command}`);
       return {
         stdout: error.stdout ? truncateOutput(error.stdout) : '',
-        stderr: `Command timed out after ${EXECUTION_TIMEOUT_MS}ms`,
+        stderr: `Command timed out after ${timeoutMs}ms`,
         exitCode: -1,
         executionTime,
         success: false,

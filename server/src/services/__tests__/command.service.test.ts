@@ -123,10 +123,12 @@ describe('Command Service', () => {
 
   describe('Command timeout', () => {
     it('should timeout long-running commands', async () => {
-      const result = await executeCommand(sessionId, 'node -e "while(true){}"');
+      // Use a 2 second timeout for testing
+      const result = await executeCommand(sessionId, 'node -e "while(true){}"', 2000);
       expect(result.success).toBe(false);
       expect(result.stderr).toContain('timed out');
-    }, 130000); // 130 seconds to account for 120s timeout + overhead
+      expect(result.stderr).toContain('2000ms');
+    }, 5000); // 5 seconds to account for 2s timeout + overhead
 
     it('should complete fast commands before timeout', async () => {
       const result = await executeCommand(sessionId, 'echo "fast"');
