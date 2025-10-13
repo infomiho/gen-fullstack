@@ -84,11 +84,23 @@ Now, generate the application based on the user's requirements.`;
         onStepFinish({ toolCalls, toolResults }) {
           // Emit complete tool calls with all data
           for (const toolCall of toolCalls) {
-            console.log(`[Naive] Tool call: ${toolCall.toolName}`, toolCall.args);
+            // Skip dynamic tools for now (type narrowing required)
+            if (toolCall.dynamic) {
+              console.log(`[Naive] Dynamic tool call: ${toolCall.toolName}`);
+              socket.emit('tool_call', {
+                id: toolCall.toolCallId,
+                name: toolCall.toolName,
+                args: toolCall.input as Record<string, unknown>,
+              });
+              continue;
+            }
+
+            // Static tools have full type inference
+            console.log(`[Naive] Tool call: ${toolCall.toolName}`, toolCall.input);
             socket.emit('tool_call', {
               id: toolCall.toolCallId,
               name: toolCall.toolName,
-              args: toolCall.args,
+              args: toolCall.input as Record<string, unknown>,
             });
           }
 

@@ -4,6 +4,7 @@ import { PromptInput } from './components/PromptInput';
 import { StrategySelector } from './components/StrategySelector';
 import { MessageList } from './components/MessageList';
 import { ToolCallDisplay } from './components/ToolCallDisplay';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 function App() {
   const { isConnected, messages, startGeneration, isGenerating, toolCalls, toolResults } =
@@ -91,7 +92,9 @@ function App() {
             {activeTab === 'messages' ? (
               <MessageList messages={messages} />
             ) : (
-              <ToolCallDisplay toolCalls={toolCalls} toolResults={toolResults} />
+              <ErrorBoundary>
+                <ToolCallDisplay toolCalls={toolCalls} toolResults={toolResults} />
+              </ErrorBoundary>
             )}
           </div>
         </div>

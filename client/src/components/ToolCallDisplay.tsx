@@ -9,7 +9,7 @@ interface ToolCallDisplayProps {
 interface MergedToolExecution {
   id: string;
   name: string;
-  args: Record<string, unknown>;
+  args: Record<string, unknown> | undefined;
   result?: string;
   isComplete: boolean;
 }
@@ -110,10 +110,19 @@ export function ToolCallDisplay({ toolCalls, toolResults }: ToolCallDisplayProps
  */
 function renderToolParameters(
   toolName: string,
-  args: Record<string, unknown>,
+  args: Record<string, unknown> | undefined,
   isComplete: boolean,
 ): JSX.Element {
   const borderColor = isComplete ? 'border-green-100' : 'border-blue-100';
+
+  // Handle undefined args
+  if (!args) {
+    return (
+      <div className="text-sm">
+        <span className="text-gray-500 italic">Loading parameters...</span>
+      </div>
+    );
+  }
 
   // Custom formatting for writeFile
   if (toolName === 'writeFile') {
