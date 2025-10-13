@@ -85,11 +85,34 @@ Now, generate the application based on the user's requirements.`;
         experimental_context: { sessionId },
         stopWhen: stepCountIs(20), // Allow up to 20 tool calls
         maxSteps: 20,
+        onStepFinish({ toolCalls, toolResults }) {
+          // Emit complete tool calls with all data
+          for (const toolCall of toolCalls) {
+            console.log(`[Naive] Tool call: ${toolCall.toolName}`, toolCall.args);
+            socket.emit('tool_call', {
+              id: toolCall.toolCallId,
+              name: toolCall.toolName,
+              args: toolCall.args,
+            });
+          }
+
+          // Emit complete tool results
+          for (const toolResult of toolResults) {
+            console.log(`[Naive] Tool result: ${toolResult.toolName}`);
+            socket.emit('tool_result', {
+              id: `result-${toolResult.toolCallId}`,
+              toolName: toolResult.toolName,
+              result: typeof toolResult.result === 'string'
+                ? toolResult.result
+                : JSON.stringify(toolResult.result),
+            });
+          }
+        },
       });
 
       let stepCount = 0;
 
-      // Process the full stream
+      // Process the full stream for text deltas
       for await (const part of result.fullStream) {
         switch (part.type) {
           case 'text-delta':
@@ -99,25 +122,12 @@ Now, generate the application based on the user's requirements.`;
             }
             break;
 
-          case 'tool-call':
-            // Emit tool call event
-            stepCount++;
-            this.emitToolCall(socket, part.toolName, part.input);
-            console.log(`[${this.getName()}] Tool call #${stepCount}: ${part.toolName}`, part.input);
-            break;
-
-          case 'tool-result':
-            // Emit tool result event
-            this.emitToolResult(socket, part.toolName, String(part.result));
-            break;
-
           case 'step-finish':
-            // Log step completion
+            stepCount++;
             console.log(`[${this.getName()}] Step ${stepCount} finished`);
             break;
 
           case 'finish':
-            // Final finish event
             console.log(`[${this.getName()}] Generation finished`);
             break;
         }
