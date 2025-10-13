@@ -12,16 +12,16 @@ import type { LanguageModelV1 } from 'ai';
  */
 export const MODEL_CONFIG = {
   /** Default model for most use cases - best balance of cost/performance */
-  default: 'gpt-5-mini',    // $0.25/$2 per 1M tokens, excellent for code generation
+  default: 'gpt-5-mini', // $0.25/$2 per 1M tokens, excellent for code generation
 
   /** Premium model for complex scenarios */
-  premium: 'gpt-5',         // $1.25/$10 per 1M tokens, 74.9% SWE-bench Verified
+  premium: 'gpt-5', // $1.25/$10 per 1M tokens, 74.9% SWE-bench Verified
 
   /** Budget model for simple, rapid demos */
-  budget: 'gpt-5-nano',     // $0.05/$0.40 per 1M tokens, ultra-fast
+  budget: 'gpt-5-nano', // $0.05/$0.40 per 1M tokens, ultra-fast
 } as const;
 
-export type ModelName = typeof MODEL_CONFIG[keyof typeof MODEL_CONFIG] | string;
+export type ModelName = (typeof MODEL_CONFIG)[keyof typeof MODEL_CONFIG] | string;
 
 /**
  * Get a configured language model
@@ -50,16 +50,16 @@ export function getModel(modelName: ModelName = MODEL_CONFIG.default): LanguageM
  */
 export const MODEL_PRICING = {
   'gpt-5': {
-    input: 1.25 / 1_000_000,   // $1.25 per 1M tokens
-    output: 10 / 1_000_000,    // $10 per 1M tokens
+    input: 1.25 / 1_000_000, // $1.25 per 1M tokens
+    output: 10 / 1_000_000, // $10 per 1M tokens
   },
   'gpt-5-mini': {
-    input: 0.25 / 1_000_000,   // $0.25 per 1M tokens
-    output: 2 / 1_000_000,     // $2 per 1M tokens
+    input: 0.25 / 1_000_000, // $0.25 per 1M tokens
+    output: 2 / 1_000_000, // $2 per 1M tokens
   },
   'gpt-5-nano': {
-    input: 0.05 / 1_000_000,   // $0.05 per 1M tokens
-    output: 0.40 / 1_000_000,  // $0.40 per 1M tokens
+    input: 0.05 / 1_000_000, // $0.05 per 1M tokens
+    output: 0.4 / 1_000_000, // $0.40 per 1M tokens
   },
 } as const;
 
@@ -82,5 +82,5 @@ export function calculateCost(
     return calculateCost(MODEL_CONFIG.default, inputTokens, outputTokens);
   }
 
-  return (inputTokens * pricing.input) + (outputTokens * pricing.output);
+  return inputTokens * pricing.input + outputTokens * pricing.output;
 }

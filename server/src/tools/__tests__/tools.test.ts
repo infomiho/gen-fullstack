@@ -6,14 +6,17 @@ import { join } from 'path';
 import { mkdir, rm, writeFile as fsWriteFile } from 'fs/promises';
 import { tmpdir } from 'os';
 
-describe.sequential('Tools', () => {
+describe('Tools', () => {
   const sessionId = 'test-session-123';
   const context = { experimental_context: { sessionId } };
   let testDir: string;
 
   beforeEach(async () => {
     // Create a temporary test directory (unique per test with random suffix)
-    testDir = join(tmpdir(), `gen-fullstack-test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+    testDir = join(
+      tmpdir(),
+      `gen-fullstack-test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    );
     await mkdir(testDir, { recursive: true });
 
     // Mock getSandboxPath to use our test directory
@@ -31,7 +34,7 @@ describe.sequential('Tools', () => {
     it('should write a file successfully', async () => {
       const result = await writeFile.execute!(
         { path: 'test.txt', content: 'Hello, World!' },
-        context as any
+        context as any,
       );
 
       expect(result).toContain('Successfully wrote');
@@ -41,7 +44,7 @@ describe.sequential('Tools', () => {
     it('should create nested directories', async () => {
       const result = await writeFile.execute!(
         { path: 'nested/dir/file.txt', content: 'Nested content' },
-        context as any
+        context as any,
       );
 
       expect(result).toContain('Successfully wrote');
@@ -49,10 +52,7 @@ describe.sequential('Tools', () => {
     });
 
     it('should handle empty content', async () => {
-      const result = await writeFile.execute!(
-        { path: 'empty.txt', content: '' },
-        context as any
-      );
+      const result = await writeFile.execute!({ path: 'empty.txt', content: '' }, context as any);
 
       expect(result).toContain('Successfully wrote 0 bytes');
     });
@@ -61,10 +61,7 @@ describe.sequential('Tools', () => {
       vi.restoreAllMocks(); // Remove mock to test real validation
 
       await expect(
-        writeFile.execute!(
-          { path: '../outside.txt', content: 'Should fail' },
-          context as any
-        )
+        writeFile.execute!({ path: '../outside.txt', content: 'Should fail' }, context as any),
       ).rejects.toThrow();
     });
   });
@@ -74,10 +71,7 @@ describe.sequential('Tools', () => {
       // Create test file for this specific test
       await fsWriteFile(join(testDir, 'read-test.txt'), 'Test content', 'utf-8');
 
-      const result = await readFile.execute!(
-        { path: 'read-test.txt' },
-        context as any
-      );
+      const result = await readFile.execute!({ path: 'read-test.txt' }, context as any);
 
       expect(result).toBe('Test content');
     });
@@ -87,32 +81,21 @@ describe.sequential('Tools', () => {
       await mkdir(join(testDir, 'read-subdir'), { recursive: true });
       await fsWriteFile(join(testDir, 'read-subdir/nested.txt'), 'Nested content', 'utf-8');
 
-      const result = await readFile.execute!(
-        { path: 'read-subdir/nested.txt' },
-        context as any
-      );
+      const result = await readFile.execute!({ path: 'read-subdir/nested.txt' }, context as any);
 
       expect(result).toBe('Nested content');
     });
 
     it('should throw error for non-existent files', async () => {
       await expect(
-        readFile.execute!(
-          { path: 'nonexistent.txt' },
-          context as any
-        )
+        readFile.execute!({ path: 'nonexistent.txt' }, context as any),
       ).rejects.toThrow();
     });
 
     it('should reject invalid paths (path traversal)', async () => {
       vi.restoreAllMocks(); // Remove mock to test real validation
 
-      await expect(
-        readFile.execute!(
-          { path: '../outside.txt' },
-          context as any
-        )
-      ).rejects.toThrow();
+      await expect(readFile.execute!({ path: '../outside.txt' }, context as any)).rejects.toThrow();
     });
   });
 
@@ -124,10 +107,7 @@ describe.sequential('Tools', () => {
       await fsWriteFile(join(testDir, 'file2.js'), 'Content 2', 'utf-8');
       await fsWriteFile(join(testDir, 'list-subdir/nested.txt'), 'Nested', 'utf-8');
 
-      const result = await listFiles.execute!(
-        { directory: '.' },
-        context as any
-      );
+      const result = await listFiles.execute!({ directory: '.' }, context as any);
 
       // Formatted with emojis now
       expect(result).toContain('file1.txt');
@@ -141,10 +121,7 @@ describe.sequential('Tools', () => {
       await mkdir(join(testDir, 'list2-subdir'), { recursive: true });
       await fsWriteFile(join(testDir, 'list2-subdir/nested.txt'), 'Nested', 'utf-8');
 
-      const result = await listFiles.execute!(
-        { directory: 'list2-subdir' },
-        context as any
-      );
+      const result = await listFiles.execute!({ directory: 'list2-subdir' }, context as any);
 
       expect(result).toContain('nested.txt');
     });
@@ -152,10 +129,7 @@ describe.sequential('Tools', () => {
     it('should show empty directory message', async () => {
       await mkdir(join(testDir, 'empty-dir'), { recursive: true });
 
-      const result = await listFiles.execute!(
-        { directory: 'empty-dir' },
-        context as any
-      );
+      const result = await listFiles.execute!({ directory: 'empty-dir' }, context as any);
 
       expect(result).toContain('Contents of');
       expect(result).toContain('empty-dir');
@@ -165,10 +139,7 @@ describe.sequential('Tools', () => {
       vi.restoreAllMocks(); // Remove mock to test real validation
 
       await expect(
-        listFiles.execute!(
-          { directory: '../outside' },
-          context as any
-        )
+        listFiles.execute!({ directory: '../outside' }, context as any),
       ).rejects.toThrow();
     });
   });
@@ -177,61 +148,46 @@ describe.sequential('Tools', () => {
     it('should execute whitelisted commands', async () => {
       const result = await executeCommand.execute!(
         { command: 'echo "Hello from test"' },
-        context as any
+        context as any,
       );
 
       expect(result).toContain('Hello from test');
     });
 
     it('should execute pwd command', async () => {
-      const result = await executeCommand.execute!(
-        { command: 'pwd' },
-        context as any
-      );
+      const result = await executeCommand.execute!({ command: 'pwd' }, context as any);
 
       expect(result).toContain(testDir);
     });
 
     it('should reject non-whitelisted commands', async () => {
       await expect(
-        executeCommand.execute!(
-          { command: 'rm -rf /' },
-          context as any
-        )
+        executeCommand.execute!({ command: 'rm -rf /' }, context as any),
       ).rejects.toThrow('not whitelisted');
     });
 
     it('should reject command chaining with &&', async () => {
       await expect(
-        executeCommand.execute!(
-          { command: 'echo "test" && rm file.txt' },
-          context as any
-        )
+        executeCommand.execute!({ command: 'echo "test" && rm file.txt' }, context as any),
       ).rejects.toThrow('chaining');
     });
 
     it('should reject command chaining with ||', async () => {
       await expect(
-        executeCommand.execute!(
-          { command: 'echo "test" || echo "fail"' },
-          context as any
-        )
+        executeCommand.execute!({ command: 'echo "test" || echo "fail"' }, context as any),
       ).rejects.toThrow('chaining');
     });
 
     it('should reject command chaining with ;', async () => {
       await expect(
-        executeCommand.execute!(
-          { command: 'echo "test"; echo "another"' },
-          context as any
-        )
+        executeCommand.execute!({ command: 'echo "test"; echo "another"' }, context as any),
       ).rejects.toThrow('chaining');
     });
 
     it('should handle command errors gracefully', async () => {
       const result = await executeCommand.execute!(
         { command: 'ls nonexistent-file-xyz.txt' },
-        context as any
+        context as any,
       );
 
       // executeCommand returns formatted results, doesn't throw

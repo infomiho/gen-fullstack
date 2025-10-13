@@ -77,11 +77,7 @@ export abstract class BaseStrategy {
    * @param toolName - Name of the tool being called
    * @param args - Tool arguments
    */
-  protected emitToolCall(
-    socket: Socket,
-    toolName: string,
-    args: Record<string, unknown>,
-  ): void {
+  protected emitToolCall(socket: Socket, toolName: string, args: Record<string, unknown>): void {
     const id = `tool-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     socket.emit('tool_call', { id, name: toolName, args });
   }
@@ -93,11 +89,7 @@ export abstract class BaseStrategy {
    * @param toolName - Name of the tool that was called
    * @param result - Result from tool execution
    */
-  protected emitToolResult(
-    socket: Socket,
-    toolName: string,
-    result: string,
-  ): void {
+  protected emitToolResult(socket: Socket, toolName: string, result: string): void {
     const id = `result-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     socket.emit('tool_result', { id, toolName, result });
   }
@@ -165,7 +157,7 @@ export abstract class BaseStrategy {
   protected logStart(sessionId: string, prompt: string): void {
     console.log(
       `[${this.getName()}] Starting generation for session ${sessionId}`,
-      `\nPrompt: ${prompt.substring(0, 100)}${prompt.length > 100 ? '...' : ''}`
+      `\nPrompt: ${prompt.substring(0, 100)}${prompt.length > 100 ? '...' : ''}`,
     );
   }
 
@@ -181,7 +173,7 @@ export abstract class BaseStrategy {
       `\nTokens: ${metrics.totalTokens} (in: ${metrics.inputTokens}, out: ${metrics.outputTokens})`,
       `\nCost: $${metrics.cost.toFixed(4)}`,
       `\nDuration: ${metrics.duration}ms`,
-      `\nSteps: ${metrics.steps}`
+      `\nSteps: ${metrics.steps}`,
     );
   }
 }

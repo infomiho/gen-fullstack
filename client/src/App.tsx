@@ -6,7 +6,8 @@ import { MessageList } from './components/MessageList';
 import { ToolCallDisplay } from './components/ToolCallDisplay';
 
 function App() {
-  const { isConnected, messages, startGeneration, isGenerating, toolCalls, toolResults } = useWebSocket();
+  const { isConnected, messages, startGeneration, isGenerating, toolCalls, toolResults } =
+    useWebSocket();
   const [strategy, setStrategy] = useState('naive');
   const [activeTab, setActiveTab] = useState<'messages' | 'tools'>('messages');
 

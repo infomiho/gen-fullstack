@@ -69,11 +69,7 @@ describe('Filesystem Service', () => {
     });
 
     it('should create nested directories automatically', async () => {
-      const result = await writeFile(
-        sessionId,
-        'deep/nested/dir/file.txt',
-        'Nested content'
-      );
+      const result = await writeFile(sessionId, 'deep/nested/dir/file.txt', 'Nested content');
 
       expect(result).toContain('Successfully wrote');
 
@@ -90,15 +86,15 @@ describe('Filesystem Service', () => {
     });
 
     it('should reject path traversal attempts with ..', async () => {
-      await expect(
-        writeFile(sessionId, '../escape.txt', 'Malicious content')
-      ).rejects.toThrow('Path traversal detected');
+      await expect(writeFile(sessionId, '../escape.txt', 'Malicious content')).rejects.toThrow(
+        'Path traversal detected',
+      );
     });
 
     it('should reject absolute paths outside sandbox', async () => {
-      await expect(
-        writeFile(sessionId, '/etc/passwd', 'Malicious content')
-      ).rejects.toThrow('Path traversal detected');
+      await expect(writeFile(sessionId, '/etc/passwd', 'Malicious content')).rejects.toThrow(
+        'Path traversal detected',
+      );
     });
 
     it('should handle empty content', async () => {
@@ -129,15 +125,11 @@ describe('Filesystem Service', () => {
     });
 
     it('should throw error for non-existent files', async () => {
-      await expect(
-        readFile(sessionId, 'nonexistent.txt')
-      ).rejects.toThrow('File not found');
+      await expect(readFile(sessionId, 'nonexistent.txt')).rejects.toThrow('File not found');
     });
 
     it('should reject path traversal attempts', async () => {
-      await expect(
-        readFile(sessionId, '../escape.txt')
-      ).rejects.toThrow('Path traversal detected');
+      await expect(readFile(sessionId, '../escape.txt')).rejects.toThrow('Path traversal detected');
     });
 
     it('should handle unicode content', async () => {
@@ -161,7 +153,7 @@ describe('Filesystem Service', () => {
     it('should list files in root directory', async () => {
       const result = await listFiles(sessionId, '.');
 
-      const names = result.map(f => f.name);
+      const names = result.map((f) => f.name);
       expect(names).toContain('file1.txt');
       expect(names).toContain('file2.js');
       expect(names).toContain('subdir');
@@ -171,17 +163,17 @@ describe('Filesystem Service', () => {
     it('should list files in subdirectory', async () => {
       const result = await listFiles(sessionId, 'subdir');
 
-      const names = result.map(f => f.name);
+      const names = result.map((f) => f.name);
       expect(names).toContain('nested.txt');
     });
 
     it('should indicate directories with trailing slash', async () => {
       const result = await listFiles(sessionId, '.');
 
-      const subdirEntry = result.find(f => f.name === 'subdir');
+      const subdirEntry = result.find((f) => f.name === 'subdir');
       expect(subdirEntry?.type).toBe('directory');
 
-      const file1Entry = result.find(f => f.name === 'file1.txt');
+      const file1Entry = result.find((f) => f.name === 'file1.txt');
       expect(file1Entry?.type).toBe('file');
     });
 
@@ -189,20 +181,16 @@ describe('Filesystem Service', () => {
       await writeFile(sessionId, 'empty_dir/.gitkeep', '');
       const result = await listFiles(sessionId, 'empty_dir');
 
-      const names = result.map(f => f.name);
+      const names = result.map((f) => f.name);
       expect(names).toContain('.gitkeep');
     });
 
     it('should throw error for non-existent directory', async () => {
-      await expect(
-        listFiles(sessionId, 'nonexistent')
-      ).rejects.toThrow();
+      await expect(listFiles(sessionId, 'nonexistent')).rejects.toThrow();
     });
 
     it('should reject path traversal attempts', async () => {
-      await expect(
-        listFiles(sessionId, '../..')
-      ).rejects.toThrow('Path traversal detected');
+      await expect(listFiles(sessionId, '../..')).rejects.toThrow('Path traversal detected');
     });
   });
 
@@ -252,17 +240,13 @@ describe('Filesystem Service', () => {
 
     maliciousPaths.forEach((path) => {
       it(`should reject malicious path: ${path}`, async () => {
-        await expect(
-          writeFile(sessionId, path, 'Malicious')
-        ).rejects.toThrow('Path traversal detected');
+        await expect(writeFile(sessionId, path, 'Malicious')).rejects.toThrow(
+          'Path traversal detected',
+        );
 
-        await expect(
-          readFile(sessionId, path)
-        ).rejects.toThrow('Path traversal detected');
+        await expect(readFile(sessionId, path)).rejects.toThrow('Path traversal detected');
 
-        await expect(
-          listFiles(sessionId, path)
-        ).rejects.toThrow('Path traversal detected');
+        await expect(listFiles(sessionId, path)).rejects.toThrow('Path traversal detected');
       });
     });
   });

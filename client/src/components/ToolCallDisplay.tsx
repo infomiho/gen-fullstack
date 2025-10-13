@@ -68,19 +68,17 @@ export function ToolCallDisplay({ toolCalls, toolResults }: ToolCallDisplayProps
           <div
             key={execution.id}
             className={`rounded-lg p-3 border ${
-              execution.isComplete
-                ? 'bg-green-50 border-green-200'
-                : 'bg-blue-50 border-blue-200'
+              execution.isComplete ? 'bg-green-50 border-green-200' : 'bg-blue-50 border-blue-200'
             }`}
           >
             {/* Header */}
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-xl">
-                {execution.isComplete ? '✅' : '⏳'}
-              </span>
-              <span className={`font-mono font-semibold ${
-                execution.isComplete ? 'text-green-900' : 'text-blue-900'
-              }`}>
+              <span className="text-xl">{execution.isComplete ? '✅' : '⏳'}</span>
+              <span
+                className={`font-mono font-semibold ${
+                  execution.isComplete ? 'text-green-900' : 'text-blue-900'
+                }`}
+              >
                 {execution.name}
               </span>
               {!execution.isComplete && (
@@ -113,27 +111,29 @@ export function ToolCallDisplay({ toolCalls, toolResults }: ToolCallDisplayProps
 function renderToolParameters(
   toolName: string,
   args: Record<string, unknown>,
-  isComplete: boolean
+  isComplete: boolean,
 ): JSX.Element {
   const borderColor = isComplete ? 'border-green-100' : 'border-blue-100';
 
   // Custom formatting for writeFile
   if (toolName === 'writeFile') {
-    const { filePath, content } = args as { filePath?: string; content?: string };
+    const { path, content } = args as { path?: string; content?: string };
     return (
       <div className="text-sm space-y-2">
-        {filePath && (
+        {path && (
           <div>
             <span className="text-gray-600">File: </span>
             <span className="font-mono text-xs bg-white px-2 py-1 rounded border border-gray-200">
-              {filePath}
+              {path}
             </span>
           </div>
         )}
         {content && (
           <div>
             <div className="text-gray-600 mb-1">Content:</div>
-            <pre className={`bg-white p-2 rounded border ${borderColor} overflow-x-auto text-xs max-h-32`}>
+            <pre
+              className={`bg-white p-2 rounded border ${borderColor} overflow-x-auto text-xs max-h-32`}
+            >
               {truncate(content, 300)}
             </pre>
           </div>
@@ -144,12 +144,12 @@ function renderToolParameters(
 
   // Custom formatting for readFile
   if (toolName === 'readFile') {
-    const { filePath } = args as { filePath?: string };
+    const { path } = args as { path?: string };
     return (
       <div className="text-sm">
         <span className="text-gray-600">File: </span>
         <span className="font-mono text-xs bg-white px-2 py-1 rounded border border-gray-200">
-          {filePath || 'unknown'}
+          {path || 'unknown'}
         </span>
       </div>
     );
@@ -157,12 +157,12 @@ function renderToolParameters(
 
   // Custom formatting for listFiles
   if (toolName === 'listFiles') {
-    const { dirPath } = args as { dirPath?: string };
+    const { directory } = args as { directory?: string };
     return (
       <div className="text-sm">
         <span className="text-gray-600">Directory: </span>
         <span className="font-mono text-xs bg-white px-2 py-1 rounded border border-gray-200">
-          {dirPath || '.'}
+          {directory || '.'}
         </span>
       </div>
     );
@@ -174,7 +174,9 @@ function renderToolParameters(
     return (
       <div className="text-sm">
         <div className="text-gray-600 mb-1">Command:</div>
-        <pre className={`bg-white p-2 rounded border ${borderColor} overflow-x-auto text-xs font-mono`}>
+        <pre
+          className={`bg-white p-2 rounded border ${borderColor} overflow-x-auto text-xs font-mono`}
+        >
           {command || 'unknown'}
         </pre>
       </div>

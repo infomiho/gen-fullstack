@@ -41,7 +41,7 @@ function validatePath(filePath: string, sessionId: string): void {
   // Check for Windows-style paths (even on Unix systems for security)
   if (filePath.includes('\\') || /^[a-zA-Z]:/.test(filePath)) {
     throw new Error(
-      `Path traversal detected: "${filePath}" contains Windows-style path separators or drive letters`
+      `Path traversal detected: "${filePath}" contains Windows-style path separators or drive letters`,
     );
   }
 
@@ -50,9 +50,7 @@ function validatePath(filePath: string, sessionId: string): void {
 
   // Ensure resolved path is within sandbox
   if (!resolvedPath.startsWith(sandboxPath)) {
-    throw new Error(
-      `Path traversal detected: "${filePath}" resolves outside sandbox`
-    );
+    throw new Error(`Path traversal detected: "${filePath}" resolves outside sandbox`);
   }
 }
 
@@ -113,10 +111,7 @@ export async function writeFile(
  * @param filePath - Relative path within sandbox
  * @returns File content
  */
-export async function readFile(
-  sessionId: string,
-  filePath: string,
-): Promise<string> {
+export async function readFile(sessionId: string, filePath: string): Promise<string> {
   validatePath(filePath, sessionId);
 
   const sandboxPath = getSandboxPath(sessionId);
@@ -153,9 +148,9 @@ export async function listFiles(
 
   try {
     const entries = await fs.readdir(fullPath, { withFileTypes: true });
-    const result = entries.map(entry => ({
+    const result = entries.map((entry) => ({
       name: entry.name,
-      type: entry.isDirectory() ? 'directory' as const : 'file' as const,
+      type: entry.isDirectory() ? ('directory' as const) : ('file' as const),
     }));
 
     const relativePath = path.relative(sandboxPath, fullPath);
@@ -194,10 +189,7 @@ export async function cleanupSandbox(sessionId: string): Promise<void> {
  * @param filePath - Relative path within sandbox
  * @returns True if file exists, false otherwise
  */
-export async function fileExists(
-  sessionId: string,
-  filePath: string,
-): Promise<boolean> {
+export async function fileExists(sessionId: string, filePath: string): Promise<boolean> {
   validatePath(filePath, sessionId);
 
   const sandboxPath = getSandboxPath(sessionId);
