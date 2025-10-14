@@ -141,24 +141,24 @@ USER node
 
 **Status**: All tests passing, type checking passing, production-ready foundation.
 
-### Phase 2: LLM Integration 🚀 IN PROGRESS
+### Phase 2: LLM Integration ✅ COMPLETE
 
 **Goal**: Connect to OpenAI and handle tool calling with streaming
 
 #### 2.1: Core LLM Service with Vercel AI SDK
 
-- [ ] Install dependencies
+- [x] Install dependencies
   - `pnpm add ai @ai-sdk/openai` in server package
-  - Latest versions: `ai@5.0+`, `@ai-sdk/openai@1.0+`
+  - Latest versions: `ai@5.0.68`, `@ai-sdk/openai@2.0.52`
 
-- [ ] Create `server/src/services/llm.service.ts`
+- [x] Create `server/src/services/llm.service.ts`
   - Initialize OpenAI provider from `@ai-sdk/openai`
-  - Export configured model factory (default: `openai('gpt-5-mini')`)
+  - Export configured model factory (default: `openai.responses('gpt-5-mini')`)
   - Support model selection: `gpt-5`, `gpt-5-mini`, `gpt-5-nano`
   - Error handling for rate limits, timeouts, network errors
   - Token counting from response metadata
 
-- [ ] Implement message history management
+- [x] Implement message history management
   - Store conversation context per socket session (Map<socketId, ModelMessage[]>)
   - Maintain system prompts for each strategy
   - Use `convertToModelMessages()` helper for UI messages
@@ -166,19 +166,19 @@ USER node
 
 #### 2.2: Tool Calling Implementation with AI SDK
 
-- [ ] Create `server/src/tools/index.ts` using AI SDK's `tool()` function
+- [x] Create `server/src/tools/index.ts` using AI SDK's `tool()` function
   - `writeFile`: tool({ description, inputSchema: z.object({path, content}), execute })
   - `readFile`: tool({ description, inputSchema: z.object({path}), execute })
   - `listFiles`: tool({ description, inputSchema: z.object({directory}), execute })
   - `executeCommand`: tool({ description, inputSchema: z.object({command}), execute })
 
-- [ ] Create `server/src/services/filesystem.service.ts`
+- [x] Create `server/src/services/filesystem.service.ts`
   - Sandbox execution in `/generated/<session-id>/` directory
   - Path traversal protection (validate paths stay within sandbox)
   - File read/write/list operations
   - Return formatted results for LLM consumption
 
-- [ ] Create `server/src/services/command.service.ts`
+- [x] Create `server/src/services/command.service.ts`
   - Command whitelist for security (npm, pnpm, node, tsc, vite)
   - Execute commands in sandboxed directory
   - Capture stdout/stderr with timeout
@@ -186,13 +186,13 @@ USER node
 
 #### 2.3: Streaming Integration with AI SDK
 
-- [ ] Set up streaming with `streamText()`
+- [x] Set up streaming with `streamText()`
   - Use AI SDK's `streamText()` function (handles SSE automatically)
   - Iterate over `result.fullStream` for all event types
   - Handle stream parts: `text-delta`, `tool-call`, `tool-call-delta`, `tool-result`
   - Access `result.textStream` for text-only consumption if needed
 
-- [ ] WebSocket streaming to frontend
+- [x] WebSocket streaming to frontend
   - Forward `text-delta` parts as `llm_message` events via Socket.io
   - Forward `tool-call` parts as `tool_call` events
   - Forward `tool-result` parts as `tool_result` events
@@ -201,69 +201,72 @@ USER node
 
 #### 2.4: Naive Strategy Implementation
 
-- [ ] Create `server/src/strategies/base.strategy.ts`
+- [x] Create `server/src/strategies/base.strategy.ts`
   - Abstract base class with common logic
   - Method: `generateApp(prompt, socket, sessionId): Promise<void>`
   - Common streamText configuration
   - Token tracking from response.usage
   - Error handling
 
-- [ ] Create `server/src/strategies/naive.strategy.ts`
+- [x] Create `server/src/strategies/naive.strategy.ts`
   - Use `streamText()` with tools imported from `tools/index.ts`
   - System prompt: "You are a full-stack app generator..."
   - No planning, no template (direct prompt to code)
-  - Configure `stopWhen: stepCountIs(10)` for multi-step execution
+  - Configure `stopWhen: stepCountIs(20)` for multi-step execution
   - Iterate over `fullStream` and forward events to Socket.io
   - Generate package.json, vite.config.ts, src files via tool calls
 
-- [ ] Update WebSocket handler to use strategy
+- [x] Update WebSocket handler to use strategy
   - Instantiate NaiveStrategy based on user selection
   - Call `strategy.generateApp()` on `start_generation`
   - Handle strategy errors and emit `error` event
 
 #### 2.5: UI Updates for Tool Calls
 
-- [ ] Update `client/src/hooks/useWebSocket.ts`
+- [x] Update `client/src/hooks/useWebSocket.ts`
   - Already has toolCalls and toolResults state ✅
   - No changes needed
 
-- [ ] Create `client/src/components/ToolCallDisplay.tsx`
+- [x] Create `client/src/components/ToolCallDisplay.tsx`
   - Show tool calls in a formatted way
   - Display: tool name, parameters, execution status
   - Show tool results (truncated if long)
+  - Minimalist design with neutral color palette
 
-- [ ] Update `client/src/App.tsx`
+- [x] Update `client/src/App.tsx`
   - Add ToolCallDisplay component
   - Show tool calls alongside messages
   - Add loading indicator during generation
+  - Minimalist UI design with tabs
 
 #### 2.6: Testing & Error Handling
 
-- [ ] Add tool tests (`tools/__tests__/`)
+- [x] Add tool tests (`tools/__tests__/`)
   - Test each tool with valid/invalid Zod inputs
   - Mock filesystem and command operations
   - Test error handling for each tool
 
-- [ ] Add service tests
+- [x] Add service tests
   - Test filesystem.service.ts (path traversal protection, sandbox isolation)
   - Test command.service.ts (whitelist enforcement, timeout handling)
   - Mock file system operations with in-memory alternatives
 
-- [ ] Add strategy tests
+- [x] Add strategy tests
   - Mock `streamText()` responses from AI SDK
   - Test strategy flow without hitting real API
   - Verify Socket.io events are emitted correctly
 
-- [ ] Integration testing (optional)
+- [x] Integration testing (optional)
   - Test full flow: prompt → AI SDK → tools → files generated
   - Use real OpenAI API sparingly (set up test credits/limits)
 
 **Deliverables**:
-- Working naive strategy that generates a simple React app from a prompt
-- Streaming LLM responses visible in UI
-- Tool calls displayed in real-time
-- Generated files written to `/generated/<session-id>/`
-- Error handling for API failures
+- ✅ Working naive strategy that generates a simple React app from a prompt
+- ✅ Streaming LLM responses visible in UI
+- ✅ Tool calls displayed in real-time with minimalist design
+- ✅ Generated files written to `/generated/<session-id>/`
+- ✅ Error handling for API failures
+- ✅ 88 tests passing
 
 ### Phase 3: File System Operations
 
@@ -455,7 +458,7 @@ gen-fullstack/
 | Phase | Status | Completion |
 |-------|--------|------------|
 | Phase 1: Basic Harness Setup | ✅ Complete | 100% |
-| Phase 2: LLM Integration | 🚀 Ready to Start | 0% |
+| Phase 2: LLM Integration | ✅ Complete | 100% |
 | Phase 3: File System Operations | ⏳ Pending | 0% |
 | Phase 4: App Execution & Preview | ⏳ Pending | 0% |
 | Phase 5: Optimization Toggles | ⏳ Pending | 0% |

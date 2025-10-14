@@ -29,12 +29,10 @@ export function useWebSocket(): UseWebSocketReturn {
     const newSocket = io(SERVER_URL);
 
     newSocket.on('connect', () => {
-      console.log('Connected to server');
       setIsConnected(true);
     });
 
     newSocket.on('disconnect', () => {
-      console.log('Disconnected from server');
       setIsConnected(false);
     });
 
@@ -46,7 +44,6 @@ export function useWebSocket(): UseWebSocketReturn {
     });
 
     newSocket.on('tool_call', (toolCall: ToolCall) => {
-      console.log('[WebSocket] Received tool_call:', toolCall);
       setToolCalls((prev) => {
         const newToolCalls = [...prev, toolCall];
         return newToolCalls.slice(-MAX_MESSAGES);
@@ -54,7 +51,6 @@ export function useWebSocket(): UseWebSocketReturn {
     });
 
     newSocket.on('tool_result', (result: ToolResult) => {
-      console.log('[WebSocket] Received tool_result:', result);
       setToolResults((prev) => {
         const newToolResults = [...prev, result];
         return newToolResults.slice(-MAX_MESSAGES);
@@ -62,7 +58,6 @@ export function useWebSocket(): UseWebSocketReturn {
     });
 
     newSocket.on('generation_complete', (metrics: GenerationMetrics) => {
-      console.log('Generation complete:', metrics);
       setIsGenerating(false);
       setMessages((prev) => {
         const newMessages = [

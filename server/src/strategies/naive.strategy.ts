@@ -93,11 +93,6 @@ Now, generate the application based on the user's requirements.`;
                 ? (toolCall.input as Record<string, unknown>)
                 : {};
 
-            console.log(
-              `[Naive] Tool call: ${toolCall.toolName} (dynamic: ${toolCall.dynamic})`,
-              toolInput,
-            );
-
             socket.emit('tool_call', {
               id: toolCall.toolCallId,
               name: toolCall.toolName,
@@ -107,7 +102,6 @@ Now, generate the application based on the user's requirements.`;
 
           // Emit complete tool results
           for (const toolResult of toolResults) {
-            console.log(`[Naive] Tool result: ${toolResult.toolName}`, toolResult);
             const resultData = {
               id: `result-${toolResult.toolCallId}`,
               toolName: toolResult.toolName,
@@ -116,7 +110,6 @@ Now, generate the application based on the user's requirements.`;
                   ? toolResult.result
                   : JSON.stringify(toolResult.result),
             };
-            console.log('[Naive] Emitting tool_result:', resultData);
             socket.emit('tool_result', resultData);
           }
         },
@@ -136,11 +129,9 @@ Now, generate the application based on the user's requirements.`;
 
           case 'step-finish':
             stepCount++;
-            console.log(`[${this.getName()}] Step ${stepCount} finished`);
             break;
 
           case 'finish':
-            console.log(`[${this.getName()}] Generation finished`);
             break;
         }
       }
@@ -153,12 +144,13 @@ Now, generate the application based on the user's requirements.`;
       ]);
 
       // Calculate metrics
+      // Note: AI SDK uses inputTokens/outputTokens, not promptTokens/completionTokens
       const duration = Date.now() - startTime;
       const metrics = this.calculateMetrics(
-        usage.promptTokens || 0,
-        usage.completionTokens || 0,
+        usage.inputTokens || 0,
+        usage.outputTokens || 0,
         duration,
-        steps?.length || stepCount, // Fallback to counted steps
+        steps?.length || stepCount,
       );
 
       // Log completion

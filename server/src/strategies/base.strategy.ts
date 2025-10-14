@@ -148,17 +148,8 @@ export abstract class BaseStrategy {
     };
   }
 
-  /**
-   * Log strategy execution start
-   *
-   * @param sessionId - Session identifier
-   * @param prompt - User prompt
-   */
   protected logStart(sessionId: string, prompt: string): void {
-    console.log(
-      `[${this.getName()}] Starting generation for session ${sessionId}`,
-      `\nPrompt: ${prompt.substring(0, 100)}${prompt.length > 100 ? '...' : ''}`,
-    );
+    // Intentionally minimal - no logs
   }
 
   /**
