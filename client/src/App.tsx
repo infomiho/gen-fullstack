@@ -6,6 +6,7 @@ import { PromptInput } from './components/PromptInput';
 import { StrategySelector } from './components/StrategySelector';
 import { Timeline } from './components/Timeline';
 import { useWebSocket } from './hooks/useWebSocket';
+import { focus, padding, spacing, transitions, typography } from './lib/design-tokens';
 
 function App() {
   const { isConnected, messages, startGeneration, isGenerating, toolCalls, toolResults, files } =
@@ -21,16 +22,14 @@ function App() {
   return (
     <div className="grid h-screen grid-rows-[auto_1fr] bg-white">
       {/* Header */}
-      <header className="border-b px-6 py-3">
+      <header className={`border-b ${padding.page}`}>
         <div className="flex items-center justify-between">
-          <h1 className="text-lg font-medium text-gray-900">Gen Fullstack</h1>
+          <h1 className={`${typography.label} text-lg text-gray-900`}>Gen Fullstack</h1>
           <div className="flex items-center gap-1.5">
             <div
               className={`h-1.5 w-1.5 rounded-full ${isConnected ? 'bg-gray-900' : 'bg-gray-300'}`}
             />
-            <span className="text-xs text-gray-500">
-              {isConnected ? 'connected' : 'disconnected'}
-            </span>
+            <span className={typography.caption}>{isConnected ? 'connected' : 'disconnected'}</span>
           </div>
         </div>
       </header>
@@ -38,19 +37,15 @@ function App() {
       {/* Main content */}
       <main className="grid grid-cols-[320px_1fr] overflow-hidden">
         {/* Left panel - Controls */}
-        <div className="border-r p-4 overflow-y-auto">
-          <div className="space-y-4">
+        <div className={`border-r ${padding.panel} overflow-y-auto`}>
+          <div className={spacing.controls}>
             <div>
-              <h2 className="mb-3 text-xs font-medium text-gray-500 uppercase tracking-wide">
-                Strategy
-              </h2>
+              <h2 className={`mb-3 ${typography.header}`}>Strategy</h2>
               <StrategySelector value={strategy} onChange={setStrategy} disabled={isGenerating} />
             </div>
 
             <div>
-              <h3 className="mb-3 text-xs font-medium text-gray-500 uppercase tracking-wide">
-                Prompt
-              </h3>
+              <h3 className={`mb-3 ${typography.header}`}>Prompt</h3>
               <PromptInput onSubmit={handleGenerate} disabled={isGenerating || !isConnected} />
             </div>
           </div>
@@ -63,7 +58,7 @@ function App() {
             <div className="flex px-4">
               <button
                 type="button"
-                className={`border-b-2 px-3 py-2 text-xs font-medium transition-colors ${
+                className={`border-b-2 px-3 py-2 ${typography.label} ${transitions.colors} ${focus.ring} ${
                   activeTab === 'timeline'
                     ? 'border-gray-900 text-gray-900'
                     : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -76,7 +71,7 @@ function App() {
               </button>
               <button
                 type="button"
-                className={`border-b-2 px-3 py-2 text-xs font-medium transition-colors ${
+                className={`border-b-2 px-3 py-2 ${typography.label} ${transitions.colors} ${focus.ring} ${
                   activeTab === 'files'
                     ? 'border-gray-900 text-gray-900'
                     : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -91,13 +86,13 @@ function App() {
           {/* Content */}
           <div className="overflow-hidden">
             {activeTab === 'timeline' ? (
-              <div className="h-full overflow-y-auto p-4">
+              <div className={`h-full overflow-y-auto ${padding.panel}`}>
                 <ErrorBoundary>
                   <Timeline messages={messages} toolCalls={toolCalls} toolResults={toolResults} />
                 </ErrorBoundary>
               </div>
             ) : (
-              <div className="h-full flex gap-4 p-4">
+              <div className={`h-full flex gap-4 ${padding.panel}`}>
                 <div className="w-64 border-r pr-4 overflow-y-auto">
                   <FileTree
                     files={files}

@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { focus, input, spacing, typography } from '../lib/design-tokens';
 
 interface StrategySelectorProps {
   value: string;
@@ -34,8 +35,8 @@ export function StrategySelector({ value, onChange, disabled }: StrategySelector
   const selectId = useId();
 
   return (
-    <div className="space-y-2">
-      <label htmlFor={selectId} className="text-sm font-medium text-gray-700">
+    <div className={spacing.form}>
+      <label htmlFor={selectId} className={typography.label}>
         Generation Strategy
       </label>
       <select
@@ -43,7 +44,7 @@ export function StrategySelector({ value, onChange, disabled }: StrategySelector
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
-        className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+        className={`${input.select} ${focus.ring}`}
       >
         {strategies.map((strategy) => (
           <option key={strategy.value} value={strategy.value}>

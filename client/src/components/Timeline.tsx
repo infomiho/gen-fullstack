@@ -2,6 +2,15 @@ import type { LLMMessage, ToolCall, ToolResult } from '@gen-fullstack/shared';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Bot, Terminal, User, Wrench, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  focus,
+  padding,
+  radius,
+  roleColors,
+  spacing,
+  transitions,
+  typography,
+} from '../lib/design-tokens';
 
 interface TimelineProps {
   messages: LLMMessage[];
@@ -124,33 +133,27 @@ export function Timeline({ messages, toolCalls, toolResults }: TimelineProps) {
  * Message Item Component
  */
 function MessageItem({ message }: { message: LLMMessage }) {
+  const colors = roleColors[message.role as keyof typeof roleColors];
+
   return (
-    <div
-      className={`flex gap-3 rounded-lg p-4 ${
-        message.role === 'assistant'
-          ? 'bg-blue-50'
-          : message.role === 'user'
-            ? 'bg-gray-50'
-            : 'bg-yellow-50'
-      }`}
-    >
+    <div className={`flex gap-3 ${radius.md} ${padding.card} border ${colors.bg} ${colors.border}`}>
       <div className="flex-shrink-0">
         {message.role === 'assistant' ? (
-          <Bot size={20} className="text-blue-600" />
+          <Bot size={20} className={colors.icon} />
         ) : message.role === 'user' ? (
-          <User size={20} className="text-gray-600" />
+          <User size={20} className={colors.icon} />
         ) : (
-          <Terminal size={20} className="text-yellow-600" />
+          <Terminal size={20} className={colors.icon} />
         )}
       </div>
       <div className="flex-1 min-w-0">
         <div className="mb-1 flex items-center justify-between gap-2">
-          <div className="text-xs font-semibold uppercase text-gray-500">{message.role}</div>
-          <div className="text-xs text-gray-400 font-mono">
+          <div className={`${typography.caption} font-semibold uppercase`}>{message.role}</div>
+          <div className={`${typography.monoSm} text-gray-400`}>
             {formatTimestamp(message.timestamp)}
           </div>
         </div>
-        <div className="whitespace-pre-wrap text-sm text-gray-800">{message.content}</div>
+        <div className={`whitespace-pre-wrap ${typography.body}`}>{message.content}</div>
       </div>
     </div>
   );
@@ -161,27 +164,30 @@ function MessageItem({ message }: { message: LLMMessage }) {
  */
 function ToolItem({ tool }: { tool: ToolExecution }) {
   const [open, setOpen] = useState(false);
+  const colors = roleColors.tool;
 
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Trigger asChild>
         <button
           type="button"
-          className="w-full flex gap-3 rounded-lg p-4 bg-gray-100 border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-colors text-left"
+          className={`w-full flex gap-3 ${radius.md} ${padding.card} ${colors.bg} border ${colors.border} hover:border-gray-300 hover:bg-white ${transitions.colors} ${focus.ring} text-left`}
         >
           <div className="flex-shrink-0">
-            <Wrench size={20} className="text-gray-500" />
+            <Wrench size={20} className={colors.icon} />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs">{tool.isComplete ? '●' : '○'}</span>
-              <span className="font-mono text-xs text-gray-900 font-medium">{tool.name}</span>
-              <span className="text-xs text-gray-400 font-mono ml-auto">
+              <span className={typography.caption}>{tool.isComplete ? '●' : '○'}</span>
+              <span className={`${typography.mono} text-gray-900 font-medium`}>{tool.name}</span>
+              <span className={`${typography.monoSm} text-gray-400 ml-auto`}>
                 {formatTimestamp(tool.timestamp)}
               </span>
-              {!tool.isComplete && <span className="text-xs text-gray-500">running...</span>}
+              {!tool.isComplete && (
+                <span className={`${typography.caption} text-gray-500`}>running...</span>
+              )}
             </div>
-            <div className="text-xs text-gray-500 truncate">
+            <div className={`${typography.caption} text-gray-600 truncate`}>
               {getToolSummary(tool.name, tool.args)}
             </div>
           </div>
@@ -190,19 +196,21 @@ function ToolItem({ tool }: { tool: ToolExecution }) {
 
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-2xl max-h-[85vh] -translate-x-1/2 -translate-y-1/2 rounded-lg border bg-white p-6 shadow-lg overflow-y-auto data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]">
-          <Dialog.Title className="text-lg font-semibold mb-4 flex items-center gap-2">
+        <Dialog.Content
+          className={`fixed left-1/2 top-1/2 z-50 w-full max-w-2xl max-h-[85vh] -translate-x-1/2 -translate-y-1/2 ${radius.md} border bg-white ${padding.panel} shadow-lg overflow-y-auto data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]`}
+        >
+          <Dialog.Title className={`${typography.label} text-lg mb-4 flex items-center gap-2`}>
             <Wrench size={20} className="text-gray-500" />
-            <span className="font-mono">{tool.name}</span>
+            <span className={typography.mono}>{tool.name}</span>
           </Dialog.Title>
 
           <Dialog.Description className="sr-only">
             Details of the {tool.name} tool execution
           </Dialog.Description>
 
-          <div className="space-y-4">
+          <div className={spacing.controls}>
             {/* Status */}
-            <div className="flex items-center gap-2 text-sm">
+            <div className={`flex items-center gap-2 ${typography.body}`}>
               <span className="text-gray-500">Status:</span>
               <span
                 className={`font-medium ${tool.isComplete ? 'text-green-600' : 'text-yellow-600'}`}
@@ -213,15 +221,17 @@ function ToolItem({ tool }: { tool: ToolExecution }) {
 
             {/* Parameters */}
             <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-2">Parameters</h3>
+              <h3 className={`${typography.label} mb-2`}>Parameters</h3>
               {renderToolParameters(tool.name, tool.args)}
             </div>
 
             {/* Result */}
             {tool.isComplete && tool.result && (
               <div>
-                <h3 className="text-sm font-medium text-gray-700 mb-2">Result</h3>
-                <pre className="bg-gray-50 p-3 rounded border border-gray-200 overflow-x-auto text-xs max-h-96 overflow-y-auto font-mono text-gray-800">
+                <h3 className={`${typography.label} mb-2`}>Result</h3>
+                <pre
+                  className={`bg-gray-50 p-3 ${radius.sm} border border-gray-200 overflow-x-auto ${typography.mono} max-h-96 overflow-y-auto text-gray-800`}
+                >
                   {tool.result}
                 </pre>
               </div>
@@ -231,7 +241,7 @@ function ToolItem({ tool }: { tool: ToolExecution }) {
           <Dialog.Close asChild>
             <button
               type="button"
-              className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-white transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 disabled:pointer-events-none"
+              className={`absolute right-4 top-4 rounded-sm opacity-70 ring-offset-white ${transitions.colors} hover:opacity-100 ${focus.ring} disabled:pointer-events-none`}
               aria-label="Close"
             >
               <X size={16} />
@@ -279,24 +289,26 @@ function renderToolParameters(
   args: Record<string, unknown> | undefined,
 ): React.ReactNode {
   if (!args) {
-    return <div className="text-sm text-gray-400">No parameters</div>;
+    return <div className={`${typography.body} text-gray-400`}>No parameters</div>;
   }
 
   // Custom formatting for writeFile
   if (toolName === 'writeFile') {
     const { path, content } = args as { path?: string; content?: string };
     return (
-      <div className="text-sm space-y-2">
+      <div className={`${typography.body} ${spacing.form}`}>
         {path && (
           <div>
             <span className="text-gray-500">path:</span>
-            <span className="font-mono text-gray-900 ml-2">{path}</span>
+            <span className={`${typography.mono} text-gray-900 ml-2`}>{path}</span>
           </div>
         )}
         {content && (
           <div>
             <div className="text-gray-500 mb-1">content:</div>
-            <pre className="bg-gray-50 p-3 rounded border border-gray-200 overflow-x-auto text-xs max-h-64 overflow-y-auto font-mono text-gray-800">
+            <pre
+              className={`bg-gray-50 p-3 ${radius.sm} border border-gray-200 overflow-x-auto ${typography.mono} max-h-64 overflow-y-auto text-gray-800`}
+            >
               {content}
             </pre>
           </div>
@@ -309,9 +321,9 @@ function renderToolParameters(
   if (toolName === 'readFile') {
     const { path } = args as { path?: string };
     return (
-      <div className="text-sm">
+      <div className={typography.body}>
         <span className="text-gray-500">path:</span>
-        <span className="font-mono text-gray-900 ml-2">{path || 'unknown'}</span>
+        <span className={`${typography.mono} text-gray-900 ml-2`}>{path || 'unknown'}</span>
       </div>
     );
   }
@@ -320,9 +332,9 @@ function renderToolParameters(
   if (toolName === 'listFiles') {
     const { directory } = args as { directory?: string };
     return (
-      <div className="text-sm">
+      <div className={typography.body}>
         <span className="text-gray-500">directory:</span>
-        <span className="font-mono text-gray-900 ml-2">{directory || '.'}</span>
+        <span className={`${typography.mono} text-gray-900 ml-2`}>{directory || '.'}</span>
       </div>
     );
   }
@@ -331,9 +343,11 @@ function renderToolParameters(
   if (toolName === 'executeCommand') {
     const { command } = args as { command?: string };
     return (
-      <div className="text-sm">
+      <div className={typography.body}>
         <div className="text-gray-500 mb-1">command:</div>
-        <pre className="bg-gray-50 p-3 rounded border border-gray-200 overflow-x-auto text-xs font-mono text-gray-800">
+        <pre
+          className={`bg-gray-50 p-3 ${radius.sm} border border-gray-200 overflow-x-auto ${typography.mono} text-gray-800`}
+        >
           {command || 'unknown'}
         </pre>
       </div>
@@ -342,7 +356,9 @@ function renderToolParameters(
 
   // Default: show raw JSON
   return (
-    <pre className="bg-gray-50 p-3 rounded border border-gray-200 overflow-x-auto text-xs font-mono text-gray-800">
+    <pre
+      className={`bg-gray-50 p-3 ${radius.sm} border border-gray-200 overflow-x-auto ${typography.mono} text-gray-800`}
+    >
       {JSON.stringify(args, null, 2)}
     </pre>
   );

@@ -1,5 +1,6 @@
 import type { FileUpdate } from '@gen-fullstack/shared';
 import { useMemo } from 'react';
+import { focus, radius, spacing, transitions, typography } from '../lib/design-tokens';
 
 interface FileTreeProps {
   files: FileUpdate[];
@@ -54,11 +55,15 @@ export function FileTree({ files, selectedFile, onSelectFile }: FileTreeProps) {
   }, [files]);
 
   if (files.length === 0) {
-    return <div className="text-center py-12 text-gray-400 text-sm">No files generated yet</div>;
+    return (
+      <div className={`text-center py-12 text-gray-400 ${typography.body}`}>
+        No files generated yet
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-1">
+    <div className={spacing.list}>
       {Array.from(tree.children.values()).map((node) => (
         <TreeNodeComponent
           key={node.path}
@@ -93,7 +98,7 @@ function TreeNodeComponent({ node, depth, selectedFile, onSelectFile }: TreeNode
       <button
         type="button"
         onClick={() => onSelectFile(node.path)}
-        className={`w-full text-left px-2 py-1 text-xs font-mono rounded hover:bg-gray-100 transition-colors ${
+        className={`w-full text-left px-2 py-1 ${typography.mono} ${radius.sm} hover:bg-gray-100 ${transitions.colors} ${focus.ring} ${
           isSelected ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-700'
         }`}
         style={{ paddingLeft: `${depth * 12 + 8}px` }}
@@ -107,7 +112,7 @@ function TreeNodeComponent({ node, depth, selectedFile, onSelectFile }: TreeNode
   return (
     <div>
       <div
-        className="px-2 py-1 text-xs font-mono text-gray-500"
+        className={`px-2 py-1 ${typography.mono} text-gray-500`}
         style={{ paddingLeft: `${depth * 12 + 8}px` }}
       >
         {node.name || '/'}
