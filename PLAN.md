@@ -268,19 +268,76 @@ USER node
 - ✅ Error handling for API failures
 - ✅ 88 tests passing
 
-### Phase 3: File System Operations
+### Phase 3: File System Operations ⏳ IN PROGRESS
 
-**Goal**: Generate and manage app files
+**Goal**: Generate and manage app files with read-only viewing
 
-- [ ] File system manager service
+**Status**: Partially complete - read-only viewing working
 
+#### 3.1: File Operations (✅ Complete)
+
+- [x] File system manager service
   - Create isolated directories per generation
   - Write files from LLM tool calls
   - Clean up old generations
+  - Path traversal protection
 
-- [ ] File tree viewer in UI
-- [ ] File content viewer/editor
-- [ ] Syntax highlighting for code preview
+#### 3.2: File Viewing UI (✅ Complete)
+
+- [x] File tree viewer in UI (`FileTree.tsx`)
+  - Hierarchical directory structure
+  - Real-time updates from WebSocket
+  - Select files for viewing
+
+- [x] File content viewer (`FileViewer.tsx`)
+  - Syntax highlighting with `react-syntax-highlighter`
+  - Support for multiple languages (JS, TS, JSON, HTML, CSS, etc.)
+  - Read-only viewing with dark theme
+
+#### 3.3: Code Editing (Phase 4-5)
+
+**Decision**: Defer advanced code editing to Phase 4-5
+
+**Research**: Analyzed bolt.new's architecture for best practices
+
+**bolt.new Learnings** (from StackBlitz's https://github.com/stackblitz/bolt.new):
+
+1. **CodeMirror 6** - Industry-standard code editor
+   - Core packages: `@codemirror/view`, `@codemirror/state`, `@codemirror/commands`
+   - Language support: `@codemirror/lang-javascript`, `@codemirror/lang-typescript`, `@codemirror/lang-css`, etc.
+   - Theme: `@uiw/codemirror-theme-vscode` for familiar experience
+
+2. **UI Components** (bolt.new stack)
+   - `react-resizable-panels` - Split pane layouts for code/preview
+   - `@radix-ui/*` - Accessible component primitives (dropdowns, dialogs, etc.)
+   - `lucide-react` - Icon library (we're already using this ✅)
+
+3. **File Management**
+   - WebContainer technology for in-browser Node.js runtime
+   - Virtual file system with real-time updates
+   - Multi-file editing with tab management
+
+**Phase 4-5 Roadmap**:
+- [ ] Add CodeMirror 6 for code editing
+  - Install core packages and language extensions
+  - Implement VSCode theme
+  - Add file saving via WebSocket
+
+- [ ] Enhance UI with resizable panels
+  - Split editor/preview layout
+  - Collapsible file tree
+  - Tab management for multiple files
+
+- [ ] Consider Radix UI components
+  - Replace custom dropdowns with Radix primitives
+  - Add accessible dialogs and tooltips
+  - Maintain minimalist design while improving UX
+
+**Current Implementation**:
+- Using `react-syntax-highlighter` with `Prism` and `xonokai` theme
+- Read-only file viewing sufficient for Phase 3 demo needs
+- Clean, minimalist UI with file tree + viewer layout
+- WebSocket-based real-time file updates working
 
 ### Phase 4: App Execution & Preview
 
@@ -459,7 +516,7 @@ gen-fullstack/
 |-------|--------|------------|
 | Phase 1: Basic Harness Setup | ✅ Complete | 100% |
 | Phase 2: LLM Integration | ✅ Complete | 100% |
-| Phase 3: File System Operations | ⏳ Pending | 0% |
+| Phase 3: File System Operations | ⏳ In Progress | 65% |
 | Phase 4: App Execution & Preview | ⏳ Pending | 0% |
 | Phase 5: Optimization Toggles | ⏳ Pending | 0% |
 | Phase 6: Demo Scenarios | ⏳ Pending | 0% |
