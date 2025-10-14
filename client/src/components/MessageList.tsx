@@ -13,9 +13,10 @@ interface MessageListProps {
 export function MessageList({ messages }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Need to scroll when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, []);
+  }, [messages]);
 
   if (messages.length === 0) {
     return (
@@ -32,7 +33,7 @@ export function MessageList({ messages }: MessageListProps) {
     <div className="space-y-4">
       {messages.map((message, index) => (
         <div
-          key={`${message.role}-${index}-${message.content.slice(0, 20)}`}
+          key={`msg-${index}-${message.role}-${message.content.length}-${message.content.slice(0, 30).replace(/\s/g, '')}`}
           className={`flex gap-3 rounded-lg p-4 ${
             message.role === 'assistant'
               ? 'bg-blue-50'

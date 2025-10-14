@@ -37,7 +37,14 @@ export function FileTree({ files, selectedFile, onSelectFile }: FileTreeProps) {
 
         const nextNode = current.children.get(part);
         if (!nextNode) {
-          throw new Error(`Failed to create tree node for path: ${file.path}`);
+          // Log error but continue processing other files instead of crashing
+          // biome-ignore lint/suspicious/noConsole: Error logging for malformed file paths in development
+          console.error(`Failed to create tree node for path: ${file.path}`, {
+            part,
+            currentPath: parts.slice(0, i).join('/'),
+            allParts: parts,
+          });
+          break; // Skip this file and continue with next file
         }
         current = nextNode;
       }
