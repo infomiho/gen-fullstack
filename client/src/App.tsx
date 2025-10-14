@@ -4,13 +4,16 @@ import { PromptInput } from './components/PromptInput';
 import { StrategySelector } from './components/StrategySelector';
 import { MessageList } from './components/MessageList';
 import { ToolCallDisplay } from './components/ToolCallDisplay';
+import { FileTree } from './components/FileTree';
+import { FileViewer } from './components/FileViewer';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 function App() {
-  const { isConnected, messages, startGeneration, isGenerating, toolCalls, toolResults } =
+  const { isConnected, messages, startGeneration, isGenerating, toolCalls, toolResults, files } =
     useWebSocket();
   const [strategy, setStrategy] = useState('naive');
-  const [activeTab, setActiveTab] = useState<'messages' | 'tools'>('messages');
+  const [activeTab, setActiveTab] = useState<'messages' | 'tools' | 'files'>('messages');
+  const [selectedFile, setSelectedFile] = useState<string | null>(null);
 
   const handleGenerate = (prompt: string) => {
     startGeneration(prompt, strategy);
@@ -75,6 +78,16 @@ function App() {
               >
                 Tools {toolCalls.length > 0 && `(${toolCalls.length})`}
               </button>
+              <button
+                className={`border-b-2 px-3 py-2 text-xs font-medium transition-colors ${
+                  activeTab === 'files'
+                    ? 'border-gray-900 text-gray-900'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+                onClick={() => setActiveTab('files')}
+              >
+                Files {files.length > 0 && `(${files.length})`}
+              </button>
             </div>
           </div>
 
@@ -82,10 +95,23 @@ function App() {
           <div className="flex-1 overflow-y-auto p-4">
             {activeTab === 'messages' ? (
               <MessageList messages={messages} />
-            ) : (
+            ) : activeTab === 'tools' ? (
               <ErrorBoundary>
                 <ToolCallDisplay toolCalls={toolCalls} toolResults={toolResults} />
               </ErrorBoundary>
+            ) : (
+              <div className="flex h-full gap-4">
+                <div className="w-64 border-r pr-4">
+                  <FileTree
+                    files={files}
+                    selectedFile={selectedFile}
+                    onSelectFile={setSelectedFile}
+                  />
+                </div>
+                <div className="flex-1">
+                  <FileViewer file={files.find(f => f.path === selectedFile) || null} />
+                </div>
+              </div>
             )}
           </div>
         </div>

@@ -40,6 +40,11 @@ export interface ToolResult {
   result: string;
 }
 
+export interface FileUpdate {
+  path: string;
+  content: string;
+}
+
 // ============================================================================
 // Generation Metrics
 // ============================================================================
@@ -63,7 +68,7 @@ export interface ServerToClientEvents {
   llm_message: (message: LLMMessage) => void;
   tool_call: (toolCall: ToolCall) => void;
   tool_result: (result: ToolResult) => void;
-  file_updated: (data: { path: string; content: string }) => void;
+  file_updated: (data: FileUpdate) => void;
   app_started: (data: { url: string; pid: number }) => void;
   app_log: (data: { type: 'stdout' | 'stderr'; message: string }) => void;
   compilation_error: (data: { errors: string[] }) => void;

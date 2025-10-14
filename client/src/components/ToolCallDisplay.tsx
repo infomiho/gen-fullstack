@@ -87,7 +87,7 @@ export function ToolCallDisplay({ toolCalls, toolResults }: ToolCallDisplayProps
             </div>
 
             {/* Custom formatted parameters */}
-            {renderToolParameters(execution.name, execution.args, execution.isComplete)}
+            {renderToolParameters(execution.name, execution.args)}
 
             {/* Result (only shown when complete) */}
             {execution.isComplete && execution.result && (
@@ -111,8 +111,7 @@ export function ToolCallDisplay({ toolCalls, toolResults }: ToolCallDisplayProps
 function renderToolParameters(
   toolName: string,
   args: Record<string, unknown> | undefined,
-  isComplete: boolean,
-): JSX.Element {
+) {
   // Handle undefined args
   if (!args) {
     return (

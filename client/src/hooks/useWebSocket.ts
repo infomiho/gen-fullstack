@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
-import type { LLMMessage, ToolCall, ToolResult, GenerationMetrics } from '@gen-fullstack/shared';
+import type { LLMMessage, ToolCall, ToolResult, GenerationMetrics, FileUpdate } from '@gen-fullstack/shared';
 
 interface UseWebSocketReturn {
   socket: Socket | null;
@@ -9,6 +9,7 @@ interface UseWebSocketReturn {
   messages: LLMMessage[];
   toolCalls: ToolCall[];
   toolResults: ToolResult[];
+  files: FileUpdate[];
   startGeneration: (prompt: string, strategy: string) => void;
   stopGeneration: () => void;
   clearMessages: () => void;
@@ -24,6 +25,7 @@ export function useWebSocket(): UseWebSocketReturn {
   const [messages, setMessages] = useState<LLMMessage[]>([]);
   const [toolCalls, setToolCalls] = useState<ToolCall[]>([]);
   const [toolResults, setToolResults] = useState<ToolResult[]>([]);
+  const [files, setFiles] = useState<FileUpdate[]>([]);
 
   useEffect(() => {
     const newSocket = io(SERVER_URL);
@@ -54,6 +56,18 @@ export function useWebSocket(): UseWebSocketReturn {
       setToolResults((prev) => {
         const newToolResults = [...prev, result];
         return newToolResults.slice(-MAX_MESSAGES);
+      });
+    });
+
+    newSocket.on('file_updated', (file: FileUpdate) => {
+      setFiles((prev) => {
+        const existing = prev.findIndex(f => f.path === file.path);
+        if (existing >= 0) {
+          const updated = [...prev];
+          updated[existing] = file;
+          return updated;
+        }
+        return [...prev, file];
       });
     });
 
@@ -99,6 +113,7 @@ export function useWebSocket(): UseWebSocketReturn {
         setMessages([]);
         setToolCalls([]);
         setToolResults([]);
+        setFiles([]);
         setIsGenerating(true);
         socket.emit('start_generation', { prompt, strategy });
       }
@@ -116,6 +131,7 @@ export function useWebSocket(): UseWebSocketReturn {
     setMessages([]);
     setToolCalls([]);
     setToolResults([]);
+    setFiles([]);
   }, []);
 
   return {
@@ -125,6 +141,7 @@ export function useWebSocket(): UseWebSocketReturn {
     messages,
     toolCalls,
     toolResults,
+    files,
     startGeneration,
     stopGeneration,
     clearMessages,

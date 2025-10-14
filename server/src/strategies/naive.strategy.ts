@@ -111,6 +111,20 @@ Now, generate the application based on the user's requirements.`;
                   : JSON.stringify(toolResult.result),
             };
             socket.emit('tool_result', resultData);
+
+            // Emit file_updated event for writeFile tool calls
+            if (toolResult.toolName === 'writeFile') {
+              const matchingToolCall = toolCalls.find(tc => tc.toolCallId === toolResult.toolCallId);
+              if (matchingToolCall && matchingToolCall.input) {
+                const input = matchingToolCall.input as { path?: string; content?: string };
+                if (input.path && input.content) {
+                  socket.emit('file_updated', {
+                    path: input.path,
+                    content: input.content,
+                  });
+                }
+              }
+            }
           }
         },
       });
