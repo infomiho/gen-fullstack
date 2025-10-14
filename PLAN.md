@@ -268,11 +268,20 @@ USER node
 - ✅ Error handling for API failures
 - ✅ 88 tests passing
 
-### Phase 3: File System Operations ⏳ IN PROGRESS
+**Phase 3 Deliverables**:
+- ✅ File system operations with sandbox isolation
+- ✅ File tree viewer with hierarchical structure
+- ✅ File content viewer with syntax highlighting
+- ✅ Unified timeline with chronological ordering
+- ✅ Real timestamps for accurate event sequencing
+- ✅ Tool call modals with Radix UI
+- ✅ All 88 tests passing
 
-**Goal**: Generate and manage app files with read-only viewing
+### Phase 3: File System Operations ✅ COMPLETE
 
-**Status**: Partially complete - read-only viewing working
+**Goal**: Generate and manage app files with read-only viewing and unified timeline
+
+**Status**: Complete - file viewing and timeline working perfectly
 
 #### 3.1: File Operations (✅ Complete)
 
@@ -294,7 +303,18 @@ USER node
   - Support for multiple languages (JS, TS, JSON, HTML, CSS, etc.)
   - Read-only viewing with dark theme
 
-#### 3.3: Code Editing (Phase 4-5)
+#### 3.3: Unified Timeline View (✅ Complete)
+
+- [x] Unified timeline component (`Timeline.tsx`)
+  - Chronological merging of messages and tool executions
+  - Real timestamps (not index-based) for accurate ordering
+  - Tool calls appear during generation, not batched at end
+  - Messages and tools properly interleaved in real-time
+  - Timestamp display (HH:MM:SS.mmm) in top right corner
+  - Clickable tool cards with Radix UI modals for details
+  - Custom formatting for different tool types (writeFile, readFile, listFiles, executeCommand)
+
+#### 3.4: Code Editing (Phase 4-5)
 
 **Decision**: Defer advanced code editing to Phase 4-5
 
@@ -516,7 +536,7 @@ gen-fullstack/
 |-------|--------|------------|
 | Phase 1: Basic Harness Setup | ✅ Complete | 100% |
 | Phase 2: LLM Integration | ✅ Complete | 100% |
-| Phase 3: File System Operations | ⏳ In Progress | 65% |
+| Phase 3: File System Operations | ✅ Complete | 100% |
 | Phase 4: App Execution & Preview | ⏳ Pending | 0% |
 | Phase 5: Optimization Toggles | ⏳ Pending | 0% |
 | Phase 6: Demo Scenarios | ⏳ Pending | 0% |
