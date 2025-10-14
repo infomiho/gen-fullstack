@@ -1,6 +1,6 @@
 import type { FileUpdate } from '@gen-fullstack/shared';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { xonokai } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 // Type workaround for React 19 compatibility
 // biome-ignore lint/suspicious/noExplicitAny: React 19 type mismatch in react-syntax-highlighter
@@ -55,7 +55,7 @@ export function FileViewer({ file }: FileViewerProps) {
       <div className="flex-1 overflow-auto">
         <Highlighter
           language={getLanguage(file.path)}
-          style={vscDarkPlus}
+          style={xonokai}
           showLineNumbers
           customStyle={{
             margin: 0,

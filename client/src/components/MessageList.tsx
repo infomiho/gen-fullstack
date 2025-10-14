@@ -2,6 +2,7 @@ import { Bot, Terminal, User } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 
 interface Message {
+  id: string;
   role: 'system' | 'user' | 'assistant';
   content: string;
 }
@@ -31,9 +32,9 @@ export function MessageList({ messages }: MessageListProps) {
 
   return (
     <div className="space-y-4">
-      {messages.map((message, index) => (
+      {messages.map((message) => (
         <div
-          key={`msg-${index}-${message.role}-${message.content.length}-${message.content.slice(0, 30).replace(/\s/g, '')}`}
+          key={message.id}
           className={`flex gap-3 rounded-lg p-4 ${
             message.role === 'assistant'
               ? 'bg-blue-50'

@@ -18,6 +18,8 @@ export type { GenerationMetrics };
 export abstract class BaseStrategy {
   protected model: LanguageModel;
   protected modelName: ModelName;
+  private currentMessageId: string | null = null;
+  private currentMessageRole: 'user' | 'assistant' | 'system' | null = null;
 
   constructor(modelName: ModelName = 'gpt-5-mini') {
     this.modelName = modelName;
@@ -58,6 +60,13 @@ export abstract class BaseStrategy {
   }
 
   /**
+   * Generate a unique message ID
+   */
+  private generateMessageId(): string {
+    return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  }
+
+  /**
    * Emit a message to the client
    *
    * @param socket - Socket.io connection
@@ -69,7 +78,13 @@ export abstract class BaseStrategy {
     role: 'user' | 'assistant' | 'system',
     content: string,
   ): void {
-    socket.emit('llm_message', { role, content });
+    // If role changed, generate a new message ID
+    if (this.currentMessageRole !== role) {
+      this.currentMessageId = this.generateMessageId();
+      this.currentMessageRole = role;
+    }
+
+    socket.emit('llm_message', { id: this.currentMessageId, role, content });
   }
 
   /**

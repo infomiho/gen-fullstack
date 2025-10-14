@@ -46,6 +46,20 @@ export function useWebSocket(): UseWebSocketReturn {
 
     newSocket.on('llm_message', (message: LLMMessage) => {
       setMessages((prev) => {
+        // Find existing message with same ID to accumulate content
+        const existingIndex = prev.findIndex((m) => m.id === message.id);
+
+        if (existingIndex >= 0) {
+          // Accumulate content into existing message
+          const updated = [...prev];
+          updated[existingIndex] = {
+            ...updated[existingIndex],
+            content: updated[existingIndex].content + message.content,
+          };
+          return updated.slice(-MAX_MESSAGES);
+        }
+
+        // New message - add to list
         const newMessages = [...prev, message];
         return newMessages.slice(-MAX_MESSAGES);
       });
@@ -83,6 +97,7 @@ export function useWebSocket(): UseWebSocketReturn {
         const newMessages = [
           ...prev,
           {
+            id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
             role: 'system' as const,
             content: `Generation completed! Tokens: ${metrics.totalTokens}, Cost: $${metrics.cost.toFixed(4)}, Duration: ${(metrics.duration / 1000).toFixed(1)}s`,
           },
@@ -97,6 +112,7 @@ export function useWebSocket(): UseWebSocketReturn {
         const newMessages = [
           ...prev,
           {
+            id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
             role: 'system' as const,
             content: `Error: ${error}`,
           },

@@ -23,6 +23,7 @@ export type StartGenerationPayload = z.infer<typeof StartGenerationSchema>;
 // ============================================================================
 
 export interface LLMMessage {
+  id: string;
   role: 'system' | 'user' | 'assistant';
   content: string;
 }
