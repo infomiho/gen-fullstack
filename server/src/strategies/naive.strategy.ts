@@ -107,15 +107,17 @@ Now, generate the application based on the user's requirements.`;
 
           // Emit complete tool results
           for (const toolResult of toolResults) {
-            console.log(`[Naive] Tool result: ${toolResult.toolName}`);
-            socket.emit('tool_result', {
+            console.log(`[Naive] Tool result: ${toolResult.toolName}`, toolResult);
+            const resultData = {
               id: `result-${toolResult.toolCallId}`,
               toolName: toolResult.toolName,
               result:
                 typeof toolResult.result === 'string'
                   ? toolResult.result
                   : JSON.stringify(toolResult.result),
-            });
+            };
+            console.log('[Naive] Emitting tool_result:', resultData);
+            socket.emit('tool_result', resultData);
           }
         },
       });

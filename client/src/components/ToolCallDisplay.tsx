@@ -58,31 +58,36 @@ export function ToolCallDisplay({ toolCalls, toolResults }: ToolCallDisplayProps
   }
 
   return (
-    <div className="space-y-3">
-      <h3 className="text-lg font-semibold text-gray-700 border-b pb-2">
-        Tool Executions ({mergedExecutions.length})
-      </h3>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between border-b pb-3">
+        <h3 className="text-lg font-semibold text-gray-800">Tool Executions</h3>
+        <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+          {mergedExecutions.length} {mergedExecutions.length === 1 ? 'call' : 'calls'}
+        </span>
+      </div>
 
-      <div className="space-y-2">
+      <div className="space-y-3">
         {mergedExecutions.map((execution) => (
           <div
             key={execution.id}
-            className={`rounded-lg p-3 border ${
-              execution.isComplete ? 'bg-green-50 border-green-200' : 'bg-blue-50 border-blue-200'
+            className={`rounded-lg p-4 border-l-4 shadow-sm transition-all ${
+              execution.isComplete
+                ? 'bg-green-50 border-green-500'
+                : 'bg-blue-50 border-blue-500 animate-pulse'
             }`}
           >
             {/* Header */}
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xl">{execution.isComplete ? '✅' : '⏳'}</span>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-lg">{execution.isComplete ? '✅' : '⏳'}</span>
               <span
-                className={`font-mono font-semibold ${
+                className={`font-mono text-sm font-bold ${
                   execution.isComplete ? 'text-green-900' : 'text-blue-900'
                 }`}
               >
                 {execution.name}
               </span>
               {!execution.isComplete && (
-                <span className="text-xs text-blue-600 italic">calling...</span>
+                <span className="text-xs text-blue-600 italic ml-auto">executing...</span>
               )}
             </div>
 
@@ -91,10 +96,10 @@ export function ToolCallDisplay({ toolCalls, toolResults }: ToolCallDisplayProps
 
             {/* Result (only shown when complete) */}
             {execution.isComplete && execution.result && (
-              <div className="text-sm">
-                <div className="text-gray-600 mb-1">Result:</div>
-                <pre className="bg-white p-2 rounded border border-green-100 overflow-x-auto text-xs max-h-40">
-                  {truncate(execution.result, 500)}
+              <div className="mt-3 pt-3 border-t border-green-200">
+                <div className="text-xs font-semibold text-gray-600 mb-2">Result:</div>
+                <pre className="bg-white p-3 rounded border border-green-200 overflow-x-auto text-xs max-h-48 overflow-y-auto">
+                  {truncate(execution.result, 800)}
                 </pre>
               </div>
             )}
@@ -130,20 +135,20 @@ function renderToolParameters(
     return (
       <div className="text-sm space-y-2">
         {path && (
-          <div>
-            <span className="text-gray-600">File: </span>
-            <span className="font-mono text-xs bg-white px-2 py-1 rounded border border-gray-200">
+          <div className="flex items-start gap-2">
+            <span className="text-xs font-semibold text-gray-600 min-w-[60px]">File:</span>
+            <span className="font-mono text-xs bg-white px-2 py-1 rounded border border-gray-200 flex-1">
               {path}
             </span>
           </div>
         )}
         {content && (
           <div>
-            <div className="text-gray-600 mb-1">Content:</div>
+            <div className="text-xs font-semibold text-gray-600 mb-1">Content:</div>
             <pre
-              className={`bg-white p-2 rounded border ${borderColor} overflow-x-auto text-xs max-h-32`}
+              className={`bg-white p-3 rounded border ${borderColor} overflow-x-auto text-xs max-h-40 overflow-y-auto`}
             >
-              {truncate(content, 300)}
+              {truncate(content, 500)}
             </pre>
           </div>
         )}
@@ -155,9 +160,9 @@ function renderToolParameters(
   if (toolName === 'readFile') {
     const { path } = args as { path?: string };
     return (
-      <div className="text-sm">
-        <span className="text-gray-600">File: </span>
-        <span className="font-mono text-xs bg-white px-2 py-1 rounded border border-gray-200">
+      <div className="text-sm flex items-start gap-2">
+        <span className="text-xs font-semibold text-gray-600 min-w-[60px]">File:</span>
+        <span className="font-mono text-xs bg-white px-2 py-1 rounded border border-gray-200 flex-1">
           {path || 'unknown'}
         </span>
       </div>
@@ -168,9 +173,9 @@ function renderToolParameters(
   if (toolName === 'listFiles') {
     const { directory } = args as { directory?: string };
     return (
-      <div className="text-sm">
-        <span className="text-gray-600">Directory: </span>
-        <span className="font-mono text-xs bg-white px-2 py-1 rounded border border-gray-200">
+      <div className="text-sm flex items-start gap-2">
+        <span className="text-xs font-semibold text-gray-600 min-w-[60px]">Directory:</span>
+        <span className="font-mono text-xs bg-white px-2 py-1 rounded border border-gray-200 flex-1">
           {directory || '.'}
         </span>
       </div>
@@ -182,9 +187,9 @@ function renderToolParameters(
     const { command } = args as { command?: string };
     return (
       <div className="text-sm">
-        <div className="text-gray-600 mb-1">Command:</div>
+        <div className="text-xs font-semibold text-gray-600 mb-1">Command:</div>
         <pre
-          className={`bg-white p-2 rounded border ${borderColor} overflow-x-auto text-xs font-mono`}
+          className={`bg-white p-3 rounded border ${borderColor} overflow-x-auto text-xs font-mono`}
         >
           {command || 'unknown'}
         </pre>
@@ -195,8 +200,8 @@ function renderToolParameters(
   // Default: show raw JSON for unknown tools
   return (
     <div className="text-sm">
-      <div className="text-gray-600 mb-1">Parameters:</div>
-      <pre className={`bg-white p-2 rounded border ${borderColor} overflow-x-auto text-xs`}>
+      <div className="text-xs font-semibold text-gray-600 mb-1">Parameters:</div>
+      <pre className={`bg-white p-3 rounded border ${borderColor} overflow-x-auto text-xs`}>
         {JSON.stringify(args, null, 2)}
       </pre>
     </div>
@@ -210,5 +215,9 @@ function truncate(str: string, maxLength: number): string {
   if (str.length <= maxLength) {
     return str;
   }
-  return str.slice(0, maxLength) + '\n\n... (truncated)';
+  const truncated = str.slice(0, maxLength);
+  const lastNewline = truncated.lastIndexOf('\n');
+  // Try to truncate at a line boundary for cleaner display
+  const cutPoint = lastNewline > maxLength * 0.8 ? lastNewline : maxLength;
+  return str.slice(0, cutPoint) + '\n\n... (truncated, ' + (str.length - cutPoint) + ' more characters)';
 }
