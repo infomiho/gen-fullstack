@@ -3,6 +3,9 @@ import { streamText, stepCountIs } from 'ai';
 import { BaseStrategy, type GenerationMetrics } from './base.strategy.js';
 import { tools } from '../tools/index.js';
 
+// Maximum number of tool calls allowed in a single generation
+const MAX_TOOL_CALLS = 20;
+
 /**
  * Naive Strategy: Direct prompt-to-code approach
  *
@@ -13,7 +16,7 @@ import { tools } from '../tools/index.js';
  * - No upfront planning phase
  * - No pre-built template
  * - Direct generation from prompt
- * - Multiple tool calling iterations (up to 20 steps)
+ * - Multiple tool calling iterations (up to MAX_TOOL_CALLS steps)
  */
 export class NaiveStrategy extends BaseStrategy {
   getName(): string {
@@ -79,28 +82,26 @@ Now, generate the application based on the user's requirements.`;
         prompt,
         tools,
         experimental_context: { sessionId },
-        stopWhen: stepCountIs(20), // Allow up to 20 tool calls
-        maxSteps: 20,
+        stopWhen: stepCountIs(MAX_TOOL_CALLS),
+        maxSteps: MAX_TOOL_CALLS,
         onStepFinish({ toolCalls, toolResults }) {
           // Emit complete tool calls with all data
+          // AI SDK 5.0 changed property names: toolCall.args → toolCall.input, toolCall.id → toolCall.toolCallId
           for (const toolCall of toolCalls) {
-            // Skip dynamic tools for now (type narrowing required)
-            if (toolCall.dynamic) {
-              console.log(`[Naive] Dynamic tool call: ${toolCall.toolName}`);
-              socket.emit('tool_call', {
-                id: toolCall.toolCallId,
-                name: toolCall.toolName,
-                args: toolCall.input as Record<string, unknown>,
-              });
-              continue;
-            }
+            const toolInput =
+              typeof toolCall.input === 'object' && toolCall.input !== null
+                ? (toolCall.input as Record<string, unknown>)
+                : {};
 
-            // Static tools have full type inference
-            console.log(`[Naive] Tool call: ${toolCall.toolName}`, toolCall.input);
+            console.log(
+              `[Naive] Tool call: ${toolCall.toolName} (dynamic: ${toolCall.dynamic})`,
+              toolInput,
+            );
+
             socket.emit('tool_call', {
               id: toolCall.toolCallId,
               name: toolCall.toolName,
-              args: toolCall.input as Record<string, unknown>,
+              args: toolInput,
             });
           }
 

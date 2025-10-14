@@ -30,7 +30,8 @@ export interface LLMMessage {
 export interface ToolCall {
   id: string;
   name: string;
-  args: Record<string, unknown>;
+  // Args may be undefined during initial emission before input is fully captured
+  args?: Record<string, unknown>;
 }
 
 export interface ToolResult {

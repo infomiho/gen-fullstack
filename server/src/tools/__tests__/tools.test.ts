@@ -68,7 +68,7 @@ describe('Tools', () => {
 
   describe('readFile tool', () => {
     it('should read a file successfully', async () => {
-      // Create test file for this specific test
+      // Setup: Create test file directly with fs (not using tool under test)
       await fsWriteFile(join(testDir, 'read-test.txt'), 'Test content', 'utf-8');
 
       const result = await readFile.execute!({ path: 'read-test.txt' }, context as any);
@@ -77,7 +77,7 @@ describe('Tools', () => {
     });
 
     it('should read nested files', async () => {
-      // Create nested file for this specific test
+      // Setup: Create nested file directly with fs (not using tool under test)
       await mkdir(join(testDir, 'read-subdir'), { recursive: true });
       await fsWriteFile(join(testDir, 'read-subdir/nested.txt'), 'Nested content', 'utf-8');
 
@@ -101,7 +101,7 @@ describe('Tools', () => {
 
   describe('listFiles tool', () => {
     it('should list files in root directory', async () => {
-      // Create test directory structure
+      // Setup: Create test directory structure directly with fs
       await mkdir(join(testDir, 'list-subdir'), { recursive: true });
       await fsWriteFile(join(testDir, 'file1.txt'), 'Content 1', 'utf-8');
       await fsWriteFile(join(testDir, 'file2.js'), 'Content 2', 'utf-8');
@@ -117,7 +117,7 @@ describe('Tools', () => {
     });
 
     it('should list files in subdirectory', async () => {
-      // Create test directory structure
+      // Setup: Create test directory structure directly with fs
       await mkdir(join(testDir, 'list2-subdir'), { recursive: true });
       await fsWriteFile(join(testDir, 'list2-subdir/nested.txt'), 'Nested', 'utf-8');
 
@@ -127,6 +127,7 @@ describe('Tools', () => {
     });
 
     it('should show empty directory message', async () => {
+      // Setup: Create empty directory directly with fs
       await mkdir(join(testDir, 'empty-dir'), { recursive: true });
 
       const result = await listFiles.execute!({ directory: 'empty-dir' }, context as any);
