@@ -143,8 +143,12 @@ Now, generate the application based on the user's requirements.`;
         }
       }
 
-      // Wait for final result to get usage stats
-      const { usage, text, steps } = await result;
+      // Wait for usage stats (must await after stream is consumed)
+      const [usage, text, steps] = await Promise.all([
+        result.usage,
+        result.text,
+        result.steps,
+      ]);
 
       // Calculate metrics
       const duration = Date.now() - startTime;
@@ -152,7 +156,7 @@ Now, generate the application based on the user's requirements.`;
         usage.promptTokens || 0,
         usage.completionTokens || 0,
         duration,
-        steps?.length || 0,
+        steps?.length || stepCount, // Fallback to counted steps
       );
 
       // Log completion

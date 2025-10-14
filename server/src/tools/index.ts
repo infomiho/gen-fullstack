@@ -59,19 +59,19 @@ export const listFiles = tool({
   inputSchema: z.object({
     directory: z
       .string()
-      .optional()
-      .default('.')
-      .describe('Relative path to the directory (default: "." for root)'),
+      .describe('Relative path to the directory (use "." for root directory)'),
   }),
   execute: async ({ directory }, { experimental_context: context }) => {
     const sessionId = (context as { sessionId: string }).sessionId;
-    const files = await filesystemService.listFiles(sessionId, directory);
+    // Default to root if empty or not provided
+    const dir = directory || '.';
+    const files = await filesystemService.listFiles(sessionId, dir);
 
     // Format output for LLM
     const fileList = files
       .map((f) => `${f.type === 'directory' ? '📁' : '📄'} ${f.name}`)
       .join('\n');
-    return `Contents of "${directory}":\n${fileList}`;
+    return `Contents of "${dir}":\n${fileList}`;
   },
 });
 

@@ -12,7 +12,7 @@ import type { LanguageModelV1 } from 'ai';
  */
 export const MODEL_CONFIG = {
   /** Default model for most use cases - best balance of cost/performance */
-  default: 'gpt-5-mini', // $0.25/$2 per 1M tokens, excellent for code generation
+  default: 'gpt-5-mini', // $0.25/$2 per 1M tokens, excellent performance
 
   /** Premium model for complex scenarios */
   premium: 'gpt-5', // $1.25/$10 per 1M tokens, 74.9% SWE-bench Verified
@@ -42,6 +42,11 @@ export type ModelName = (typeof MODEL_CONFIG)[keyof typeof MODEL_CONFIG] | strin
  * ```
  */
 export function getModel(modelName: ModelName = MODEL_CONFIG.default): LanguageModelV1 {
+  // GPT-5 models use the Responses API endpoint
+  if (modelName.startsWith('gpt-5')) {
+    return openai.responses(modelName);
+  }
+  // Other models use the standard Chat Completions API
   return openai(modelName);
 }
 
