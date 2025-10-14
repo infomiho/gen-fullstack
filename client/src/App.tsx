@@ -2,17 +2,16 @@ import { useState } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { FileTree } from './components/FileTree';
 import { FileViewer } from './components/FileViewer';
-import { MessageList } from './components/MessageList';
 import { PromptInput } from './components/PromptInput';
 import { StrategySelector } from './components/StrategySelector';
-import { ToolCallDisplay } from './components/ToolCallDisplay';
+import { Timeline } from './components/Timeline';
 import { useWebSocket } from './hooks/useWebSocket';
 
 function App() {
   const { isConnected, messages, startGeneration, isGenerating, toolCalls, toolResults, files } =
     useWebSocket();
   const [strategy, setStrategy] = useState('naive');
-  const [activeTab, setActiveTab] = useState<'messages' | 'tools' | 'files'>('messages');
+  const [activeTab, setActiveTab] = useState<'timeline' | 'files'>('timeline');
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
 
   const handleGenerate = (prompt: string) => {
@@ -65,24 +64,15 @@ function App() {
               <button
                 type="button"
                 className={`border-b-2 px-3 py-2 text-xs font-medium transition-colors ${
-                  activeTab === 'messages'
+                  activeTab === 'timeline'
                     ? 'border-gray-900 text-gray-900'
                     : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
-                onClick={() => setActiveTab('messages')}
+                onClick={() => setActiveTab('timeline')}
               >
-                Messages {messages.length > 0 && `(${messages.length})`}
-              </button>
-              <button
-                type="button"
-                className={`border-b-2 px-3 py-2 text-xs font-medium transition-colors ${
-                  activeTab === 'tools'
-                    ? 'border-gray-900 text-gray-900'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-                onClick={() => setActiveTab('tools')}
-              >
-                Tools {toolCalls.length > 0 && `(${toolCalls.length})`}
+                Timeline{' '}
+                {messages.length + toolCalls.length > 0 &&
+                  `(${messages.length + toolCalls.length})`}
               </button>
               <button
                 type="button"
@@ -100,14 +90,10 @@ function App() {
 
           {/* Content */}
           <div className="overflow-hidden">
-            {activeTab === 'messages' ? (
-              <div className="h-full overflow-y-auto p-4">
-                <MessageList messages={messages} />
-              </div>
-            ) : activeTab === 'tools' ? (
+            {activeTab === 'timeline' ? (
               <div className="h-full overflow-y-auto p-4">
                 <ErrorBoundary>
-                  <ToolCallDisplay toolCalls={toolCalls} toolResults={toolResults} />
+                  <Timeline messages={messages} toolCalls={toolCalls} toolResults={toolResults} />
                 </ErrorBoundary>
               </div>
             ) : (

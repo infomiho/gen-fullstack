@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@gen-fullstack/shared": "workspace:*",
+    "@radix-ui/react-dialog": "^1.1.15",
     "@types/react-syntax-highlighter": "^15.5.13",
     "clsx": "^2.1.1",
     "lucide-react": "^0.468.0",
