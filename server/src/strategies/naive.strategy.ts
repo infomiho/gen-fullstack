@@ -83,7 +83,6 @@ Now, generate the application based on the user's requirements.`;
         tools,
         experimental_context: { sessionId },
         stopWhen: stepCountIs(MAX_TOOL_CALLS),
-        maxSteps: MAX_TOOL_CALLS,
         onStepFinish({ toolCalls, toolResults }) {
           // Emit complete tool calls with all data
           // AI SDK 5.0 changed property names: toolCall.args → toolCall.input, toolCall.id → toolCall.toolCallId
@@ -106,9 +105,9 @@ Now, generate the application based on the user's requirements.`;
               id: `result-${toolResult.toolCallId}`,
               toolName: toolResult.toolName,
               result:
-                typeof toolResult.result === 'string'
-                  ? toolResult.result
-                  : JSON.stringify(toolResult.result),
+                typeof toolResult.output === 'string'
+                  ? toolResult.output
+                  : JSON.stringify(toolResult.output),
             };
             socket.emit('tool_result', resultData);
 
@@ -136,13 +135,9 @@ Now, generate the application based on the user's requirements.`;
         switch (part.type) {
           case 'text-delta':
             // Stream text deltas to client
-            if (part.textDelta) {
-              this.emitMessage(socket, 'assistant', part.textDelta);
+            if (part.text) {
+              this.emitMessage(socket, 'assistant', part.text);
             }
-            break;
-
-          case 'step-finish':
-            stepCount++;
             break;
 
           case 'finish':
@@ -151,9 +146,8 @@ Now, generate the application based on the user's requirements.`;
       }
 
       // Wait for usage stats (must await after stream is consumed)
-      const [usage, text, steps] = await Promise.all([
+      const [usage, steps] = await Promise.all([
         result.usage,
-        result.text,
         result.steps,
       ]);
 

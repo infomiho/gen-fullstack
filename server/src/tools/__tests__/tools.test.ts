@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { writeFile, readFile, listFiles, executeCommand } from '../index.js';
 import * as filesystemService from '../../services/filesystem.service.js';
-import * as commandService from '../../services/command.service.js';
 import { join } from 'path';
 import { mkdir, rm, writeFile as fsWriteFile } from 'fs/promises';
 import { tmpdir } from 'os';

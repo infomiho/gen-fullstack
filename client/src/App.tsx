@@ -20,7 +20,7 @@ function App() {
   };
 
   return (
-    <div className="flex h-screen flex-col bg-white">
+    <div className="grid h-screen grid-rows-[auto_1fr] bg-white">
       {/* Header */}
       <header className="border-b px-6 py-3">
         <div className="flex items-center justify-between">
@@ -37,9 +37,9 @@ function App() {
       </header>
 
       {/* Main content */}
-      <main className="flex flex-1 overflow-hidden">
+      <main className="grid grid-cols-[320px_1fr] overflow-hidden">
         {/* Left panel - Controls */}
-        <div className="w-80 border-r p-4">
+        <div className="border-r p-4 overflow-y-auto">
           <div className="space-y-4">
             <div>
               <h2 className="mb-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Strategy</h2>
@@ -54,7 +54,7 @@ function App() {
         </div>
 
         {/* Right panel - Messages & Tools */}
-        <div className="flex flex-1 flex-col">
+        <div className="grid grid-rows-[auto_1fr] overflow-hidden">
           {/* Tabs */}
           <div className="border-b">
             <div className="flex px-4">
@@ -92,7 +92,7 @@ function App() {
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="overflow-y-auto p-4">
             {activeTab === 'messages' ? (
               <MessageList messages={messages} />
             ) : activeTab === 'tools' ? (
@@ -100,15 +100,15 @@ function App() {
                 <ToolCallDisplay toolCalls={toolCalls} toolResults={toolResults} />
               </ErrorBoundary>
             ) : (
-              <div className="flex h-full gap-4">
-                <div className="w-64 border-r pr-4">
+              <div className="grid grid-cols-[256px_1fr] gap-4 h-full">
+                <div className="border-r pr-4 overflow-y-auto">
                   <FileTree
                     files={files}
                     selectedFile={selectedFile}
                     onSelectFile={setSelectedFile}
                   />
                 </div>
-                <div className="flex-1">
+                <div className="overflow-hidden">
                   <FileViewer file={files.find(f => f.path === selectedFile) || null} />
                 </div>
               </div>

@@ -7,8 +7,7 @@ import {
   cleanupSandbox,
   getSandboxPath,
 } from '../filesystem.service.js';
-import { rm, stat } from 'fs/promises';
-import { join } from 'path';
+import { stat } from 'fs/promises';
 
 describe('Filesystem Service', () => {
   const sessionId = 'test-session-fs-123';

@@ -21,8 +21,8 @@ async function testLLMResponse() {
 
   // Consume the stream
   for await (const part of result.fullStream) {
-    if (part.type === 'text-delta' && part.textDelta) {
-      process.stdout.write(part.textDelta);
+    if (part.type === 'text-delta' && part.text) {
+      process.stdout.write(part.text);
     }
   }
 
@@ -43,8 +43,8 @@ async function testLLMResponse() {
   console.log(`Total steps: ${steps?.length || 0}`);
 
   console.log('\n=== TOKEN EXTRACTION ===');
-  console.log(`usage.promptTokens: ${usage.promptTokens || 'undefined'}`);
-  console.log(`usage.completionTokens: ${usage.completionTokens || 'undefined'}`);
+  console.log(`usage.inputTokens: ${usage.inputTokens || 'undefined'}`);
+  console.log(`usage.outputTokens: ${usage.outputTokens || 'undefined'}`);
   console.log(`usage.totalTokens: ${usage.totalTokens || 'undefined'}`);
 
   // Check for alternative property names

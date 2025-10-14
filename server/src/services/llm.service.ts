@@ -1,5 +1,5 @@
 import { openai } from '@ai-sdk/openai';
-import type { LanguageModelV1 } from 'ai';
+import type { LanguageModel } from 'ai';
 
 /**
  * GPT-5 Model Configuration
@@ -41,7 +41,7 @@ export type ModelName = (typeof MODEL_CONFIG)[keyof typeof MODEL_CONFIG] | strin
  * const budgetModel = getModel(MODEL_CONFIG.budget);
  * ```
  */
-export function getModel(modelName: ModelName = MODEL_CONFIG.default): LanguageModelV1 {
+export function getModel(modelName: ModelName = MODEL_CONFIG.default): LanguageModel {
   // GPT-5 models use the Responses API endpoint
   if (modelName.startsWith('gpt-5')) {
     return openai.responses(modelName);

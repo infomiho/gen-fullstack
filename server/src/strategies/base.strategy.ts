@@ -1,8 +1,10 @@
 import type { Socket } from 'socket.io';
-import type { LanguageModelV1 } from 'ai';
+import type { LanguageModel } from 'ai';
 import { getModel, calculateCost, type ModelName } from '../services/llm.service.js';
 import { initializeSandbox } from '../services/filesystem.service.js';
 import type { GenerationMetrics } from '../types/index.js';
+
+export type { GenerationMetrics };
 
 /**
  * Base abstract class for app generation strategies
@@ -14,7 +16,7 @@ import type { GenerationMetrics } from '../types/index.js';
  * - WebSocket event emission
  */
 export abstract class BaseStrategy {
-  protected model: LanguageModelV1;
+  protected model: LanguageModel;
   protected modelName: ModelName;
 
   constructor(modelName: ModelName = 'gpt-5-mini') {
@@ -148,7 +150,7 @@ export abstract class BaseStrategy {
     };
   }
 
-  protected logStart(sessionId: string, prompt: string): void {
+  protected logStart(_sessionId: string, _prompt: string): void {
     // Intentionally minimal - no logs
   }
 
