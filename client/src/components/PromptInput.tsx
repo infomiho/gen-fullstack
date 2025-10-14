@@ -18,22 +18,22 @@ export function PromptInput({ onSubmit, disabled }: PromptInputProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3">
+    <form onSubmit={handleSubmit} className="space-y-2">
       <textarea
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
-        placeholder="Describe your app (e.g., 'A simple counter app' or 'A todo list with dark mode')..."
+        placeholder="Describe your app..."
         disabled={disabled}
-        rows={3}
-        className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 resize-none"
+        rows={4}
+        className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none disabled:bg-gray-50 resize-none font-mono"
       />
       <button
         type="submit"
         disabled={disabled || !prompt.trim()}
-        className="w-full flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-400"
+        className="w-full flex items-center justify-center gap-2 rounded border border-gray-900 bg-gray-900 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:border-gray-300"
       >
-        <Send size={18} />
-        Generate App
+        <Send size={14} />
+        Generate
       </button>
     </form>
   );

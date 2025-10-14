@@ -17,17 +17,17 @@ function App() {
   };
 
   return (
-    <div className="flex h-screen flex-col bg-gray-50">
+    <div className="flex h-screen flex-col bg-white">
       {/* Header */}
-      <header className="border-b bg-white px-6 py-4 shadow-sm">
+      <header className="border-b px-6 py-3">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900">Gen Fullstack Demo</h1>
-          <div className="flex items-center gap-2">
+          <h1 className="text-lg font-medium text-gray-900">Gen Fullstack</h1>
+          <div className="flex items-center gap-1.5">
             <div
-              className={`h-2 w-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}
+              className={`h-1.5 w-1.5 rounded-full ${isConnected ? 'bg-gray-900' : 'bg-gray-300'}`}
             />
-            <span className="text-sm text-gray-600">
-              {isConnected ? 'Connected' : 'Disconnected'}
+            <span className="text-xs text-gray-500">
+              {isConnected ? 'connected' : 'disconnected'}
             </span>
           </div>
         </div>
@@ -36,25 +36,16 @@ function App() {
       {/* Main content */}
       <main className="flex flex-1 overflow-hidden">
         {/* Left panel - Controls */}
-        <div className="w-96 border-r bg-white p-6">
-          <div className="space-y-6">
+        <div className="w-80 border-r p-4">
+          <div className="space-y-4">
             <div>
-              <h2 className="mb-4 text-lg font-semibold text-gray-900">Configuration</h2>
+              <h2 className="mb-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Strategy</h2>
               <StrategySelector value={strategy} onChange={setStrategy} disabled={isGenerating} />
             </div>
 
             <div>
-              <h3 className="mb-2 text-sm font-medium text-gray-700">Generate App</h3>
+              <h3 className="mb-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Prompt</h3>
               <PromptInput onSubmit={handleGenerate} disabled={isGenerating || !isConnected} />
-            </div>
-
-            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-              <h3 className="mb-2 text-sm font-semibold text-blue-900">Quick Start</h3>
-              <ul className="space-y-1 text-sm text-blue-700">
-                <li>1. Select a generation strategy</li>
-                <li>2. Enter your app description</li>
-                <li>3. Watch the LLM generate your app</li>
-              </ul>
             </div>
           </div>
         </div>
@@ -62,33 +53,33 @@ function App() {
         {/* Right panel - Messages & Tools */}
         <div className="flex flex-1 flex-col">
           {/* Tabs */}
-          <div className="border-b bg-white">
-            <div className="flex px-6">
+          <div className="border-b">
+            <div className="flex px-4">
               <button
-                className={`border-b-2 px-4 py-3 font-semibold transition-colors ${
+                className={`border-b-2 px-3 py-2 text-xs font-medium transition-colors ${
                   activeTab === 'messages'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-600 hover:text-gray-900'
+                    ? 'border-gray-900 text-gray-900'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
                 onClick={() => setActiveTab('messages')}
               >
-                Messages ({messages.length})
+                Messages {messages.length > 0 && `(${messages.length})`}
               </button>
               <button
-                className={`border-b-2 px-4 py-3 font-semibold transition-colors ${
+                className={`border-b-2 px-3 py-2 text-xs font-medium transition-colors ${
                   activeTab === 'tools'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-600 hover:text-gray-900'
+                    ? 'border-gray-900 text-gray-900'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
                 onClick={() => setActiveTab('tools')}
               >
-                Tool Calls ({toolCalls.length})
+                Tools {toolCalls.length > 0 && `(${toolCalls.length})`}
               </button>
             </div>
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto p-4">
             {activeTab === 'messages' ? (
               <MessageList messages={messages} />
             ) : (

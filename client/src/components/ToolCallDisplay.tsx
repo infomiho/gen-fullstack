@@ -50,44 +50,39 @@ export function ToolCallDisplay({ toolCalls, toolResults }: ToolCallDisplayProps
 
   if (mergedExecutions.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-400">
-        <div className="text-4xl mb-2">🔧</div>
-        <div className="text-sm">No tool executions yet</div>
+      <div className="text-center py-12 text-gray-400 text-sm">
+        No tool calls yet
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between border-b pb-3">
-        <h3 className="text-lg font-semibold text-gray-800">Tool Executions</h3>
-        <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-          {mergedExecutions.length} {mergedExecutions.length === 1 ? 'call' : 'calls'}
+    <div className="space-y-3">
+      <div className="flex items-center justify-between pb-2">
+        <h3 className="text-sm font-medium text-gray-700">Tool Executions</h3>
+        <span className="text-xs text-gray-500">
+          {mergedExecutions.length}
         </span>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-2">
         {mergedExecutions.map((execution) => (
           <div
             key={execution.id}
-            className={`rounded-lg p-4 border-l-4 shadow-sm transition-all ${
+            className={`border rounded p-3 ${
               execution.isComplete
-                ? 'bg-green-50 border-green-500'
-                : 'bg-blue-50 border-blue-500 animate-pulse'
+                ? 'border-gray-200 bg-white'
+                : 'border-gray-300 bg-gray-50'
             }`}
           >
             {/* Header */}
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-lg">{execution.isComplete ? '✅' : '⏳'}</span>
-              <span
-                className={`font-mono text-sm font-bold ${
-                  execution.isComplete ? 'text-green-900' : 'text-blue-900'
-                }`}
-              >
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-sm">{execution.isComplete ? '●' : '○'}</span>
+              <span className="font-mono text-xs text-gray-900">
                 {execution.name}
               </span>
               {!execution.isComplete && (
-                <span className="text-xs text-blue-600 italic ml-auto">executing...</span>
+                <span className="text-xs text-gray-500 ml-auto">running</span>
               )}
             </div>
 
@@ -96,9 +91,9 @@ export function ToolCallDisplay({ toolCalls, toolResults }: ToolCallDisplayProps
 
             {/* Result (only shown when complete) */}
             {execution.isComplete && execution.result && (
-              <div className="mt-3 pt-3 border-t border-green-200">
-                <div className="text-xs font-semibold text-gray-600 mb-2">Result:</div>
-                <pre className="bg-white p-3 rounded border border-green-200 overflow-x-auto text-xs max-h-48 overflow-y-auto">
+              <div className="mt-2 pt-2 border-t border-gray-100">
+                <div className="text-xs text-gray-500 mb-1">Result:</div>
+                <pre className="bg-gray-50 p-2 rounded border border-gray-200 overflow-x-auto text-xs max-h-48 overflow-y-auto font-mono">
                   {truncate(execution.result, 800)}
                 </pre>
               </div>
@@ -118,13 +113,11 @@ function renderToolParameters(
   args: Record<string, unknown> | undefined,
   isComplete: boolean,
 ): JSX.Element {
-  const borderColor = isComplete ? 'border-green-100' : 'border-blue-100';
-
   // Handle undefined args
   if (!args) {
     return (
-      <div className="text-sm">
-        <span className="text-gray-500 italic">Loading parameters...</span>
+      <div className="text-xs text-gray-400">
+        Loading...
       </div>
     );
   }
@@ -133,21 +126,19 @@ function renderToolParameters(
   if (toolName === 'writeFile') {
     const { path, content } = args as { path?: string; content?: string };
     return (
-      <div className="text-sm space-y-2">
+      <div className="text-xs space-y-1.5">
         {path && (
-          <div className="flex items-start gap-2">
-            <span className="text-xs font-semibold text-gray-600 min-w-[60px]">File:</span>
-            <span className="font-mono text-xs bg-white px-2 py-1 rounded border border-gray-200 flex-1">
+          <div className="flex gap-2">
+            <span className="text-gray-500 min-w-[40px]">path:</span>
+            <span className="font-mono text-gray-700 flex-1">
               {path}
             </span>
           </div>
         )}
         {content && (
           <div>
-            <div className="text-xs font-semibold text-gray-600 mb-1">Content:</div>
-            <pre
-              className={`bg-white p-3 rounded border ${borderColor} overflow-x-auto text-xs max-h-40 overflow-y-auto`}
-            >
+            <div className="text-gray-500 mb-1">content:</div>
+            <pre className="bg-gray-50 p-2 rounded border border-gray-200 overflow-x-auto text-xs max-h-32 overflow-y-auto font-mono text-gray-700">
               {truncate(content, 500)}
             </pre>
           </div>
@@ -160,9 +151,9 @@ function renderToolParameters(
   if (toolName === 'readFile') {
     const { path } = args as { path?: string };
     return (
-      <div className="text-sm flex items-start gap-2">
-        <span className="text-xs font-semibold text-gray-600 min-w-[60px]">File:</span>
-        <span className="font-mono text-xs bg-white px-2 py-1 rounded border border-gray-200 flex-1">
+      <div className="text-xs flex gap-2">
+        <span className="text-gray-500 min-w-[40px]">path:</span>
+        <span className="font-mono text-gray-700">
           {path || 'unknown'}
         </span>
       </div>
@@ -173,9 +164,9 @@ function renderToolParameters(
   if (toolName === 'listFiles') {
     const { directory } = args as { directory?: string };
     return (
-      <div className="text-sm flex items-start gap-2">
-        <span className="text-xs font-semibold text-gray-600 min-w-[60px]">Directory:</span>
-        <span className="font-mono text-xs bg-white px-2 py-1 rounded border border-gray-200 flex-1">
+      <div className="text-xs flex gap-2">
+        <span className="text-gray-500 min-w-[40px]">dir:</span>
+        <span className="font-mono text-gray-700">
           {directory || '.'}
         </span>
       </div>
@@ -186,11 +177,9 @@ function renderToolParameters(
   if (toolName === 'executeCommand') {
     const { command } = args as { command?: string };
     return (
-      <div className="text-sm">
-        <div className="text-xs font-semibold text-gray-600 mb-1">Command:</div>
-        <pre
-          className={`bg-white p-3 rounded border ${borderColor} overflow-x-auto text-xs font-mono`}
-        >
+      <div className="text-xs">
+        <div className="text-gray-500 mb-1">command:</div>
+        <pre className="bg-gray-50 p-2 rounded border border-gray-200 overflow-x-auto text-xs font-mono text-gray-700">
           {command || 'unknown'}
         </pre>
       </div>
@@ -199,9 +188,8 @@ function renderToolParameters(
 
   // Default: show raw JSON for unknown tools
   return (
-    <div className="text-sm">
-      <div className="text-xs font-semibold text-gray-600 mb-1">Parameters:</div>
-      <pre className={`bg-white p-3 rounded border ${borderColor} overflow-x-auto text-xs`}>
+    <div className="text-xs">
+      <pre className="bg-gray-50 p-2 rounded border border-gray-200 overflow-x-auto font-mono text-gray-700">
         {JSON.stringify(args, null, 2)}
       </pre>
     </div>
