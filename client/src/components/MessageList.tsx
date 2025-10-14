@@ -1,5 +1,5 @@
+import { Bot, Terminal, User } from 'lucide-react';
 import { useEffect, useRef } from 'react';
-import { Bot, User, Terminal } from 'lucide-react';
 
 interface Message {
   role: 'system' | 'user' | 'assistant';
@@ -15,7 +15,7 @@ export function MessageList({ messages }: MessageListProps) {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, []);
 
   if (messages.length === 0) {
     return (

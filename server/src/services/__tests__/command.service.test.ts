@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { executeCommand } from '../command.service.js';
-import { initializeSandbox, cleanupSandbox } from '../filesystem.service.js';
+import { cleanupSandbox, initializeSandbox } from '../filesystem.service.js';
 
 describe('Command Service', () => {
   const sessionId = 'test-session-cmd-123';

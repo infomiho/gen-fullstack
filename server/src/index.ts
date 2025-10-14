@@ -1,9 +1,9 @@
-import express from 'express';
-import { createServer } from 'http';
+import { createServer } from 'node:http';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { setupWebSocket } from './websocket.js';
+import express from 'express';
 import { validateEnv } from './config/env.js';
+import { setupWebSocket } from './websocket.js';
 
 dotenv.config();
 

@@ -1,7 +1,7 @@
+import { stepCountIs, streamText } from 'ai';
 import type { Socket } from 'socket.io';
-import { streamText, stepCountIs } from 'ai';
-import { BaseStrategy, type GenerationMetrics } from './base.strategy.js';
 import { tools } from '../tools/index.js';
+import { BaseStrategy, type GenerationMetrics } from './base.strategy.js';
 
 // Maximum number of tool calls allowed in a single generation
 const MAX_TOOL_CALLS = 20;
@@ -113,8 +113,10 @@ Now, generate the application based on the user's requirements.`;
 
             // Emit file_updated event for writeFile tool calls
             if (toolResult.toolName === 'writeFile') {
-              const matchingToolCall = toolCalls.find(tc => tc.toolCallId === toolResult.toolCallId);
-              if (matchingToolCall && matchingToolCall.input) {
+              const matchingToolCall = toolCalls.find(
+                (tc) => tc.toolCallId === toolResult.toolCallId,
+              );
+              if (matchingToolCall?.input) {
                 const input = matchingToolCall.input as { path?: string; content?: string };
                 if (input.path && input.content) {
                   socket.emit('file_updated', {
@@ -128,7 +130,7 @@ Now, generate the application based on the user's requirements.`;
         },
       });
 
-      let stepCount = 0;
+      const stepCount = 0;
 
       // Process the full stream for text deltas
       for await (const part of result.fullStream) {
@@ -146,10 +148,7 @@ Now, generate the application based on the user's requirements.`;
       }
 
       // Wait for usage stats (must await after stream is consumed)
-      const [usage, steps] = await Promise.all([
-        result.usage,
-        result.steps,
-      ]);
+      const [usage, steps] = await Promise.all([result.usage, result.steps]);
 
       // Calculate metrics
       // Note: AI SDK uses inputTokens/outputTokens, not promptTokens/completionTokens

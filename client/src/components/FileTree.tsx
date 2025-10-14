@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
 import type { FileUpdate } from '@gen-fullstack/shared';
+import { useMemo } from 'react';
 
 interface FileTreeProps {
   files: FileUpdate[];
@@ -43,11 +43,7 @@ export function FileTree({ files, selectedFile, onSelectFile }: FileTreeProps) {
   }, [files]);
 
   if (files.length === 0) {
-    return (
-      <div className="text-center py-12 text-gray-400 text-sm">
-        No files generated yet
-      </div>
-    );
+    return <div className="text-center py-12 text-gray-400 text-sm">No files generated yet</div>;
   }
 
   return (

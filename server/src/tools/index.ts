@@ -1,7 +1,7 @@
 import { tool } from 'ai';
 import { z } from 'zod';
-import * as filesystemService from '../services/filesystem.service.js';
 import * as commandService from '../services/command.service.js';
+import * as filesystemService from '../services/filesystem.service.js';
 
 /**
  * Tool definitions for LLM-powered app generation
@@ -57,9 +57,7 @@ export const listFiles = tool({
   description:
     'List all files and directories in a given path. Use this to explore the project structure.',
   inputSchema: z.object({
-    directory: z
-      .string()
-      .describe('Relative path to the directory (use "." for root directory)'),
+    directory: z.string().describe('Relative path to the directory (use "." for root directory)'),
   }),
   execute: async ({ directory }, { experimental_context: context }) => {
     const sessionId = (context as { sessionId: string }).sessionId;

@@ -6,7 +6,7 @@ const EnvSchema = z.object({
     .optional()
     .default('3001')
     .transform((val) => parseInt(val, 10))
-    .refine((val) => !isNaN(val) && val > 0 && val < 65536, {
+    .refine((val) => !Number.isNaN(val) && val > 0 && val < 65536, {
       message: 'PORT must be a valid port number (1-65535)',
     }),
   CLIENT_URL: z.string().url().default('http://localhost:5173'),

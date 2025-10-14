@@ -49,20 +49,14 @@ export function ToolCallDisplay({ toolCalls, toolResults }: ToolCallDisplayProps
   }, [toolCalls, toolResults]);
 
   if (mergedExecutions.length === 0) {
-    return (
-      <div className="text-center py-12 text-gray-400 text-sm">
-        No tool calls yet
-      </div>
-    );
+    return <div className="text-center py-12 text-gray-400 text-sm">No tool calls yet</div>;
   }
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between pb-2">
         <h3 className="text-sm font-medium text-gray-700">Tool Executions</h3>
-        <span className="text-xs text-gray-500">
-          {mergedExecutions.length}
-        </span>
+        <span className="text-xs text-gray-500">{mergedExecutions.length}</span>
       </div>
 
       <div className="space-y-2">
@@ -70,17 +64,13 @@ export function ToolCallDisplay({ toolCalls, toolResults }: ToolCallDisplayProps
           <div
             key={execution.id}
             className={`border rounded p-3 ${
-              execution.isComplete
-                ? 'border-gray-200 bg-white'
-                : 'border-gray-300 bg-gray-50'
+              execution.isComplete ? 'border-gray-200 bg-white' : 'border-gray-300 bg-gray-50'
             }`}
           >
             {/* Header */}
             <div className="flex items-center gap-2 mb-2">
               <span className="text-sm">{execution.isComplete ? '●' : '○'}</span>
-              <span className="font-mono text-xs text-gray-900">
-                {execution.name}
-              </span>
+              <span className="font-mono text-xs text-gray-900">{execution.name}</span>
               {!execution.isComplete && (
                 <span className="text-xs text-gray-500 ml-auto">running</span>
               )}
@@ -108,17 +98,10 @@ export function ToolCallDisplay({ toolCalls, toolResults }: ToolCallDisplayProps
 /**
  * Render tool parameters with custom formatting based on tool type
  */
-function renderToolParameters(
-  toolName: string,
-  args: Record<string, unknown> | undefined,
-) {
+function renderToolParameters(toolName: string, args: Record<string, unknown> | undefined) {
   // Handle undefined args
   if (!args) {
-    return (
-      <div className="text-xs text-gray-400">
-        Loading...
-      </div>
-    );
+    return <div className="text-xs text-gray-400">Loading...</div>;
   }
 
   // Custom formatting for writeFile
@@ -129,9 +112,7 @@ function renderToolParameters(
         {path && (
           <div className="flex gap-2">
             <span className="text-gray-500 min-w-[40px]">path:</span>
-            <span className="font-mono text-gray-700 flex-1">
-              {path}
-            </span>
+            <span className="font-mono text-gray-700 flex-1">{path}</span>
           </div>
         )}
         {content && (
@@ -152,9 +133,7 @@ function renderToolParameters(
     return (
       <div className="text-xs flex gap-2">
         <span className="text-gray-500 min-w-[40px]">path:</span>
-        <span className="font-mono text-gray-700">
-          {path || 'unknown'}
-        </span>
+        <span className="font-mono text-gray-700">{path || 'unknown'}</span>
       </div>
     );
   }
@@ -165,9 +144,7 @@ function renderToolParameters(
     return (
       <div className="text-xs flex gap-2">
         <span className="text-gray-500 min-w-[40px]">dir:</span>
-        <span className="font-mono text-gray-700">
-          {directory || '.'}
-        </span>
+        <span className="font-mono text-gray-700">{directory || '.'}</span>
       </div>
     );
   }
@@ -206,5 +183,5 @@ function truncate(str: string, maxLength: number): string {
   const lastNewline = truncated.lastIndexOf('\n');
   // Try to truncate at a line boundary for cleaner display
   const cutPoint = lastNewline > maxLength * 0.8 ? lastNewline : maxLength;
-  return str.slice(0, cutPoint) + '\n\n... (truncated, ' + (str.length - cutPoint) + ' more characters)';
+  return `${str.slice(0, cutPoint)}\n\n... (truncated, ${str.length - cutPoint} more characters)`;
 }

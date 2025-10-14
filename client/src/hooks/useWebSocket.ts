@@ -1,6 +1,12 @@
-import { useEffect, useState, useCallback } from 'react';
-import { io, Socket } from 'socket.io-client';
-import type { LLMMessage, ToolCall, ToolResult, GenerationMetrics, FileUpdate } from '@gen-fullstack/shared';
+import type {
+  FileUpdate,
+  GenerationMetrics,
+  LLMMessage,
+  ToolCall,
+  ToolResult,
+} from '@gen-fullstack/shared';
+import { useCallback, useEffect, useState } from 'react';
+import { io, type Socket } from 'socket.io-client';
 
 interface UseWebSocketReturn {
   socket: Socket | null;
@@ -61,7 +67,7 @@ export function useWebSocket(): UseWebSocketReturn {
 
     newSocket.on('file_updated', (file: FileUpdate) => {
       setFiles((prev) => {
-        const existing = prev.findIndex(f => f.path === file.path);
+        const existing = prev.findIndex((f) => f.path === file.path);
         if (existing >= 0) {
           const updated = [...prev];
           updated[existing] = file;
@@ -86,7 +92,6 @@ export function useWebSocket(): UseWebSocketReturn {
     });
 
     newSocket.on('error', (error: string) => {
-      console.error('Server error:', error);
       setIsGenerating(false);
       setMessages((prev) => {
         const newMessages = [

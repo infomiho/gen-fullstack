@@ -12,11 +12,17 @@
     "test:watch": "pnpm -r --parallel test",
     "test:ui": "pnpm -r --parallel test:ui",
     "typecheck": "pnpm -r typecheck",
-    "format": "pnpm -r format",
-    "lint": "pnpm -r lint",
-    "clean": "pnpm -r clean && rm -rf node_modules"
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "check": "biome check --write .",
+    "clean": "pnpm -r clean && rm -rf node_modules",
+    "prepare": "husky"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.2.6",
+    "husky": "^9.1.7",
     "typescript": "^5.9.0"
   }
 }

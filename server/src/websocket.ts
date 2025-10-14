@@ -1,9 +1,9 @@
+import type { Server as HTTPServer } from 'node:http';
 import { Server as SocketIOServer } from 'socket.io';
-import { Server as HTTPServer } from 'http';
 import { z } from 'zod';
+import { NaiveStrategy } from './strategies/naive.strategy.js';
 import type { ClientToServerEvents, ServerToClientEvents } from './types/index.js';
 import { StartGenerationSchema } from './types/index.js';
-import { NaiveStrategy } from './strategies/naive.strategy.js';
 
 export function setupWebSocket(httpServer: HTTPServer) {
   const io = new SocketIOServer<ClientToServerEvents, ServerToClientEvents>(httpServer, {

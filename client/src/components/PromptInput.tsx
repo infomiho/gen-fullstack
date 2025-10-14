@@ -1,5 +1,5 @@
-import { useState } from 'react';
 import { Send } from 'lucide-react';
+import { useState } from 'react';
 
 interface PromptInputProps {
   onSubmit: (prompt: string) => void;

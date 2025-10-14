@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { useWebSocket } from './hooks/useWebSocket';
-import { PromptInput } from './components/PromptInput';
-import { StrategySelector } from './components/StrategySelector';
-import { MessageList } from './components/MessageList';
-import { ToolCallDisplay } from './components/ToolCallDisplay';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { FileTree } from './components/FileTree';
 import { FileViewer } from './components/FileViewer';
-import { ErrorBoundary } from './components/ErrorBoundary';
+import { MessageList } from './components/MessageList';
+import { PromptInput } from './components/PromptInput';
+import { StrategySelector } from './components/StrategySelector';
+import { ToolCallDisplay } from './components/ToolCallDisplay';
+import { useWebSocket } from './hooks/useWebSocket';
 
 function App() {
   const { isConnected, messages, startGeneration, isGenerating, toolCalls, toolResults, files } =
@@ -42,12 +42,16 @@ function App() {
         <div className="border-r p-4 overflow-y-auto">
           <div className="space-y-4">
             <div>
-              <h2 className="mb-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Strategy</h2>
+              <h2 className="mb-3 text-xs font-medium text-gray-500 uppercase tracking-wide">
+                Strategy
+              </h2>
               <StrategySelector value={strategy} onChange={setStrategy} disabled={isGenerating} />
             </div>
 
             <div>
-              <h3 className="mb-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Prompt</h3>
+              <h3 className="mb-3 text-xs font-medium text-gray-500 uppercase tracking-wide">
+                Prompt
+              </h3>
               <PromptInput onSubmit={handleGenerate} disabled={isGenerating || !isConnected} />
             </div>
           </div>
@@ -92,24 +96,28 @@ function App() {
           </div>
 
           {/* Content */}
-          <div className="overflow-y-auto p-4">
+          <div className="overflow-hidden">
             {activeTab === 'messages' ? (
-              <MessageList messages={messages} />
+              <div className="h-full overflow-y-auto p-4">
+                <MessageList messages={messages} />
+              </div>
             ) : activeTab === 'tools' ? (
-              <ErrorBoundary>
-                <ToolCallDisplay toolCalls={toolCalls} toolResults={toolResults} />
-              </ErrorBoundary>
+              <div className="h-full overflow-y-auto p-4">
+                <ErrorBoundary>
+                  <ToolCallDisplay toolCalls={toolCalls} toolResults={toolResults} />
+                </ErrorBoundary>
+              </div>
             ) : (
-              <div className="grid grid-cols-[256px_1fr] gap-4 h-full">
-                <div className="border-r pr-4 overflow-y-auto">
+              <div className="h-full flex gap-4 p-4">
+                <div className="w-64 border-r pr-4 overflow-y-auto">
                   <FileTree
                     files={files}
                     selectedFile={selectedFile}
                     onSelectFile={setSelectedFile}
                   />
                 </div>
-                <div className="overflow-hidden">
-                  <FileViewer file={files.find(f => f.path === selectedFile) || null} />
+                <div className="flex-1 overflow-hidden">
+                  <FileViewer file={files.find((f) => f.path === selectedFile) || null} />
                 </div>
               </div>
             )}

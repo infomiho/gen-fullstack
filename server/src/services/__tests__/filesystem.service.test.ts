@@ -1,13 +1,13 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { stat } from 'node:fs/promises';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
-  writeFile,
-  readFile,
-  listFiles,
-  initializeSandbox,
   cleanupSandbox,
   getSandboxPath,
+  initializeSandbox,
+  listFiles,
+  readFile,
+  writeFile,
 } from '../filesystem.service.js';
-import { stat } from 'fs/promises';
 
 describe('Filesystem Service', () => {
   const sessionId = 'test-session-fs-123';
