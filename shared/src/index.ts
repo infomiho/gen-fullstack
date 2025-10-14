@@ -26,6 +26,7 @@ export interface LLMMessage {
   id: string;
   role: 'system' | 'user' | 'assistant';
   content: string;
+  timestamp: number; // Unix timestamp in milliseconds
 }
 
 export interface ToolCall {
@@ -33,12 +34,14 @@ export interface ToolCall {
   name: string;
   // Args may be undefined during initial emission before input is fully captured
   args?: Record<string, unknown>;
+  timestamp: number; // Unix timestamp in milliseconds
 }
 
 export interface ToolResult {
   id: string;
   toolName: string;
   result: string;
+  timestamp: number; // Unix timestamp in milliseconds
 }
 
 export interface FileUpdate {

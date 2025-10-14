@@ -19,6 +19,19 @@ interface ToolExecution {
   args: Record<string, unknown> | undefined;
   result?: string;
   isComplete: boolean;
+  timestamp: number;
+}
+
+/**
+ * Format timestamp to HH:MM:SS.mmm format
+ */
+function formatTimestamp(timestamp: number): string {
+  const date = new Date(timestamp);
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  const seconds = date.getSeconds().toString().padStart(2, '0');
+  const ms = date.getMilliseconds().toString().padStart(3, '0');
+  return `${hours}:${minutes}:${seconds}.${ms}`;
 }
 
 /**
@@ -46,6 +59,7 @@ export function Timeline({ messages, toolCalls, toolResults }: TimelineProps) {
         args: toolCall.args,
         result: result?.result,
         isComplete: !!result,
+        timestamp: toolCall.timestamp,
       };
     });
   }, [toolCalls, toolResults]);
@@ -54,21 +68,21 @@ export function Timeline({ messages, toolCalls, toolResults }: TimelineProps) {
   const timeline = useMemo(() => {
     const items: TimelineItem[] = [];
 
-    // Add messages (use message ID as timestamp proxy since we don't have real timestamps)
-    messages.forEach((message, index) => {
+    // Add messages with their real timestamps
+    messages.forEach((message) => {
       items.push({
         type: 'message',
         data: message,
-        timestamp: index * 1000, // Simple ordering
+        timestamp: message.timestamp,
       });
     });
 
-    // Add tool executions
-    toolExecutions.forEach((tool, index) => {
+    // Add tool executions with their real timestamps
+    toolExecutions.forEach((tool) => {
       items.push({
         type: 'tool',
         data: tool,
-        timestamp: messages.length * 1000 + index * 500, // Interleave after messages
+        timestamp: tool.timestamp,
       });
     });
 
@@ -129,8 +143,13 @@ function MessageItem({ message }: { message: LLMMessage }) {
           <Terminal size={20} className="text-yellow-600" />
         )}
       </div>
-      <div className="flex-1">
-        <div className="mb-1 text-xs font-semibold uppercase text-gray-500">{message.role}</div>
+      <div className="flex-1 min-w-0">
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <div className="text-xs font-semibold uppercase text-gray-500">{message.role}</div>
+          <div className="text-xs text-gray-400 font-mono">
+            {formatTimestamp(message.timestamp)}
+          </div>
+        </div>
         <div className="whitespace-pre-wrap text-sm text-gray-800">{message.content}</div>
       </div>
     </div>
@@ -157,9 +176,10 @@ function ToolItem({ tool }: { tool: ToolExecution }) {
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs">{tool.isComplete ? '●' : '○'}</span>
               <span className="font-mono text-xs text-gray-900 font-medium">{tool.name}</span>
-              {!tool.isComplete && (
-                <span className="text-xs text-gray-500 ml-auto">running...</span>
-              )}
+              <span className="text-xs text-gray-400 font-mono ml-auto">
+                {formatTimestamp(tool.timestamp)}
+              </span>
+              {!tool.isComplete && <span className="text-xs text-gray-500">running...</span>}
             </div>
             <div className="text-xs text-gray-500 truncate">
               {getToolSummary(tool.name, tool.args)}

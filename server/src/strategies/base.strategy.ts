@@ -84,7 +84,12 @@ export abstract class BaseStrategy {
       this.currentMessageRole = role;
     }
 
-    socket.emit('llm_message', { id: this.currentMessageId, role, content });
+    socket.emit('llm_message', {
+      id: this.currentMessageId,
+      role,
+      content,
+      timestamp: Date.now(),
+    });
   }
 
   /**
@@ -96,7 +101,12 @@ export abstract class BaseStrategy {
    */
   protected emitToolCall(socket: Socket, toolName: string, args: Record<string, unknown>): void {
     const id = `tool-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-    socket.emit('tool_call', { id, name: toolName, args });
+    socket.emit('tool_call', {
+      id,
+      name: toolName,
+      args,
+      timestamp: Date.now(),
+    });
   }
 
   /**
@@ -108,7 +118,12 @@ export abstract class BaseStrategy {
    */
   protected emitToolResult(socket: Socket, toolName: string, result: string): void {
     const id = `result-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-    socket.emit('tool_result', { id, toolName, result });
+    socket.emit('tool_result', {
+      id,
+      toolName,
+      result,
+      timestamp: Date.now(),
+    });
   }
 
   /**

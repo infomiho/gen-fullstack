@@ -96,6 +96,7 @@ Now, generate the application based on the user's requirements.`;
               id: toolCall.toolCallId,
               name: toolCall.toolName,
               args: toolInput,
+              timestamp: Date.now(),
             });
           }
 
@@ -108,6 +109,7 @@ Now, generate the application based on the user's requirements.`;
                 typeof toolResult.output === 'string'
                   ? toolResult.output
                   : JSON.stringify(toolResult.output),
+              timestamp: Date.now(),
             };
             socket.emit('tool_result', resultData);
 
