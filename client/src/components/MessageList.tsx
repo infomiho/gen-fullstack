@@ -32,7 +32,7 @@ export function MessageList({ messages }: MessageListProps) {
     <div className="space-y-4">
       {messages.map((message, index) => (
         <div
-          key={index}
+          key={`${message.role}-${index}-${message.content.slice(0, 20)}`}
           className={`flex gap-3 rounded-lg p-4 ${
             message.role === 'assistant'
               ? 'bg-blue-50'

@@ -35,7 +35,11 @@ export function FileTree({ files, selectedFile, onSelectFile }: FileTreeProps) {
           });
         }
 
-        current = current.children.get(part)!;
+        const nextNode = current.children.get(part);
+        if (!nextNode) {
+          throw new Error(`Failed to create tree node for path: ${file.path}`);
+        }
+        current = nextNode;
       }
     }
 
@@ -80,6 +84,7 @@ function TreeNodeComponent({ node, depth, selectedFile, onSelectFile }: TreeNode
     const isSelected = selectedFile === node.path;
     return (
       <button
+        type="button"
         onClick={() => onSelectFile(node.path)}
         className={`w-full text-left px-2 py-1 text-xs font-mono rounded hover:bg-gray-100 transition-colors ${
           isSelected ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-700'

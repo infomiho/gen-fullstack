@@ -24,7 +24,7 @@ export function setupWebSocket(httpServer: HTTPServer) {
 
         // Instantiate strategy based on user selection
         // For now, we only have NaiveStrategy implemented
-        let strategy;
+        let strategy: NaiveStrategy;
         switch (validated.strategy) {
           case 'naive':
           case 'plan-first':

@@ -1,3 +1,5 @@
+import { useId } from 'react';
+
 interface StrategySelectorProps {
   value: string;
   onChange: (strategy: string) => void;
@@ -29,10 +31,15 @@ const strategies = [
 ];
 
 export function StrategySelector({ value, onChange, disabled }: StrategySelectorProps) {
+  const selectId = useId();
+
   return (
     <div className="space-y-2">
-      <label className="text-sm font-medium text-gray-700">Generation Strategy</label>
+      <label htmlFor={selectId} className="text-sm font-medium text-gray-700">
+        Generation Strategy
+      </label>
       <select
+        id={selectId}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}

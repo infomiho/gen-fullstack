@@ -159,14 +159,22 @@ export async function executeCommand(
     );
 
     return result;
-  } catch (error: any) {
+  } catch (error: unknown) {
     const executionTime = Date.now() - startTime;
+    const err = error as {
+      killed?: boolean;
+      signal?: string;
+      stdout?: string;
+      stderr?: string;
+      code?: number;
+      message?: string;
+    };
 
     // Handle timeout
-    if (error.killed && error.signal === 'SIGTERM') {
+    if (err.killed && err.signal === 'SIGTERM') {
       console.error(`[Command] Timeout after ${timeoutMs}ms: ${command}`);
       return {
-        stdout: error.stdout ? truncateOutput(error.stdout) : '',
+        stdout: err.stdout ? truncateOutput(err.stdout) : '',
         stderr: `Command timed out after ${timeoutMs}ms`,
         exitCode: -1,
         executionTime,
@@ -175,12 +183,12 @@ export async function executeCommand(
     }
 
     // Handle execution error
-    console.error(`[Command] Failed (${executionTime}ms): ${command}`, error.message);
+    console.error(`[Command] Failed (${executionTime}ms): ${command}`, err.message);
 
     return {
-      stdout: error.stdout ? truncateOutput(error.stdout) : '',
-      stderr: error.stderr ? truncateOutput(error.stderr) : error.message,
-      exitCode: error.code || 1,
+      stdout: err.stdout ? truncateOutput(err.stdout) : '',
+      stderr: err.stderr ? truncateOutput(err.stderr) : err.message || 'Unknown error',
+      exitCode: err.code || 1,
       executionTime,
       success: false,
     };

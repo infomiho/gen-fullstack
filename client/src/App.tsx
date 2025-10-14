@@ -63,6 +63,7 @@ function App() {
           <div className="border-b">
             <div className="flex px-4">
               <button
+                type="button"
                 className={`border-b-2 px-3 py-2 text-xs font-medium transition-colors ${
                   activeTab === 'messages'
                     ? 'border-gray-900 text-gray-900'
@@ -73,6 +74,7 @@ function App() {
                 Messages {messages.length > 0 && `(${messages.length})`}
               </button>
               <button
+                type="button"
                 className={`border-b-2 px-3 py-2 text-xs font-medium transition-colors ${
                   activeTab === 'tools'
                     ? 'border-gray-900 text-gray-900'
@@ -83,6 +85,7 @@ function App() {
                 Tools {toolCalls.length > 0 && `(${toolCalls.length})`}
               </button>
               <button
+                type="button"
                 className={`border-b-2 px-3 py-2 text-xs font-medium transition-colors ${
                   activeTab === 'files'
                     ? 'border-gray-900 text-gray-900'

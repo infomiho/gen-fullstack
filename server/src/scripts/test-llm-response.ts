@@ -48,6 +48,7 @@ async function testLLMResponse() {
   console.log(`usage.totalTokens: ${usage.totalTokens || 'undefined'}`);
 
   // Check for alternative property names
+  // biome-ignore lint/suspicious/noExplicitAny: Debugging script to inspect unknown usage object properties
   const usageObj = usage as any;
   console.log('\n=== ALL USAGE PROPERTIES ===');
   console.log(Object.keys(usageObj));

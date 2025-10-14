@@ -3,6 +3,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 // Type workaround for React 19 compatibility
+// biome-ignore lint/suspicious/noExplicitAny: React 19 type mismatch in react-syntax-highlighter
 const Highlighter = SyntaxHighlighter as any;
 
 interface FileViewerProps {
