@@ -54,8 +54,10 @@ vi.mock('dockerode', () => {
   const sharedDockerInstance = {
     ping: vi.fn().mockResolvedValue(true),
     listImages: vi.fn().mockResolvedValue([]),
+    listContainers: vi.fn().mockResolvedValue([]),
     buildImage: vi.fn().mockResolvedValue(new EventEmitter()),
     createContainer: vi.fn().mockResolvedValue(mockContainer),
+    getContainer: vi.fn().mockReturnValue(mockContainer),
     modem: {
       followProgress: vi.fn((_stream, onFinished, onProgress) => {
         // Simulate build progress
