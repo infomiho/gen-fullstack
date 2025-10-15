@@ -6,6 +6,7 @@ import httpProxy from 'http-proxy';
 import { validateEnv } from './config/env.js';
 import { setupWebSocket } from './websocket.js';
 import { processService } from './services/process.service.js';
+import { databaseService } from './services/database.service.js';
 
 dotenv.config();
 
@@ -97,6 +98,16 @@ const io = setupWebSocket(httpServer);
 
 // Initialize process service with Docker availability check
 async function initializeServices() {
+  // Initialize database
+  console.log('[Server] Initializing database...');
+  try {
+    await databaseService.initialize();
+    console.log('[Server] ✓ Database initialized');
+  } catch (err) {
+    console.error('[Server] Failed to initialize database:', err);
+    process.exit(1);
+  }
+
   console.log('[Server] Checking Docker availability...');
 
   const dockerAvailable = await processService.checkDockerAvailability();
@@ -142,6 +153,9 @@ process.on('SIGTERM', async () => {
   // Cleanup running apps
   await processService.cleanup();
   console.log('Process service cleaned up');
+
+  // Close database connection
+  databaseService.close();
 
   io.close(() => {
     console.log('Socket.io server closed');
