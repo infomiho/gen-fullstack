@@ -28,30 +28,33 @@ export function FileEditorTabs({ files, onSaveFile }: FileEditorTabsProps) {
   const [openTabs, setOpenTabs] = useState<FileTab[]>([]);
   const [activeTab, setActiveTab] = useState<string | undefined>(undefined);
 
-  // Track open paths to avoid unnecessary re-renders
-  const openPathsRef = React.useRef<Set<string>>(new Set());
+  // Track previous files prop to detect newly added files
+  const prevFilesRef = React.useRef<Set<string>>(new Set());
 
-  // Sync open tabs with files prop
+  // Sync open tabs with files prop - only open newly added files
   useEffect(() => {
-    // Add any new files from props that aren't already open
-    const newTabs = files.filter((file) => !openPathsRef.current.has(file.path));
+    // Find files that are newly added to the files prop (not in previous render)
+    const newlyAddedFiles = files.filter((file) => !prevFilesRef.current.has(file.path));
 
-    if (newTabs.length > 0) {
-      // Update ref with new paths
-      for (const tab of newTabs) {
-        openPathsRef.current.add(tab.path);
+    // Update the ref with current file paths for next render
+    prevFilesRef.current = new Set(files.map((f) => f.path));
+
+    // Only open files that are both newly added AND not already open
+    setOpenTabs((currentTabs) => {
+      const currentPaths = new Set(currentTabs.map((t) => t.path));
+      const filesToOpen = newlyAddedFiles.filter((file) => !currentPaths.has(file.path));
+
+      if (filesToOpen.length > 0) {
+        // Activate the first newly opened tab
+        setActiveTab(filesToOpen[0].path);
+        return [
+          ...currentTabs,
+          ...filesToOpen.map((f) => ({ path: f.path, content: f.content, isDirty: false })),
+        ];
       }
 
-      setOpenTabs((prev) => [
-        ...prev,
-        ...newTabs.map((f) => ({ path: f.path, content: f.content, isDirty: false })),
-      ]);
-
-      // Always activate the first newly opened tab
-      if (newTabs.length > 0) {
-        setActiveTab(newTabs[0].path);
-      }
-    }
+      return currentTabs;
+    });
   }, [files]);
 
   // Close a tab
@@ -62,9 +65,6 @@ export function FileEditorTabs({ files, onSaveFile }: FileEditorTabsProps) {
         return;
       }
     }
-
-    // Remove from ref so file can be re-opened later
-    openPathsRef.current.delete(path);
 
     setOpenTabs((prev) => {
       const filtered = prev.filter((tab) => tab.path !== path);

@@ -253,7 +253,14 @@ describe('FileEditorTabs', () => {
         expect(screen.getByText('No files open')).toBeInTheDocument();
       });
 
-      // Re-add the same file with a new array reference (simulating clicking it again in file browser)
+      // Parent temporarily removes file from array (simulating it's removed from list)
+      rerender(
+        <ToastProvider>
+          <FileEditorTabs files={[]} />
+        </ToastProvider>,
+      );
+
+      // Re-add the same file (simulating clicking it again in file browser)
       const reopenFiles = [{ path: 'src/App.tsx', content: 'app content' }];
       rerender(
         <ToastProvider>
