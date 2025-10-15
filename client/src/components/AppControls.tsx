@@ -1,4 +1,5 @@
 import type { AppInfo } from '@gen-fullstack/shared';
+import { CirclePlay, Square } from 'lucide-react';
 import { button, padding, spacing, typography } from '../lib/design-tokens';
 
 interface AppControlsProps {
@@ -7,7 +8,7 @@ interface AppControlsProps {
   isGenerating: boolean;
   onStart: (sessionId: string) => void;
   onStop: (sessionId: string) => void;
-  onRestart: (sessionId: string) => void;
+  onStartClick?: () => void;
 }
 
 export function AppControls({
@@ -16,19 +17,63 @@ export function AppControls({
   isGenerating,
   onStart,
   onStop,
-  onRestart,
+  onStartClick,
 }: AppControlsProps) {
   const status = appStatus?.status || 'idle';
   const hasSession = currentSessionId !== null;
 
-  // Determine which buttons to show based on status and session
-  // Don't allow starting during generation (files incomplete)
-  const canStart =
-    hasSession &&
-    !isGenerating &&
-    (status === 'idle' || status === 'stopped' || status === 'failed');
-  const canStop = hasSession && (status === 'running' || status === 'starting');
-  const canRestart = hasSession && !isGenerating && (status === 'running' || status === 'failed');
+  // Determine button state based on app status
+  const getButtonConfig = () => {
+    // App is running - show stop button with subtle gray styling and square icon
+    if (status === 'running') {
+      return {
+        label: 'Stop',
+        icon: <Square size={16} className="fill-current" />,
+        onClick: () => {
+          if (!currentSessionId) {
+            return;
+          }
+          onStop(currentSessionId);
+        },
+        disabled: false,
+        className: button.tertiary,
+        title: 'Stop the running application',
+      };
+    }
+
+    // App is starting - show disabled starting button
+    if (status === 'starting' || status === 'creating' || status === 'installing') {
+      return {
+        label: 'Starting...',
+        icon: null,
+        onClick: () => {},
+        disabled: true,
+        className: button.primary,
+        title: 'Application is starting, please wait',
+      };
+    }
+
+    // App is idle/stopped/failed - show start button with CirclePlay icon
+    const canStart = hasSession && !isGenerating;
+    return {
+      label: 'Start',
+      icon: <CirclePlay size={18} />,
+      onClick: () => {
+        if (!currentSessionId) {
+          return;
+        }
+        onStartClick?.();
+        onStart(currentSessionId);
+      },
+      disabled: !canStart,
+      className: button.primary,
+      title: !hasSession
+        ? 'Generate an app first'
+        : isGenerating
+          ? 'Wait for generation to complete'
+          : 'Start the application',
+    };
+  };
 
   // Status badge color
   const getStatusColor = () => {
@@ -48,8 +93,22 @@ export function AppControls({
     }
   };
 
+  const buttonConfig = getButtonConfig();
+
   return (
     <div className={spacing.controls}>
+      {/* Screen reader announcements for status changes */}
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        {status === 'creating' && 'App container is being created'}
+        {status === 'installing' && 'Installing dependencies'}
+        {status === 'starting' && 'App is starting'}
+        {status === 'running' && 'App is now running'}
+        {status === 'stopped' && 'App has stopped'}
+        {status === 'failed' && appStatus?.error
+          ? `App failed: ${appStatus.error}`
+          : 'App failed to start'}
+      </div>
+
       <div>
         <h3 className={typography.header}>App Execution</h3>
       </div>
@@ -62,7 +121,7 @@ export function AppControls({
         >
           {status}
         </span>
-        {appStatus?.url && (
+        {appStatus?.url && status === 'running' && (
           <a
             href={appStatus.url}
             target="_blank"
@@ -81,40 +140,20 @@ export function AppControls({
         </div>
       )}
 
-      {/* Control Buttons */}
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => currentSessionId && onStart(currentSessionId)}
-          disabled={!canStart}
-          className={button.primary}
-          title={
-            !hasSession
-              ? 'Generate an app first'
-              : isGenerating
-                ? 'Wait for generation to complete'
-                : ''
-          }
-        >
-          Start
-        </button>
-        <button
-          type="button"
-          onClick={() => currentSessionId && onStop(currentSessionId)}
-          disabled={!canStop}
-          className={button.secondary}
-        >
-          Stop
-        </button>
-        <button
-          type="button"
-          onClick={() => currentSessionId && onRestart(currentSessionId)}
-          disabled={!canRestart}
-          className={button.secondary}
-        >
-          Restart
-        </button>
-      </div>
+      {/* Single Control Button */}
+      <button
+        type="button"
+        onClick={buttonConfig.onClick}
+        disabled={buttonConfig.disabled}
+        className={buttonConfig.className}
+        title={buttonConfig.title}
+        aria-label={`${buttonConfig.label} application`}
+      >
+        <div className="flex items-center justify-center gap-2">
+          {buttonConfig.icon}
+          {buttonConfig.label}
+        </div>
+      </button>
     </div>
   );
 }

@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useLoaderData, useParams, type LoaderFunctionArgs } from 'react-router';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useLoaderData, useNavigate, useParams, type LoaderFunctionArgs } from 'react-router';
 import { AppControls } from '../components/AppControls';
 import { AppPreview } from '../components/AppPreview';
 import { ErrorBoundary } from '../components/ErrorBoundary';
@@ -102,7 +102,12 @@ function SessionHeader({
     <header className={`border-b ${padding.page}`}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h1 className={`${typography.label} text-lg text-gray-900`}>Gen Fullstack</h1>
+          <Link
+            to="/"
+            className={`${typography.label} text-lg text-gray-900 hover:text-gray-700 ${transitions.colors}`}
+          >
+            Gen Fullstack
+          </Link>
           <span className={typography.caption}>Session: {sessionId}</span>
         </div>
         <div className="flex items-center gap-3">
@@ -146,7 +151,7 @@ function SessionSidebar({
   isConnected,
   startApp,
   stopApp,
-  restartApp,
+  onStartClick,
 }: {
   sessionData: SessionData;
   sessionId: string | undefined;
@@ -155,7 +160,7 @@ function SessionSidebar({
   isConnected: boolean;
   startApp: () => void;
   stopApp: () => void;
-  restartApp: () => void;
+  onStartClick?: () => void;
 }) {
   return (
     <div className={`border-r ${padding.panel} overflow-y-auto`}>
@@ -230,7 +235,7 @@ function SessionSidebar({
             isGenerating={isGenerating}
             onStart={startApp}
             onStop={stopApp}
-            onRestart={restartApp}
+            onStartClick={onStartClick}
           />
         </div>
       </div>
@@ -246,12 +251,30 @@ function SessionSidebar({
  * for real-time updates and merges them with the persisted data.
  */
 function SessionPage() {
-  const { sessionId } = useParams<{ sessionId: string }>();
+  const { sessionId, tab } = useParams<{ sessionId: string; tab?: string }>();
+  const navigate = useNavigate();
   const sessionData = useLoaderData() as SessionData;
-  const { socket, isConnected, appStatus, appLogs, startApp, stopApp, restartApp } = useWebSocket();
+  const { socket, isConnected, appStatus, appLogs, startApp, stopApp } = useWebSocket();
 
-  const [activeTab, setActiveTab] = useState<'timeline' | 'files' | 'app'>('timeline');
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const previewContainerRef = useRef<HTMLDivElement>(null);
+
+  // Derive active tab from URL, default to 'timeline'
+  const validTabs = ['timeline', 'files', 'preview'] as const;
+  type ValidTab = (typeof validTabs)[number];
+
+  function isValidTab(value: string | undefined): value is ValidTab {
+    return validTabs.includes(value as ValidTab);
+  }
+
+  const activeTab: ValidTab = isValidTab(tab) ? tab : 'timeline';
+
+  // Scroll to top when switching to preview tab
+  useEffect(() => {
+    if (activeTab === 'preview' && previewContainerRef.current) {
+      previewContainerRef.current.scrollTop = 0;
+    }
+  }, [activeTab]);
 
   const isActiveSession = sessionData.session.status === 'generating';
   // With room-based architecture, any connected client can receive live updates
@@ -295,7 +318,7 @@ function SessionPage() {
           isConnected={isConnected}
           startApp={() => startApp(sessionId || '')}
           stopApp={() => stopApp(sessionId || '')}
-          restartApp={() => restartApp(sessionId || '')}
+          onStartClick={() => navigate(`/${sessionId}/preview`)}
         />
 
         {/* Right panel - Timeline & Files */}
@@ -310,7 +333,7 @@ function SessionPage() {
                     ? 'border-gray-900 text-gray-900'
                     : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
-                onClick={() => setActiveTab('timeline')}
+                onClick={() => navigate(`/${sessionId}`)}
               >
                 Timeline{' '}
                 {messages.length + toolCalls.length > 0 &&
@@ -323,18 +346,18 @@ function SessionPage() {
                     ? 'border-gray-900 text-gray-900'
                     : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
-                onClick={() => setActiveTab('files')}
+                onClick={() => navigate(`/${sessionId}/files`)}
               >
                 Files {files.length > 0 && `(${files.length})`}
               </button>
               <button
                 type="button"
                 className={`border-b-2 px-3 py-2 ${typography.label} ${transitions.colors} ${focus.ring} ${
-                  activeTab === 'app'
+                  activeTab === 'preview'
                     ? 'border-gray-900 text-gray-900'
                     : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
-                onClick={() => setActiveTab('app')}
+                onClick={() => navigate(`/${sessionId}/preview`)}
               >
                 App Execution{' '}
                 {appStatus?.status && appStatus.status !== 'idle' && (
@@ -365,14 +388,14 @@ function SessionPage() {
                   <FileViewer file={files.find((f) => f.path === selectedFile) || null} />
                 </div>
               </div>
-            ) : (
-              <div className={`h-full overflow-y-auto ${padding.panel}`}>
+            ) : activeTab === 'preview' ? (
+              <div ref={previewContainerRef} className={`h-full overflow-y-auto ${padding.panel}`}>
                 <div className={spacing.sections}>
                   <AppPreview appStatus={appStatus} />
                   <LogViewer logs={appLogs} />
                 </div>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       </main>

@@ -31,7 +31,6 @@ interface UseWebSocketReturn {
   // App execution functions
   startApp: (sessionId: string) => void;
   stopApp: (sessionId: string) => void;
-  restartApp: (sessionId: string) => void;
 }
 
 const SERVER_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
@@ -215,6 +214,8 @@ export function useWebSocket(): UseWebSocketReturn {
   const startApp = useCallback(
     (sessionId: string) => {
       if (socket) {
+        // Clear old logs before starting
+        setAppLogs([]);
         socket.emit('start_app', { sessionId });
       }
     },
@@ -225,15 +226,6 @@ export function useWebSocket(): UseWebSocketReturn {
     (sessionId: string) => {
       if (socket) {
         socket.emit('stop_app', { sessionId });
-      }
-    },
-    [socket],
-  );
-
-  const restartApp = useCallback(
-    (sessionId: string) => {
-      if (socket) {
-        socket.emit('restart_app', { sessionId });
       }
     },
     [socket],
@@ -258,6 +250,5 @@ export function useWebSocket(): UseWebSocketReturn {
     clearMessages,
     startApp,
     stopApp,
-    restartApp,
   };
 }

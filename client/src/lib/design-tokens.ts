@@ -91,8 +91,12 @@ export const transitions = {
 
 // Common button styles
 export const button = {
-  primary: `rounded ${padding.button} ${typography.label} text-white bg-${colors.primary} hover:bg-${colors.primaryHover} disabled:bg-${colors.disabled} disabled:cursor-not-allowed ${transitions.colors} ${focus.ring}`,
-  secondary: `rounded ${padding.button} ${typography.label} border border-${colors.border} hover:border-${colors.borderHover} hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed ${transitions.colors} ${focus.ring}`,
+  // Primary button - dark, high emphasis
+  primary: `w-full rounded border border-gray-900 bg-gray-900 px-4 py-2.5 text-sm font-medium text-white ${transitions.colors} hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:border-gray-300 ${focus.ring}`,
+  // Secondary button - outlined, medium emphasis
+  secondary: `rounded border px-4 py-2 text-sm font-medium border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed ${transitions.colors} ${focus.ring}`,
+  // Tertiary button - subtle, low emphasis (for destructive actions like stop)
+  tertiary: `w-full rounded border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 ${transitions.colors} hover:bg-gray-50 hover:border-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 ${focus.ring}`,
 } as const;
 
 // Common input styles
