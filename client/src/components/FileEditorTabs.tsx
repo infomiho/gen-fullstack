@@ -63,8 +63,8 @@ export function FileEditorTabs({ files, onSaveFile }: FileEditorTabsProps) {
       }
     }
 
-    // Don't remove from ref - it tracks "ever opened", not "currently open"
-    // Removing it would cause useEffect to re-add the file
+    // Remove from ref so file can be re-opened later
+    openPathsRef.current.delete(path);
 
     setOpenTabs((prev) => {
       const filtered = prev.filter((tab) => tab.path !== path);

@@ -233,6 +233,41 @@ describe('FileEditorTabs', () => {
       expect(screen.getByText('App.tsx')).toBeInTheDocument();
       expect(screen.getByText('index.tsx')).toBeInTheDocument();
     });
+
+    it('should allow re-opening a previously closed file', async () => {
+      const user = userEvent.setup();
+      const initialFiles = [{ path: 'src/App.tsx', content: 'app content' }];
+
+      const { rerender } = renderWithToast(<FileEditorTabs files={initialFiles} />);
+
+      // File should be open initially
+      expect(screen.getByText('App.tsx')).toBeInTheDocument();
+
+      // Close the file
+      const closeButton = screen.getByLabelText('Close tab');
+      await user.click(closeButton);
+
+      // File should be closed
+      await waitFor(() => {
+        expect(screen.queryByText('App.tsx')).not.toBeInTheDocument();
+        expect(screen.getByText('No files open')).toBeInTheDocument();
+      });
+
+      // Re-add the same file with a new array reference (simulating clicking it again in file browser)
+      const reopenFiles = [{ path: 'src/App.tsx', content: 'app content' }];
+      rerender(
+        <ToastProvider>
+          <FileEditorTabs files={reopenFiles} />
+        </ToastProvider>,
+      );
+
+      // File should open again
+      await waitFor(() => {
+        expect(screen.getByText('App.tsx')).toBeInTheDocument();
+        const editor = screen.getByTestId('editor-textarea');
+        expect(editor).toHaveValue('app content');
+      });
+    });
   });
 
   describe('Tab Display', () => {
