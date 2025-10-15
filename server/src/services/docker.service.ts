@@ -128,6 +128,52 @@ const TIMEOUTS = {
   maxRuntime: 10 * 60 * 1000, // 10 minutes max runtime
 };
 
+// Retry configuration for Docker 409 conflicts
+const RETRY_CONFIG = {
+  maxAttempts: 3,
+  delayMs: 1000, // Start with 1 second
+  backoffMultiplier: 2, // Exponential backoff
+};
+
+/**
+ * Retry helper for Docker operations that may fail with 409 conflicts
+ */
+async function retryOnConflict<T>(operation: () => Promise<T>, operationName: string): Promise<T> {
+  let lastError: Error | undefined;
+
+  for (let attempt = 1; attempt <= RETRY_CONFIG.maxAttempts; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error as Error;
+
+      // Check if it's a 409 conflict error
+      const is409 =
+        error &&
+        typeof error === 'object' &&
+        'statusCode' in error &&
+        (error as { statusCode: number }).statusCode === 409;
+
+      if (!is409 || attempt === RETRY_CONFIG.maxAttempts) {
+        // Not a conflict or last attempt - throw immediately
+        throw error;
+      }
+
+      // Wait before retrying with exponential backoff
+      const delay = RETRY_CONFIG.delayMs * RETRY_CONFIG.backoffMultiplier ** (attempt - 1);
+      console.log(
+        `[Docker] ${operationName} failed with 409 conflict, retrying in ${delay}ms (attempt ${attempt}/${RETRY_CONFIG.maxAttempts})`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+
+  // Should never reach here, but TypeScript needs it
+  throw (
+    lastError || new Error(`${operationName} failed after ${RETRY_CONFIG.maxAttempts} attempts`)
+  );
+}
+
 export interface ContainerInfo {
   sessionId: string;
   containerId: string;
@@ -258,6 +304,51 @@ export class DockerService extends EventEmitter {
   }
 
   /**
+   * Clean up orphaned containers from previous sessions
+   * Call this on server startup to remove stale containers
+   */
+  async cleanupOrphanedContainers(): Promise<void> {
+    try {
+      console.log('[Docker] Cleaning up orphaned containers...');
+
+      // List all containers with gen- prefix
+      const containers = await docker.listContainers({ all: true });
+      const orphanedContainers = containers.filter((c) =>
+        c.Names.some((name) => name.startsWith('/gen-')),
+      );
+
+      if (orphanedContainers.length === 0) {
+        console.log('[Docker] No orphaned containers found');
+        return;
+      }
+
+      console.log(`[Docker] Found ${orphanedContainers.length} orphaned containers, removing...`);
+
+      // Remove all orphaned containers
+      const promises = orphanedContainers.map(async (c) => {
+        const container = docker.getContainer(c.Id);
+        try {
+          // Stop if running
+          if (c.State === 'running') {
+            await container.stop({ t: 5 });
+          }
+          // Remove
+          await container.remove({ force: true });
+          console.log(`[Docker] Removed orphaned container: ${c.Names[0]}`);
+        } catch (error) {
+          console.error(`[Docker] Failed to remove orphaned container ${c.Names[0]}:`, error);
+        }
+      });
+
+      await Promise.all(promises);
+      console.log('[Docker] Orphaned container cleanup complete');
+    } catch (error) {
+      console.error('[Docker] Failed to cleanup orphaned containers:', error);
+      // Don't throw - this is not critical for startup
+    }
+  }
+
+  /**
    * Find an available port in the range
    */
   private async findAvailablePort(start: number, end: number): Promise<number> {
@@ -285,17 +376,23 @@ export class DockerService extends EventEmitter {
         console.log(`[Docker] Found existing container ${containerName}, removing...`);
         const container = docker.getContainer(existingContainer.Id);
 
-        // Stop if running
+        // Stop if running (with retry for 409 conflicts)
         if (existingContainer.State === 'running') {
           try {
-            await container.stop({ t: 5 });
+            await retryOnConflict(
+              () => container.stop({ t: 5 }),
+              `Stop container ${containerName}`,
+            );
           } catch (_error) {
             // Ignore stop errors, we'll force remove anyway
           }
         }
 
-        // Remove container
-        await container.remove({ force: true });
+        // Remove container (with retry for 409 conflicts)
+        await retryOnConflict(
+          () => container.remove({ force: true }),
+          `Remove container ${containerName}`,
+        );
         console.log(`[Docker] Removed existing container ${containerName}`);
       }
     } catch (error) {
@@ -790,14 +887,21 @@ export class DockerService extends EventEmitter {
       containerInfo.status = 'stopped';
       this.emit('status_change', { sessionId, status: 'stopped' });
 
-      // Stop container (with timeout)
-      await Promise.race([
-        containerInfo.container.stop(),
-        new Promise((resolve) => setTimeout(resolve, TIMEOUTS.stop)),
-      ]);
+      // Stop container (with timeout and retry)
+      await retryOnConflict(
+        () =>
+          Promise.race([
+            containerInfo.container.stop(),
+            new Promise((resolve) => setTimeout(resolve, TIMEOUTS.stop)),
+          ]),
+        `Stop container ${sessionId}`,
+      );
 
-      // Remove container
-      await containerInfo.container.remove({ force: true });
+      // Remove container (with retry)
+      await retryOnConflict(
+        () => containerInfo.container.remove({ force: true }),
+        `Remove container ${sessionId}`,
+      );
 
       // Remove from map
       this.containers.delete(sessionId);
@@ -807,7 +911,10 @@ export class DockerService extends EventEmitter {
       console.error('[Docker] Failed to destroy container:', error);
       // Force remove if stop failed
       try {
-        await containerInfo.container.remove({ force: true });
+        await retryOnConflict(
+          () => containerInfo.container.remove({ force: true }),
+          `Force remove container ${sessionId}`,
+        );
         this.containers.delete(sessionId);
       } catch {
         // Ignore errors on force remove

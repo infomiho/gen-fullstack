@@ -129,6 +129,15 @@ async function initializeServices() {
   }
 
   console.log('[Server] ✓ Docker is available');
+
+  // Clean up orphaned containers from previous sessions
+  try {
+    await processService.cleanupOrphanedContainers();
+  } catch (err) {
+    console.error('[Server] Failed to cleanup orphaned containers:', err);
+    // Continue anyway - not critical
+  }
+
   console.log('[Server] Building Docker runner image...');
 
   try {

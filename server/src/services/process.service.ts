@@ -58,19 +58,33 @@ export class ProcessService extends EventEmitter {
    */
   async startApp(sessionId: string, workingDir: string): Promise<ProcessInfo> {
     try {
-      // Check if already running
+      // Check if already exists
       if (this.processes.has(sessionId)) {
-        // Verify the container actually exists in Docker
-        const existingStatus = this.docker.getStatus(sessionId);
-        if (existingStatus && existingStatus.status !== 'stopped') {
-          // Container is actually running, return existing info
-          const processInfo = this.processes.get(sessionId);
-          if (processInfo) {
-            return processInfo;
-          }
+        const existingProcess = this.processes.get(sessionId);
+        if (!existingProcess) {
+          throw new Error(`Process state inconsistency for ${sessionId}`);
         }
-        // Stale entry - container doesn't exist, clean it up
-        this.processes.delete(sessionId);
+
+        // Allow restart if failed
+        if (existingProcess.status === 'failed') {
+          console.log(`[Process] Cleaning up failed process ${sessionId} before restart`);
+          this.processes.delete(sessionId);
+          // Also try to clean up any Docker container
+          try {
+            await this.docker.destroyContainer(sessionId);
+          } catch (_err) {
+            // Ignore errors - container might not exist
+          }
+        } else {
+          // Verify the container actually exists in Docker
+          const existingStatus = this.docker.getStatus(sessionId);
+          if (existingStatus && existingStatus.status !== 'stopped') {
+            // Container is actually running, return existing info
+            return existingProcess;
+          }
+          // Stale entry - container doesn't exist, clean it up
+          this.processes.delete(sessionId);
+        }
       }
 
       // Create container
@@ -189,6 +203,13 @@ export class ProcessService extends EventEmitter {
    */
   async initialize(): Promise<void> {
     await this.docker.buildRunnerImage();
+  }
+
+  /**
+   * Clean up orphaned containers from previous sessions
+   */
+  async cleanupOrphanedContainers(): Promise<void> {
+    await this.docker.cleanupOrphanedContainers();
   }
 
   /**
