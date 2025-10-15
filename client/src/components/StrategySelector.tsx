@@ -5,6 +5,8 @@ interface StrategySelectorProps {
   value: string;
   onChange: (strategy: string) => void;
   disabled?: boolean;
+  id?: string;
+  label?: string;
 }
 
 const strategies = [
@@ -31,14 +33,17 @@ const strategies = [
   },
 ];
 
-export function StrategySelector({ value, onChange, disabled }: StrategySelectorProps) {
-  const selectId = useId();
+export function StrategySelector({ value, onChange, disabled, id, label }: StrategySelectorProps) {
+  const generatedId = useId();
+  const selectId = id || generatedId;
 
   return (
     <div className={spacing.form}>
-      <label htmlFor={selectId} className={typography.label}>
-        Generation Strategy
-      </label>
+      {label && (
+        <label htmlFor={selectId} className={typography.label}>
+          {label}
+        </label>
+      )}
       <select
         id={selectId}
         value={value}

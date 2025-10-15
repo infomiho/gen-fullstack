@@ -1,4 +1,3 @@
-import type { FileUpdate, LLMMessage, ToolCall, ToolResult } from '@gen-fullstack/shared';
 import { useEffect, useState } from 'react';
 import { useLoaderData, useParams, type LoaderFunctionArgs } from 'react-router';
 import { AppControls } from '../components/AppControls';
@@ -9,24 +8,11 @@ import { FileViewer } from '../components/FileViewer';
 import { LogViewer } from '../components/LogViewer';
 import { StrategySelector } from '../components/StrategySelector';
 import { Timeline } from '../components/Timeline';
+import { useSessionData } from '../hooks/useSessionData';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { focus, padding, spacing, transitions, typography } from '../lib/design-tokens';
 
 const SERVER_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-
-/**
- * Safely parse JSON with fallback
- */
-function safeJsonParse<T>(json: string | undefined, fallback: T): T {
-  if (!json) return fallback;
-  try {
-    return JSON.parse(json) as T;
-  } catch (error) {
-    // biome-ignore lint/suspicious/noConsole: Useful for debugging malformed JSON data
-    console.warn('Failed to parse JSON:', json, error);
-    return fallback;
-  }
-}
 
 /**
  * Session data structure from the API
@@ -94,77 +80,6 @@ export async function clientLoader({ params }: LoaderFunctionArgs) {
 
   const data: SessionData = await response.json();
   return data;
-}
-
-/**
- * Helper: Convert persisted timeline messages to client format
- */
-function convertPersistedMessages(timeline: SessionData['timeline']): LLMMessage[] {
-  return timeline
-    .filter((item) => item.type === 'message' && item.role && item.content !== undefined)
-    .map((item) => ({
-      id: `persisted-${item.id}`,
-      role: item.role as 'user' | 'assistant' | 'system',
-      content: item.content || '',
-      timestamp: new Date(item.timestamp).getTime(),
-    }));
-}
-
-/**
- * Helper: Convert persisted timeline tool calls to client format
- */
-function convertPersistedToolCalls(timeline: SessionData['timeline']): ToolCall[] {
-  return timeline
-    .filter((item) => item.type === 'tool_call' && item.toolCallId && item.toolName)
-    .map((item) => ({
-      id: item.toolCallId as string,
-      name: item.toolName as string,
-      args: safeJsonParse<Record<string, unknown>>(item.toolArgs, {}),
-      timestamp: new Date(item.timestamp).getTime(),
-    }));
-}
-
-/**
- * Helper: Convert persisted timeline tool results to client format
- */
-function convertPersistedToolResults(timeline: SessionData['timeline']): ToolResult[] {
-  return timeline
-    .filter((item) => item.type === 'tool_result' && item.toolResultId)
-    .map((item) => ({
-      id: item.toolResultId as string,
-      toolName: item.toolName || '',
-      result: item.result || '',
-      timestamp: new Date(item.timestamp).getTime(),
-    }));
-}
-
-/**
- * Helper: Convert persisted files to client format
- */
-function convertPersistedFiles(files: SessionData['files']): FileUpdate[] {
-  return files.map((file) => ({
-    path: file.path,
-    content: file.content,
-  }));
-}
-
-/**
- * Helper: Merge and deduplicate arrays by ID
- */
-function mergeByIdAndSort<T extends { id: string; timestamp: number }>(
-  persisted: T[],
-  live: T[],
-): T[] {
-  return Array.from(new Map([...persisted, ...live].map((item) => [item.id, item])).values()).sort(
-    (a, b) => a.timestamp - b.timestamp,
-  );
-}
-
-/**
- * Helper: Merge files by path (no timestamp sorting needed)
- */
-function mergeByPath(persisted: FileUpdate[], live: FileUpdate[]): FileUpdate[] {
-  return Array.from(new Map([...persisted, ...live].map((file) => [file.path, file])).values());
 }
 
 /**
@@ -255,7 +170,7 @@ function SessionSidebar({
         </div>
 
         <div>
-          <h3 className={`mb-3 ${typography.header}`}>Prompt (readonly)</h3>
+          <h3 className={`mb-3 ${typography.header}`}>Prompt</h3>
           <div className="p-3 bg-gray-50 border rounded-md">
             <p className={`${typography.body} text-gray-700 whitespace-pre-wrap`}>
               {sessionData.session.prompt}
@@ -333,19 +248,7 @@ function SessionSidebar({
 function SessionPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const sessionData = useLoaderData() as SessionData;
-  const {
-    socket,
-    isConnected,
-    messages: liveMessages,
-    toolCalls: liveToolCalls,
-    toolResults: liveToolResults,
-    files: liveFiles,
-    appStatus,
-    appLogs,
-    startApp,
-    stopApp,
-    restartApp,
-  } = useWebSocket();
+  const { socket, isConnected, appStatus, appLogs, startApp, stopApp, restartApp } = useWebSocket();
 
   const [activeTab, setActiveTab] = useState<'timeline' | 'files' | 'app'>('timeline');
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
@@ -355,31 +258,13 @@ function SessionPage() {
   // isOwnSession is true if connected and viewing an active session
   const isOwnSession = socket !== null && isActiveSession;
 
-  // Convert persisted timeline items to client types
-  const persistedMessages = convertPersistedMessages(sessionData.timeline);
-  const persistedToolCalls = convertPersistedToolCalls(sessionData.timeline);
-  const persistedToolResults = convertPersistedToolResults(sessionData.timeline);
-  const persistedFiles = convertPersistedFiles(sessionData.files);
-
-  // Only merge live data if this is our own active session
-  // Otherwise, live updates won't work due to session/socket ID mismatch
-  const messages =
-    isActiveSession && isOwnSession
-      ? mergeByIdAndSort(persistedMessages, liveMessages)
-      : persistedMessages;
-
-  const toolCalls =
-    isActiveSession && isOwnSession
-      ? mergeByIdAndSort(persistedToolCalls, liveToolCalls)
-      : persistedToolCalls;
-
-  const toolResults =
-    isActiveSession && isOwnSession
-      ? mergeByIdAndSort(persistedToolResults, liveToolResults)
-      : persistedToolResults;
-
-  const files =
-    isActiveSession && isOwnSession ? mergeByPath(persistedFiles, liveFiles) : persistedFiles;
+  // Use custom hook to handle data merging
+  const { messages, toolCalls, toolResults, files } = useSessionData(
+    sessionData.timeline,
+    sessionData.files,
+    isActiveSession,
+    isOwnSession,
+  );
 
   // Subscribe to session room and request app status when page loads
   useEffect(() => {

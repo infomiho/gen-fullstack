@@ -16,11 +16,11 @@ export const sessions = sqliteTable('sessions', {
   prompt: text('prompt').notNull(),
   strategy: text('strategy').notNull(),
   status: text('status').notNull(), // 'pending' | 'generating' | 'completed' | 'failed'
-  createdAt: integer('created_at', { mode: 'timestamp' })
+  createdAt: integer('created_at', { mode: 'timestamp_ms' })
     .notNull()
     .default(sql`(unixepoch() * 1000)`),
-  updatedAt: integer('updated_at', { mode: 'timestamp' }),
-  completedAt: integer('completed_at', { mode: 'timestamp' }),
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' }),
+  completedAt: integer('completed_at', { mode: 'timestamp_ms' }),
   errorMessage: text('error_message'),
   // Generation metrics
   inputTokens: integer('input_tokens').default(0),
@@ -39,7 +39,7 @@ export const timelineItems = sqliteTable('timeline_items', {
   sessionId: text('session_id')
     .notNull()
     .references(() => sessions.id, { onDelete: 'cascade' }),
-  timestamp: integer('timestamp', { mode: 'timestamp' }).notNull(),
+  timestamp: integer('timestamp', { mode: 'timestamp_ms' }).notNull(),
   type: text('type').notNull(), // 'message' | 'tool_call' | 'tool_result'
   // Message fields (when type = 'message')
   messageId: text('message_id'), // Unique ID for LLM messages (for upserting streaming chunks)
@@ -66,10 +66,10 @@ export const files = sqliteTable('files', {
     .references(() => sessions.id, { onDelete: 'cascade' }),
   path: text('path').notNull(),
   content: text('content').notNull(),
-  createdAt: integer('created_at', { mode: 'timestamp' })
+  createdAt: integer('created_at', { mode: 'timestamp_ms' })
     .notNull()
     .default(sql`(unixepoch() * 1000)`),
-  updatedAt: integer('updated_at', { mode: 'timestamp' })
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
     .notNull()
     .default(sql`(unixepoch() * 1000)`),
 });

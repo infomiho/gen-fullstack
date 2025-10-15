@@ -5,9 +5,10 @@ import { focus, input, spacing, transitions } from '../lib/design-tokens';
 interface PromptInputProps {
   onSubmit: (prompt: string) => void;
   disabled?: boolean;
+  id?: string;
 }
 
-export function PromptInput({ onSubmit, disabled }: PromptInputProps) {
+export function PromptInput({ onSubmit, disabled, id }: PromptInputProps) {
   const [prompt, setPrompt] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -21,6 +22,7 @@ export function PromptInput({ onSubmit, disabled }: PromptInputProps) {
   return (
     <form onSubmit={handleSubmit} className={spacing.form}>
       <textarea
+        id={id}
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
         placeholder="Describe your app..."
