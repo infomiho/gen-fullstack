@@ -143,13 +143,34 @@ function SessionPage() {
     content: file.content,
   }));
 
-  // Merge persisted and live data (live data takes precedence for active sessions)
-  const messages = isActiveSession && liveMessages.length > 0 ? liveMessages : persistedMessages;
-  const toolCalls =
-    isActiveSession && liveToolCalls.length > 0 ? liveToolCalls : persistedToolCalls;
-  const toolResults =
-    isActiveSession && liveToolResults.length > 0 ? liveToolResults : persistedToolResults;
-  const files = isActiveSession && liveFiles.length > 0 ? liveFiles : persistedFiles;
+  // Merge persisted and live data with deduplication
+  // For active sessions: concatenate and deduplicate by ID, sorted by timestamp
+  // For completed sessions: use only persisted data
+  const messages = isActiveSession
+    ? Array.from(
+        new Map([...persistedMessages, ...liveMessages].map((msg) => [msg.id, msg])).values(),
+      ).sort((a, b) => a.timestamp - b.timestamp)
+    : persistedMessages;
+
+  const toolCalls = isActiveSession
+    ? Array.from(
+        new Map([...persistedToolCalls, ...liveToolCalls].map((call) => [call.id, call])).values(),
+      ).sort((a, b) => a.timestamp - b.timestamp)
+    : persistedToolCalls;
+
+  const toolResults = isActiveSession
+    ? Array.from(
+        new Map(
+          [...persistedToolResults, ...liveToolResults].map((result) => [result.id, result]),
+        ).values(),
+      ).sort((a, b) => a.timestamp - b.timestamp)
+    : persistedToolResults;
+
+  const files = isActiveSession
+    ? Array.from(
+        new Map([...persistedFiles, ...liveFiles].map((file) => [file.path, file])).values(),
+      )
+    : persistedFiles;
 
   // Show readonly prompt in input box
   useEffect(() => {
@@ -168,7 +189,7 @@ function SessionPage() {
           </div>
           <div className="flex items-center gap-3">
             <div
-              className={`px-2 py-0.5 rounded text-xs font-medium ${
+              className={`px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1.5 ${
                 sessionData.session.status === 'completed'
                   ? 'bg-gray-100 text-gray-700'
                   : sessionData.session.status === 'generating'
@@ -176,7 +197,15 @@ function SessionPage() {
                     : 'bg-red-100 text-red-700'
               }`}
             >
-              {sessionData.session.status}
+              {sessionData.session.status === 'generating' && isConnected && (
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
+                </span>
+              )}
+              {sessionData.session.status === 'generating' && isConnected
+                ? 'Live'
+                : sessionData.session.status}
             </div>
             <div className="flex items-center gap-1.5">
               <div
