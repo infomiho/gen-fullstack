@@ -204,6 +204,37 @@ describe('FileEditorTabs', () => {
     });
   });
 
+  describe('Tab Opening', () => {
+    it('should automatically focus newly opened file', async () => {
+      const files = [{ path: 'src/App.tsx', content: 'app content' }];
+
+      const { rerender } = renderWithToast(<FileEditorTabs files={files} />);
+
+      // First file should be active
+      const appEditor = screen.getByTestId('editor-textarea');
+      expect(appEditor).toHaveValue('app content');
+
+      // Add a new file to the files array
+      const newFiles = [...files, { path: 'src/index.tsx', content: 'index content' }];
+
+      rerender(
+        <ToastProvider>
+          <FileEditorTabs files={newFiles} />
+        </ToastProvider>,
+      );
+
+      // New file should automatically become active
+      await waitFor(() => {
+        const indexEditor = screen.getByTestId('editor-textarea');
+        expect(indexEditor).toHaveValue('index content');
+      });
+
+      // Both tabs should be visible
+      expect(screen.getByText('App.tsx')).toBeInTheDocument();
+      expect(screen.getByText('index.tsx')).toBeInTheDocument();
+    });
+  });
+
   describe('Tab Display', () => {
     it('should show dirty indicator for modified files', async () => {
       const user = userEvent.setup();

@@ -47,12 +47,12 @@ export function FileEditorTabs({ files, onSaveFile }: FileEditorTabsProps) {
         ...newTabs.map((f) => ({ path: f.path, content: f.content, isDirty: false })),
       ]);
 
-      // Set first new tab as active if no tab is active
-      if (!activeTab && newTabs.length > 0) {
+      // Always activate the first newly opened tab
+      if (newTabs.length > 0) {
         setActiveTab(newTabs[0].path);
       }
     }
-  }, [files, activeTab]);
+  }, [files]);
 
   // Close a tab
   const closeTab = (path: string) => {
