@@ -32,4 +32,6 @@ coverage
 # Database
 *.db
 *.db-journal
+*.db-shm
+*.db-wal
 prisma/migrations
