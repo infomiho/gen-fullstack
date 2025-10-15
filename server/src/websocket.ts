@@ -4,6 +4,7 @@ import { Server as SocketIOServer } from 'socket.io';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import { NaiveStrategy } from './strategies/naive.strategy.js';
+import { PlanFirstStrategy } from './strategies/plan-first.strategy.js';
 import type { ClientToServerEvents, ServerToClientEvents } from './types/index.js';
 import { StartGenerationSchema } from './types/index.js';
 import { processService } from './services/process.service.js';
@@ -71,15 +72,18 @@ export function setupWebSocket(httpServer: HTTPServer) {
         socket.emit('session_started', { sessionId });
 
         // Instantiate strategy based on user selection
-        // For now, we only have NaiveStrategy implemented
-        let strategy: NaiveStrategy;
+        let strategy: NaiveStrategy | PlanFirstStrategy;
         switch (validated.strategy) {
           case 'naive':
+            strategy = new NaiveStrategy();
+            break;
           case 'plan-first':
+            strategy = new PlanFirstStrategy();
+            break;
           case 'template':
           case 'compiler-check':
           case 'building-blocks':
-            // All strategies use NaiveStrategy for now
+            // These strategies not yet implemented, use NaiveStrategy for now
             // TODO: Implement other strategies in Phase 5
             strategy = new NaiveStrategy();
             break;

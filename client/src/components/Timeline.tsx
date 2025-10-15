@@ -1,7 +1,7 @@
 import type { LLMMessage, ToolCall, ToolResult } from '@gen-fullstack/shared';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Bot, Terminal, User, Wrench, X } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   focus,
   padding,
@@ -50,8 +50,6 @@ function formatTimestamp(timestamp: number): string {
  * Tool calls can be clicked to view details in a modal dialog.
  */
 export function Timeline({ messages, toolCalls, toolResults }: TimelineProps) {
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
   // Merge tool calls with their results
   const toolExecutions = useMemo(() => {
     const resultsMap = new Map<string, ToolResult>();
@@ -95,14 +93,9 @@ export function Timeline({ messages, toolCalls, toolResults }: TimelineProps) {
       });
     });
 
-    // Sort by timestamp
-    return items.sort((a, b) => a.timestamp - b.timestamp);
+    // Sort by timestamp in reverse (newest first)
+    return items.sort((a, b) => b.timestamp - a.timestamp);
   }, [messages, toolExecutions]);
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: Need to scroll when timeline changes
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [timeline]);
 
   if (timeline.length === 0) {
     return (
@@ -124,7 +117,6 @@ export function Timeline({ messages, toolCalls, toolResults }: TimelineProps) {
           <ToolItem key={`${item.data.id}-${index}`} tool={item.data} />
         ),
       )}
-      <div ref={messagesEndRef} />
     </div>
   );
 }

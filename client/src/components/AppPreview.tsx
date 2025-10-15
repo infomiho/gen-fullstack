@@ -18,6 +18,7 @@ export function AppPreview({ appStatus }: AppPreviewProps) {
       {isRunning && url ? (
         <div className="relative w-full" style={{ height: '600px' }}>
           <iframe
+            key={`${url}-${appStatus?.status}`}
             src={url}
             title="App Preview"
             className={`w-full h-full border border-gray-200 bg-white ${radius.md}`}

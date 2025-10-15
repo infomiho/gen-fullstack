@@ -7,7 +7,7 @@ import SessionPage, { clientLoader as sessionLoader } from './pages/SessionPage'
  *
  * Routes:
  * - / : HomePage - Start new generation
- * - /:sessionId : SessionPage - View persisted session with timeline (with clientLoader)
+ * - /:sessionId/:tab? : SessionPage - View persisted session with optional tab (timeline/files/preview)
  */
 export const router = createBrowserRouter([
   {
@@ -15,7 +15,7 @@ export const router = createBrowserRouter([
     Component: HomePage,
   },
   {
-    path: '/:sessionId',
+    path: '/:sessionId/:tab?',
     Component: SessionPage,
     loader: sessionLoader,
   },
