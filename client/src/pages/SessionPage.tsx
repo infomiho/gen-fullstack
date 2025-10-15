@@ -111,33 +111,14 @@ function SessionPage() {
   const isActiveSession = sessionData.session.status === 'generating';
 
   // Convert persisted timeline items to client types
-  // Group and accumulate consecutive messages with same role (streaming chunks)
-  const messageItems = sessionData.timeline.filter((item) => item.type === 'message');
-  const persistedMessages: LLMMessage[] = [];
-
-  for (const item of messageItems) {
-    const role = item.role!;
-    const content = item.content || '';
-    const timestamp = new Date(item.timestamp).getTime();
-
-    // Check if we can accumulate into the previous message
-    const prevMessage = persistedMessages[persistedMessages.length - 1];
-    const timeDiff = prevMessage ? timestamp - prevMessage.timestamp : Number.POSITIVE_INFINITY;
-
-    // If same role and within 1 second, accumulate (these are streaming chunks)
-    if (prevMessage && prevMessage.role === role && timeDiff < 1000) {
-      prevMessage.content += content;
-      // Don't update timestamp - keep the original start time
-    } else {
-      // New message group
-      persistedMessages.push({
-        id: `persisted-${item.id}`,
-        role,
-        content,
-        timestamp,
-      });
-    }
-  }
+  const persistedMessages: LLMMessage[] = sessionData.timeline
+    .filter((item) => item.type === 'message')
+    .map((item) => ({
+      id: `persisted-${item.id}`,
+      role: item.role!,
+      content: item.content || '',
+      timestamp: new Date(item.timestamp).getTime(),
+    }));
 
   const persistedToolCalls: ToolCall[] = sessionData.timeline
     .filter((item) => item.type === 'tool_call')
