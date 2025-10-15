@@ -131,6 +131,7 @@ export interface ClientToServerEvents {
   start_generation: (payload: StartGenerationPayload) => void;
   stop_generation: () => void;
   clear_workspace: () => void;
+  subscribe_to_session: (data: { sessionId: string }) => void;
 
   // App execution commands
   start_app: (data: { sessionId: string }) => void;

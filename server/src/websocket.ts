@@ -2,6 +2,7 @@ import type { Server as HTTPServer } from 'node:http';
 import path from 'node:path';
 import { Server as SocketIOServer } from 'socket.io';
 import { z } from 'zod';
+import { v4 as uuidv4 } from 'uuid';
 import { NaiveStrategy } from './strategies/naive.strategy.js';
 import type { ClientToServerEvents, ServerToClientEvents } from './types/index.js';
 import { StartGenerationSchema } from './types/index.js';
@@ -17,21 +18,33 @@ export function setupWebSocket(httpServer: HTTPServer) {
     },
   });
 
-  // Forward process service events to all connected clients
+  // Forward process service events to specific session rooms
   processService.on('app_status', (appInfo: AppInfo) => {
-    io.emit('app_status', appInfo);
+    if (appInfo.sessionId) {
+      io.to(appInfo.sessionId).emit('app_status', appInfo);
+    }
   });
 
   processService.on('app_log', (log: AppLog) => {
-    io.emit('app_log', log);
+    if (log.sessionId) {
+      io.to(log.sessionId).emit('app_log', log);
+    }
   });
 
   processService.on('build_event', (event: BuildEvent) => {
-    io.emit('build_event', event);
+    if (event.sessionId) {
+      io.to(event.sessionId).emit('build_event', event);
+    }
   });
 
   io.on('connection', (socket) => {
     console.log('Client connected:', socket.id);
+
+    // Allow clients to subscribe to an existing session's updates
+    socket.on('subscribe_to_session', ({ sessionId }) => {
+      socket.join(sessionId);
+      console.log(`Socket ${socket.id} subscribed to session: ${sessionId}`);
+    });
 
     socket.on('start_generation', async (payload) => {
       try {
@@ -39,8 +52,14 @@ export function setupWebSocket(httpServer: HTTPServer) {
         const validated = StartGenerationSchema.parse(payload);
         console.log('Starting generation with strategy:', validated.strategy);
 
+        // Generate a unique session ID (independent of socket ID)
+        const sessionId = uuidv4();
+
+        // Have this socket join the room for this session
+        socket.join(sessionId);
+        console.log(`Socket ${socket.id} joined session room: ${sessionId}`);
+
         // Create session in database
-        const sessionId = socket.id;
         await databaseService.createSession({
           id: sessionId,
           prompt: validated.prompt,
@@ -68,8 +87,8 @@ export function setupWebSocket(httpServer: HTTPServer) {
             throw new Error(`Unknown strategy: ${validated.strategy}`);
         }
 
-        // Generate app using the selected strategy
-        await strategy.generateApp(validated.prompt, socket, sessionId);
+        // Generate app using the selected strategy, passing io for room-based broadcasting
+        await strategy.generateApp(validated.prompt, io, sessionId);
       } catch (error) {
         console.error('Generation error:', error);
         if (error instanceof z.ZodError) {

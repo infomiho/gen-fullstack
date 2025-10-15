@@ -1,9 +1,10 @@
 import type { LanguageModel } from 'ai';
-import type { Socket } from 'socket.io';
+import type { Server as SocketIOServer } from 'socket.io';
 import { initializeSandbox } from '../services/filesystem.service.js';
 import { calculateCost, getModel, type ModelName } from '../services/llm.service.js';
 import { databaseService } from '../services/database.service.js';
 import type { GenerationMetrics } from '../types/index.js';
+import type { ClientToServerEvents, ServerToClientEvents } from '../types/index.js';
 
 export type { GenerationMetrics };
 
@@ -43,12 +44,12 @@ export abstract class BaseStrategy {
    * Generate an app based on user prompt
    *
    * @param prompt - User's app description
-   * @param socket - Socket.io connection for real-time updates
+   * @param io - Socket.io server instance for broadcasting to rooms
    * @param sessionId - Unique session identifier
    */
   abstract generateApp(
     prompt: string,
-    socket: Socket,
+    io: SocketIOServer<ClientToServerEvents, ServerToClientEvents>,
     sessionId: string,
   ): Promise<GenerationMetrics>;
 
@@ -79,12 +80,12 @@ export abstract class BaseStrategy {
   /**
    * Emit a message to the client and persist to database
    *
-   * @param socket - Socket.io connection
+   * @param io - Socket.io server instance
    * @param role - Message role (user, assistant, system)
    * @param content - Message content
    */
   protected emitMessage(
-    socket: Socket,
+    io: SocketIOServer<ClientToServerEvents, ServerToClientEvents>,
     role: 'user' | 'assistant' | 'system',
     content: string,
   ): void {
@@ -96,12 +97,15 @@ export abstract class BaseStrategy {
       this.currentMessageRole = role;
     }
 
-    socket.emit('llm_message', {
-      id: this.currentMessageId,
-      role,
-      content,
-      timestamp,
-    });
+    // Broadcast to all clients in the session room
+    if (this.sessionId && this.currentMessageId) {
+      io.to(this.sessionId).emit('llm_message', {
+        id: this.currentMessageId,
+        role,
+        content,
+        timestamp,
+      });
+    }
 
     // Persist to database using upsert (async, don't await to not block)
     // This accumulates streaming chunks with the same messageId
@@ -115,25 +119,28 @@ export abstract class BaseStrategy {
   /**
    * Emit a tool call event and persist to database
    *
-   * @param socket - Socket.io connection
+   * @param io - Socket.io server instance
    * @param toolCallId - Unique tool call ID
    * @param toolName - Name of the tool being called
    * @param args - Tool arguments
    */
   protected emitToolCall(
-    socket: Socket,
+    io: SocketIOServer<ClientToServerEvents, ServerToClientEvents>,
     toolCallId: string,
     toolName: string,
     args: Record<string, unknown>,
   ): void {
     const timestamp = Date.now();
 
-    socket.emit('tool_call', {
-      id: toolCallId,
-      name: toolName,
-      args,
-      timestamp,
-    });
+    // Broadcast to all clients in the session room
+    if (this.sessionId) {
+      io.to(this.sessionId).emit('tool_call', {
+        id: toolCallId,
+        name: toolName,
+        args,
+        timestamp,
+      });
+    }
 
     // Persist to database (async, don't await to not block)
     if (this.sessionId) {
@@ -153,13 +160,13 @@ export abstract class BaseStrategy {
   /**
    * Emit a tool result event and persist to database
    *
-   * @param socket - Socket.io connection
+   * @param io - Socket.io server instance
    * @param toolCallId - ID of the tool call this result is for
    * @param toolName - Name of the tool that was called
    * @param result - Result from tool execution
    */
   protected emitToolResult(
-    socket: Socket,
+    io: SocketIOServer<ClientToServerEvents, ServerToClientEvents>,
     toolCallId: string,
     toolName: string,
     result: string,
@@ -167,12 +174,15 @@ export abstract class BaseStrategy {
     const timestamp = Date.now();
     const resultId = `result-${toolCallId}`;
 
-    socket.emit('tool_result', {
-      id: resultId,
-      toolName,
-      result,
-      timestamp,
-    });
+    // Broadcast to all clients in the session room
+    if (this.sessionId) {
+      io.to(this.sessionId).emit('tool_result', {
+        id: resultId,
+        toolName,
+        result,
+        timestamp,
+      });
+    }
 
     // Persist to database (async, don't await to not block)
     if (this.sessionId) {
@@ -194,15 +204,21 @@ export abstract class BaseStrategy {
   /**
    * Emit generation complete event with metrics and update database
    *
-   * @param socket - Socket.io connection
+   * @param io - Socket.io server instance
    * @param metrics - Generation metrics
    */
-  protected emitComplete(socket: Socket, metrics: GenerationMetrics): void {
-    socket.emit('generation_complete', {
-      strategy: this.getName(),
-      model: this.modelName,
-      ...metrics,
-    });
+  protected emitComplete(
+    io: SocketIOServer<ClientToServerEvents, ServerToClientEvents>,
+    metrics: GenerationMetrics,
+  ): void {
+    // Broadcast to all clients in the session room
+    if (this.sessionId) {
+      io.to(this.sessionId).emit('generation_complete', {
+        strategy: this.getName(),
+        model: this.modelName,
+        ...metrics,
+      });
+    }
 
     // Update session in database with final metrics
     if (this.sessionId) {
@@ -224,12 +240,20 @@ export abstract class BaseStrategy {
   /**
    * Emit an error event and update database
    *
-   * @param socket - Socket.io connection
+   * @param io - Socket.io server instance
    * @param error - Error message or Error object
    */
-  protected emitError(socket: Socket, error: string | Error): void {
+  protected emitError(
+    io: SocketIOServer<ClientToServerEvents, ServerToClientEvents>,
+    error: string | Error,
+  ): void {
     const message = error instanceof Error ? error.message : error;
-    socket.emit('error', message);
+
+    // Broadcast to all clients in the session room
+    if (this.sessionId) {
+      io.to(this.sessionId).emit('error', message);
+    }
+
     console.error(`[${this.getName()}] Error:`, error);
 
     // Update session as failed in database
@@ -297,10 +321,12 @@ export abstract class BaseStrategy {
    * This handler processes tool calls and results from the AI SDK,
    * emitting them via WebSocket and persisting to database.
    *
-   * @param socket - Socket.io connection
+   * @param io - Socket.io server instance
    * @returns onStepFinish callback function
    */
-  protected createOnStepFinishHandler(socket: Socket) {
+  protected createOnStepFinishHandler(
+    io: SocketIOServer<ClientToServerEvents, ServerToClientEvents>,
+  ) {
     // biome-ignore lint/suspicious/noExplicitAny: AI SDK onStepFinish callback types are not strictly typed
     return ({ toolCalls, toolResults }: { toolCalls: any[]; toolResults: any[] }) => {
       // Emit tool calls with all data
@@ -311,7 +337,7 @@ export abstract class BaseStrategy {
             ? (toolCall.input as Record<string, unknown>)
             : {};
 
-        this.emitToolCall(socket, toolCall.toolCallId, toolCall.toolName, toolInput);
+        this.emitToolCall(io, toolCall.toolCallId, toolCall.toolName, toolInput);
       }
 
       // Emit tool results
@@ -321,7 +347,7 @@ export abstract class BaseStrategy {
             ? toolResult.output
             : JSON.stringify(toolResult.output);
 
-        this.emitToolResult(socket, toolResult.toolCallId, toolResult.toolName, result);
+        this.emitToolResult(io, toolResult.toolCallId, toolResult.toolName, result);
       }
     };
   }

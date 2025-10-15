@@ -1,7 +1,8 @@
 import { stepCountIs, streamText } from 'ai';
-import type { Socket } from 'socket.io';
+import type { Server as SocketIOServer } from 'socket.io';
 import { tools } from '../tools/index.js';
 import { BaseStrategy, type GenerationMetrics } from './base.strategy.js';
+import type { ClientToServerEvents, ServerToClientEvents } from '../types/index.js';
 
 // Maximum number of tool calls allowed in a single generation
 const MAX_TOOL_CALLS = 20;
@@ -64,7 +65,11 @@ IMPORTANT:
 Now, generate the application based on the user's requirements.`;
   }
 
-  async generateApp(prompt: string, socket: Socket, sessionId: string): Promise<GenerationMetrics> {
+  async generateApp(
+    prompt: string,
+    io: SocketIOServer<ClientToServerEvents, ServerToClientEvents>,
+    sessionId: string,
+  ): Promise<GenerationMetrics> {
     const startTime = Date.now();
     this.logStart(sessionId, prompt);
 
@@ -76,7 +81,7 @@ Now, generate the application based on the user's requirements.`;
       await this.initializeSandbox(sessionId);
 
       // Emit initial message
-      this.emitMessage(socket, 'system', `Starting generation with ${this.getName()} strategy...`);
+      this.emitMessage(io, 'system', `Starting generation with ${this.getName()} strategy...`);
 
       // Stream text generation with tools
       const result = streamText({
@@ -84,9 +89,9 @@ Now, generate the application based on the user's requirements.`;
         system: this.getSystemPrompt(),
         prompt,
         tools,
-        experimental_context: { sessionId, socket },
+        experimental_context: { sessionId, io },
         stopWhen: stepCountIs(MAX_TOOL_CALLS),
-        onStepFinish: this.createOnStepFinishHandler(socket),
+        onStepFinish: this.createOnStepFinishHandler(io),
       });
 
       const stepCount = 0;
@@ -97,7 +102,7 @@ Now, generate the application based on the user's requirements.`;
           case 'text-delta':
             // Stream text deltas to client
             if (part.text) {
-              this.emitMessage(socket, 'assistant', part.text);
+              this.emitMessage(io, 'assistant', part.text);
             }
             break;
 
@@ -123,13 +128,13 @@ Now, generate the application based on the user's requirements.`;
       this.logComplete(sessionId, metrics);
 
       // Emit completion event
-      this.emitComplete(socket, metrics);
+      this.emitComplete(io, metrics);
 
       return metrics;
     } catch (error) {
       // Handle errors
       const duration = Date.now() - startTime;
-      this.emitError(socket, error as Error);
+      this.emitError(io, error as Error);
 
       // Return partial metrics
       return this.calculateMetrics(0, 0, duration, 0);

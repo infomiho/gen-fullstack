@@ -27,14 +27,14 @@ export const writeFile = tool({
   execute: async ({ path, content }, { experimental_context: context }) => {
     interface ToolContext {
       sessionId: string;
-      socket?: { emit: (event: string, data: unknown) => void };
+      io?: { to: (room: string) => { emit: (event: string, data: unknown) => void } };
     }
     const ctx = context as ToolContext;
     const sessionId = ctx.sessionId;
 
-    // Emit file_updated event immediately (real-time streaming)
-    if (ctx.socket) {
-      ctx.socket.emit('file_updated', {
+    // Emit file_updated event immediately (real-time streaming) to session room
+    if (ctx.io) {
+      ctx.io.to(sessionId).emit('file_updated', {
         path,
         content,
       });

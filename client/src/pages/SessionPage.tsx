@@ -228,7 +228,7 @@ function SessionSidebar({
   sessionId,
   appStatus,
   isGenerating,
-  isOwnSession,
+  isConnected,
   startApp,
   stopApp,
   restartApp,
@@ -237,7 +237,7 @@ function SessionSidebar({
   sessionId: string | undefined;
   appStatus: ReturnType<typeof useWebSocket>['appStatus'];
   isGenerating: boolean;
-  isOwnSession: boolean;
+  isConnected: boolean;
   startApp: () => void;
   stopApp: () => void;
   restartApp: () => void;
@@ -263,11 +263,11 @@ function SessionSidebar({
           </div>
         </div>
 
-        {sessionData.session.status === 'generating' && !isOwnSession && (
+        {sessionData.session.status === 'generating' && !isConnected && (
           <div className="p-3 bg-amber-50 border border-amber-200 rounded-md">
             <p className={`${typography.caption} text-amber-700`}>
-              This session is currently generating in another window. Live updates are not available
-              here. Refresh the page to see the latest persisted data.
+              This session is currently generating. You are disconnected - reconnect to see live
+              updates, or refresh the page to see the latest persisted data.
             </p>
           </div>
         )}
@@ -351,9 +351,9 @@ function SessionPage() {
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
 
   const isActiveSession = sessionData.session.status === 'generating';
-  // Check if this is the current socket's session
-  // Only true if socket is connected AND sessionId matches
-  const isOwnSession = socket !== null && sessionId === socket.id;
+  // With room-based architecture, any connected client can receive live updates
+  // isOwnSession is true if connected and viewing an active session
+  const isOwnSession = socket !== null && isActiveSession;
 
   // Convert persisted timeline items to client types
   const persistedMessages = convertPersistedMessages(sessionData.timeline);
@@ -381,9 +381,12 @@ function SessionPage() {
   const files =
     isActiveSession && isOwnSession ? mergeByPath(persistedFiles, liveFiles) : persistedFiles;
 
-  // Request app status when page loads
+  // Subscribe to session room and request app status when page loads
   useEffect(() => {
     if (socket && sessionId) {
+      // Subscribe to this session's room for real-time updates
+      socket.emit('subscribe_to_session', { sessionId });
+      // Request current app status
       socket.emit('get_app_status', { sessionId });
     }
   }, [socket, sessionId]);
@@ -404,7 +407,7 @@ function SessionPage() {
           sessionId={sessionId}
           appStatus={appStatus}
           isGenerating={isActiveSession}
-          isOwnSession={isOwnSession}
+          isConnected={isConnected}
           startApp={() => startApp(sessionId || '')}
           stopApp={() => stopApp(sessionId || '')}
           restartApp={() => restartApp(sessionId || '')}
