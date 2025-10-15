@@ -42,6 +42,7 @@ export const timelineItems = sqliteTable('timeline_items', {
   timestamp: integer('timestamp', { mode: 'timestamp' }).notNull(),
   type: text('type').notNull(), // 'message' | 'tool_call' | 'tool_result'
   // Message fields (when type = 'message')
+  messageId: text('message_id'), // Unique ID for LLM messages (for upserting streaming chunks)
   role: text('role'), // 'user' | 'assistant' | 'system'
   content: text('content'),
   // Tool call fields (when type = 'tool_call')

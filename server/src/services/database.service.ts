@@ -68,19 +68,32 @@ class DatabaseService {
         )
         .all();
 
-      if (tablesExist.length === 3) {
-        console.log('[Database] Tables already exist, skipping migrations');
-        this.initialized = true;
-        return;
+      const needsInitialMigration = tablesExist.length !== 3;
+
+      // Run initial migration if needed
+      if (needsInitialMigration) {
+        const migrationPath = path.join(__dirname, '../../drizzle/0000_cuddly_sersi.sql');
+        if (fs.existsSync(migrationPath)) {
+          const migrationSQL = fs.readFileSync(migrationPath, 'utf8');
+          this.sqlite.exec(migrationSQL);
+          console.log('[Database] Initial migration applied successfully');
+        }
       }
 
-      // Read and execute migration SQL
-      const migrationPath = path.join(__dirname, '../../drizzle/0000_cuddly_sersi.sql');
+      // Check if message_id column exists (migration 0001)
+      const columnCheck = this.sqlite
+        .prepare(
+          "SELECT COUNT(*) as count FROM pragma_table_info('timeline_items') WHERE name='message_id'",
+        )
+        .get() as { count: number };
 
-      if (fs.existsSync(migrationPath)) {
-        const migrationSQL = fs.readFileSync(migrationPath, 'utf8');
-        this.sqlite.exec(migrationSQL);
-        console.log('[Database] Migrations applied successfully');
+      if (columnCheck.count === 0) {
+        const migration0001Path = path.join(__dirname, '../../drizzle/0001_sweet_nekra.sql');
+        if (fs.existsSync(migration0001Path)) {
+          const migrationSQL = fs.readFileSync(migration0001Path, 'utf8');
+          this.sqlite.exec(migrationSQL);
+          console.log('[Database] Migration 0001 (message_id) applied successfully');
+        }
       }
 
       this.initialized = true;
@@ -141,6 +154,51 @@ class DatabaseService {
    */
   async addTimelineItem(item: NewTimelineItem): Promise<TimelineItem> {
     const [created] = await this.db.insert(timelineItems).values(item).returning();
+    return created;
+  }
+
+  /**
+   * Upsert message by messageId (for streaming message accumulation)
+   * If messageId exists, updates content and timestamp. Otherwise inserts new message.
+   */
+  async upsertMessage(
+    sessionId: string,
+    messageId: string,
+    role: 'user' | 'assistant' | 'system',
+    content: string,
+    timestamp: Date,
+  ): Promise<TimelineItem> {
+    // Check if message exists
+    const [existing] = await this.db
+      .select()
+      .from(timelineItems)
+      .where(and(eq(timelineItems.sessionId, sessionId), eq(timelineItems.messageId, messageId)));
+
+    if (existing) {
+      // Update existing message (accumulate content)
+      const [updated] = await this.db
+        .update(timelineItems)
+        .set({
+          content: existing.content + content,
+          timestamp, // Update timestamp to latest chunk
+        })
+        .where(eq(timelineItems.id, existing.id))
+        .returning();
+      return updated;
+    }
+
+    // Insert new message
+    const [created] = await this.db
+      .insert(timelineItems)
+      .values({
+        sessionId,
+        timestamp,
+        type: 'message',
+        messageId,
+        role,
+        content,
+      })
+      .returning();
     return created;
   }
 

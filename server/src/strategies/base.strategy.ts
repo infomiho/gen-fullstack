@@ -103,17 +103,12 @@ export abstract class BaseStrategy {
       timestamp,
     });
 
-    // Persist to database (async, don't await to not block)
-    if (this.sessionId) {
+    // Persist to database using upsert (async, don't await to not block)
+    // This accumulates streaming chunks with the same messageId
+    if (this.sessionId && this.currentMessageId) {
       databaseService
-        .addTimelineItem({
-          sessionId: this.sessionId,
-          timestamp: new Date(timestamp),
-          type: 'message',
-          role,
-          content,
-        })
-        .catch((err) => console.error('[BaseStrategy] Failed to persist message:', err));
+        .upsertMessage(this.sessionId, this.currentMessageId, role, content, new Date(timestamp))
+        .catch((err) => console.error('[BaseStrategy] Failed to upsert message:', err));
     }
   }
 
