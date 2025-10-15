@@ -1,6 +1,7 @@
 import type { AppLog } from '@gen-fullstack/shared';
 import { useEffect, useRef, useState } from 'react';
 import { radius, spacing, typography } from '../lib/design-tokens';
+import { getLevelColor, getLevelLabel } from '../lib/log-utils';
 
 interface LogViewerProps {
   logs: AppLog[];
@@ -20,18 +21,6 @@ export function LogViewer({ logs }: LogViewerProps) {
 
   // Filter logs by level
   const filteredLogs = logs.filter((log) => filter === 'all' || log.level === filter);
-
-  // Get log level color
-  const getLevelColor = (level: AppLog['level']) => {
-    switch (level) {
-      case 'error':
-        return 'text-red-600';
-      case 'warn':
-        return 'text-amber-600';
-      default:
-        return 'text-gray-700';
-    }
-  };
 
   // Format timestamp
   const formatTime = (timestamp: number) => {
@@ -115,7 +104,7 @@ export function LogViewer({ logs }: LogViewerProps) {
                 <span
                   className={`flex-shrink-0 uppercase font-semibold ${getLevelColor(log.level)}`}
                 >
-                  {log.level}
+                  {getLevelLabel(log.level)}
                 </span>
                 <span className="text-gray-300 break-all">{log.message}</span>
               </div>

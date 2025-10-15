@@ -11,6 +11,8 @@ import {
   transitions,
   typography,
 } from '../lib/design-tokens';
+import { formatTimestamp } from '../lib/time-utils';
+import { getToolSummary, renderToolParameters } from '../lib/tool-utils';
 
 interface TimelineProps {
   messages: LLMMessage[];
@@ -29,18 +31,6 @@ interface ToolExecution {
   result?: string;
   isComplete: boolean;
   timestamp: number;
-}
-
-/**
- * Format timestamp to HH:MM:SS.mmm format
- */
-function formatTimestamp(timestamp: number): string {
-  const date = new Date(timestamp);
-  const hours = date.getHours().toString().padStart(2, '0');
-  const minutes = date.getMinutes().toString().padStart(2, '0');
-  const seconds = date.getSeconds().toString().padStart(2, '0');
-  const ms = date.getMilliseconds().toString().padStart(3, '0');
-  return `${hours}:${minutes}:${seconds}.${ms}`;
 }
 
 /**
@@ -242,116 +232,5 @@ function ToolItem({ tool }: { tool: ToolExecution }) {
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
-  );
-}
-
-/**
- * Get a one-line summary of tool parameters
- */
-function getToolSummary(toolName: string, args: Record<string, unknown> | undefined): string {
-  if (!args) return 'Loading...';
-
-  switch (toolName) {
-    case 'writeFile': {
-      const { path } = args as { path?: string };
-      return `Writing to ${path || 'unknown'}`;
-    }
-    case 'readFile': {
-      const { path } = args as { path?: string };
-      return `Reading ${path || 'unknown'}`;
-    }
-    case 'listFiles': {
-      const { directory } = args as { directory?: string };
-      return `Listing ${directory || '.'}`;
-    }
-    case 'executeCommand': {
-      const { command } = args as { command?: string };
-      return command || 'unknown command';
-    }
-    default:
-      return 'Click for details';
-  }
-}
-
-/**
- * Render tool parameters with custom formatting
- */
-function renderToolParameters(
-  toolName: string,
-  args: Record<string, unknown> | undefined,
-): React.ReactNode {
-  if (!args) {
-    return <div className={`${typography.body} text-gray-400`}>No parameters</div>;
-  }
-
-  // Custom formatting for writeFile
-  if (toolName === 'writeFile') {
-    const { path, content } = args as { path?: string; content?: string };
-    return (
-      <div className={`${typography.body} ${spacing.form}`}>
-        {path && (
-          <div>
-            <span className="text-gray-500">path:</span>
-            <span className={`${typography.mono} text-gray-900 ml-2`}>{path}</span>
-          </div>
-        )}
-        {content && (
-          <div>
-            <div className="text-gray-500 mb-1">content:</div>
-            <pre
-              className={`bg-gray-50 p-3 ${radius.sm} border border-gray-200 overflow-x-auto ${typography.mono} max-h-64 overflow-y-auto text-gray-800`}
-            >
-              {content}
-            </pre>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // Custom formatting for readFile
-  if (toolName === 'readFile') {
-    const { path } = args as { path?: string };
-    return (
-      <div className={typography.body}>
-        <span className="text-gray-500">path:</span>
-        <span className={`${typography.mono} text-gray-900 ml-2`}>{path || 'unknown'}</span>
-      </div>
-    );
-  }
-
-  // Custom formatting for listFiles
-  if (toolName === 'listFiles') {
-    const { directory } = args as { directory?: string };
-    return (
-      <div className={typography.body}>
-        <span className="text-gray-500">directory:</span>
-        <span className={`${typography.mono} text-gray-900 ml-2`}>{directory || '.'}</span>
-      </div>
-    );
-  }
-
-  // Custom formatting for executeCommand
-  if (toolName === 'executeCommand') {
-    const { command } = args as { command?: string };
-    return (
-      <div className={typography.body}>
-        <div className="text-gray-500 mb-1">command:</div>
-        <pre
-          className={`bg-gray-50 p-3 ${radius.sm} border border-gray-200 overflow-x-auto ${typography.mono} text-gray-800`}
-        >
-          {command || 'unknown'}
-        </pre>
-      </div>
-    );
-  }
-
-  // Default: show raw JSON
-  return (
-    <pre
-      className={`bg-gray-50 p-3 ${radius.sm} border border-gray-200 overflow-x-auto ${typography.mono} text-gray-800`}
-    >
-      {JSON.stringify(args, null, 2)}
-    </pre>
   );
 }

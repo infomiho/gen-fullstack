@@ -1,11 +1,6 @@
 import type { FileUpdate } from '@gen-fullstack/shared';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { xonokai } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { typography } from '../lib/design-tokens';
-
-// Type workaround for React 19 compatibility
-// biome-ignore lint/suspicious/noExplicitAny: React 19 type mismatch in react-syntax-highlighter
-const Highlighter = SyntaxHighlighter as any;
+import { CodeEditor } from './CodeEditor';
 
 interface FileViewerProps {
   file: FileUpdate | null;
@@ -14,7 +9,7 @@ interface FileViewerProps {
 /**
  * FileViewer Component
  *
- * Displays the content of a selected file with syntax highlighting.
+ * Displays the content of a selected file with syntax highlighting using CodeEditor in read-only mode.
  */
 export function FileViewer({ file }: FileViewerProps) {
   if (!file) {
@@ -25,26 +20,6 @@ export function FileViewer({ file }: FileViewerProps) {
     );
   }
 
-  // Detect language from file extension
-  const getLanguage = (path: string): string => {
-    const ext = path.split('.').pop()?.toLowerCase();
-    const langMap: Record<string, string> = {
-      js: 'javascript',
-      jsx: 'jsx',
-      ts: 'typescript',
-      tsx: 'tsx',
-      json: 'json',
-      html: 'html',
-      css: 'css',
-      md: 'markdown',
-      py: 'python',
-      sh: 'bash',
-      yml: 'yaml',
-      yaml: 'yaml',
-    };
-    return langMap[ext || ''] || 'text';
-  };
-
   return (
     <div className="h-full flex flex-col">
       {/* File header */}
@@ -53,21 +28,8 @@ export function FileViewer({ file }: FileViewerProps) {
       </div>
 
       {/* File content with syntax highlighting */}
-      <div className="flex-1 overflow-auto">
-        <Highlighter
-          language={getLanguage(file.path)}
-          style={xonokai}
-          showLineNumbers
-          customStyle={{
-            margin: 0,
-            padding: '1rem',
-            fontSize: '0.75rem',
-            lineHeight: '1.5',
-            background: '#1e1e1e',
-          }}
-        >
-          {file.content}
-        </Highlighter>
+      <div className="flex-1 overflow-hidden">
+        <CodeEditor value={file.content} filePath={file.path} readOnly={true} />
       </div>
     </div>
   );

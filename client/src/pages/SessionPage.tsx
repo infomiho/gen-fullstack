@@ -1,10 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { Link, useLoaderData, useNavigate, useParams, type LoaderFunctionArgs } from 'react-router';
 import { AppControls } from '../components/AppControls';
 import { AppPreview } from '../components/AppPreview';
 import { ErrorBoundary } from '../components/ErrorBoundary';
-import { FileTree } from '../components/FileTree';
-import { FileViewer } from '../components/FileViewer';
+import { FileWorkspace } from '../components/FileWorkspace';
 import { LogViewer } from '../components/LogViewer';
 import { StrategySelector } from '../components/StrategySelector';
 import { Timeline } from '../components/Timeline';
@@ -254,9 +253,8 @@ function SessionPage() {
   const { sessionId, tab } = useParams<{ sessionId: string; tab?: string }>();
   const navigate = useNavigate();
   const sessionData = useLoaderData() as SessionData;
-  const { socket, isConnected, appStatus, appLogs, startApp, stopApp } = useWebSocket();
+  const { socket, isConnected, appStatus, appLogs, startApp, stopApp, saveFile } = useWebSocket();
 
-  const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
 
   // Derive active tab from URL, default to 'timeline'
@@ -376,17 +374,15 @@ function SessionPage() {
                 </ErrorBoundary>
               </div>
             ) : activeTab === 'files' ? (
-              <div className={`h-full flex gap-4 ${padding.panel}`}>
-                <div className="w-64 border-r pr-4 overflow-y-auto">
-                  <FileTree
-                    files={files}
-                    selectedFile={selectedFile}
-                    onSelectFile={setSelectedFile}
-                  />
-                </div>
-                <div className="flex-1 overflow-hidden">
-                  <FileViewer file={files.find((f) => f.path === selectedFile) || null} />
-                </div>
+              <div className="h-full">
+                <FileWorkspace
+                  files={files}
+                  onSaveFile={(path, content) => {
+                    if (sessionId) {
+                      saveFile(sessionId, path, content);
+                    }
+                  }}
+                />
               </div>
             ) : activeTab === 'preview' ? (
               <div ref={previewContainerRef} className={`h-full overflow-y-auto ${padding.panel}`}>

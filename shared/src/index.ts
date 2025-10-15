@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MAX_FILE_SIZE } from './constants.js';
 
 /**
  * Shared types and schemas for Gen Fullstack
@@ -6,6 +7,9 @@ import { z } from 'zod';
  * This package contains all types shared between client and server to ensure
  * type safety and prevent mismatches.
  */
+
+// Re-export constants
+export * from './constants.js';
 
 // ============================================================================
 // WebSocket Event Schemas
@@ -17,6 +21,32 @@ export const StartGenerationSchema = z.object({
 });
 
 export type StartGenerationPayload = z.infer<typeof StartGenerationSchema>;
+
+export const AppActionSchema = z.object({
+  sessionId: z.string().uuid('Invalid session ID format'),
+});
+
+export type AppActionPayload = z.infer<typeof AppActionSchema>;
+
+export const SaveFileSchema = z.object({
+  sessionId: z.string().uuid('Invalid session ID format'),
+  path: z
+    .string()
+    .min(1, 'Path cannot be empty')
+    .max(500, 'Path too long')
+    .regex(/^[a-zA-Z0-9._/-]+$/, 'Path contains invalid characters'),
+  content: z
+    .string()
+    .max(MAX_FILE_SIZE, `File content too large (max ${MAX_FILE_SIZE / 1_000_000}MB)`),
+});
+
+export type SaveFilePayload = z.infer<typeof SaveFileSchema>;
+
+export const SubscribeSessionSchema = z.object({
+  sessionId: z.string().uuid('Invalid session ID format'),
+});
+
+export type SubscribeSessionPayload = z.infer<typeof SubscribeSessionSchema>;
 
 // ============================================================================
 // LLM Message Types
@@ -138,4 +168,7 @@ export interface ClientToServerEvents {
   stop_app: (data: { sessionId: string }) => void;
   restart_app: (data: { sessionId: string }) => void;
   get_app_status: (data: { sessionId: string }) => void;
+
+  // File editing commands
+  save_file: (data: { sessionId: string; path: string; content: string }) => void;
 }

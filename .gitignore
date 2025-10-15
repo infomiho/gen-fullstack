@@ -35,3 +35,6 @@ coverage
 *.db-shm
 *.db-wal
 prisma/migrations
+
+*storybook.log
+storybook-static

@@ -8,6 +8,7 @@ import type {
   ToolCall,
   ToolResult,
 } from '@gen-fullstack/shared';
+import { MAX_MESSAGES, MAX_LOGS, TIMEOUTS } from '@gen-fullstack/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
 
@@ -31,10 +32,11 @@ interface UseWebSocketReturn {
   // App execution functions
   startApp: (sessionId: string) => void;
   stopApp: (sessionId: string) => void;
+  // File editing functions
+  saveFile: (sessionId: string, path: string, content: string) => void;
 }
 
 const SERVER_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-const MAX_MESSAGES = 1000;
 
 export function useWebSocket(): UseWebSocketReturn {
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -135,7 +137,7 @@ export function useWebSocket(): UseWebSocketReturn {
       if (sessionIdRef.current) {
         setTimeout(() => {
           newSocket.emit('start_app', { sessionId: sessionIdRef.current });
-        }, 1000); // 1 second delay to let file writes complete
+        }, TIMEOUTS.AUTO_START_DELAY);
       }
     });
 
@@ -163,8 +165,8 @@ export function useWebSocket(): UseWebSocketReturn {
     newSocket.on('app_log', (log: AppLog) => {
       setAppLogs((prev) => {
         const newLogs = [...prev, log];
-        // Keep last 500 logs to prevent memory issues
-        return newLogs.slice(-500);
+        // Keep last N logs to prevent memory issues
+        return newLogs.slice(-MAX_LOGS);
       });
     });
 
@@ -231,6 +233,15 @@ export function useWebSocket(): UseWebSocketReturn {
     [socket],
   );
 
+  const saveFile = useCallback(
+    (sessionId: string, path: string, content: string) => {
+      if (socket) {
+        socket.emit('save_file', { sessionId, path, content });
+      }
+    },
+    [socket],
+  );
+
   return {
     socket,
     isConnected,
@@ -250,5 +261,6 @@ export function useWebSocket(): UseWebSocketReturn {
     clearMessages,
     startApp,
     stopApp,
+    saveFile,
   };
 }

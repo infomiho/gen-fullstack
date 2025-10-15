@@ -1,15 +1,67 @@
 import type { Server as HTTPServer } from 'node:http';
-import path from 'node:path';
 import { Server as SocketIOServer } from 'socket.io';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
+import { RateLimiterMemory } from 'rate-limiter-flexible';
 import { NaiveStrategy } from './strategies/naive.strategy.js';
 import { PlanFirstStrategy } from './strategies/plan-first.strategy.js';
 import type { ClientToServerEvents, ServerToClientEvents } from './types/index.js';
-import { StartGenerationSchema } from './types/index.js';
+import {
+  StartGenerationSchema,
+  AppActionSchema,
+  SaveFileSchema,
+  SubscribeSessionSchema,
+  RATE_LIMITS,
+} from './types/index.js';
 import { processService } from './services/process.service.js';
 import { databaseService } from './services/database.service.js';
+import { getSandboxPath, writeFile } from './services/filesystem.service.js';
 import type { AppInfo, AppLog, BuildEvent } from '@gen-fullstack/shared';
+
+/**
+ * Sanitize error messages to prevent information leakage
+ */
+function sanitizeError(error: unknown): string {
+  if (!(error instanceof Error)) {
+    return 'An unexpected error occurred';
+  }
+
+  // Map known error codes to user-friendly messages
+  const errorMap: Record<string, string> = {
+    ENOENT: 'File or directory not found',
+    EACCES: 'Permission denied',
+    EEXIST: 'File already exists',
+    ENOTDIR: 'Not a directory',
+    EISDIR: 'Path is a directory',
+  };
+
+  // Check for Node.js error code
+  if ('code' in error && typeof error.code === 'string' && error.code in errorMap) {
+    return errorMap[error.code];
+  }
+
+  // Check for validation errors (safe to expose)
+  if (error instanceof z.ZodError) {
+    return `Validation error: ${error.errors.map((e) => e.message).join(', ')}`;
+  }
+
+  // Safe error message patterns
+  if (error.message.includes('Docker')) {
+    return 'Docker operation failed';
+  }
+  if (error.message.includes('not available') || error.message.includes('not found')) {
+    return 'Resource not available';
+  }
+  if (error.message.includes('Invalid') || error.message.includes('validation')) {
+    return 'Invalid input provided';
+  }
+
+  // Log full error server-side for debugging
+  console.error('[Error Details]:', error);
+
+  // Return generic message to client
+  return 'An error occurred. Please try again.';
+}
 
 export function setupWebSocket(httpServer: HTTPServer) {
   const io = new SocketIOServer<ClientToServerEvents, ServerToClientEvents>(httpServer, {
@@ -18,6 +70,25 @@ export function setupWebSocket(httpServer: HTTPServer) {
       methods: ['GET', 'POST'],
     },
   });
+
+  // Rate limiter - allows BURST_SIZE requests per second per socket
+  const rateLimiter = new RateLimiterMemory({
+    points: RATE_LIMITS.BURST_SIZE, // Number of points
+    duration: 1, // Per second
+    blockDuration: 0, // Do not block, just reject
+  });
+
+  /**
+   * Apply rate limiting to a handler
+   */
+  async function checkRateLimit(socketId: string): Promise<boolean> {
+    try {
+      await rateLimiter.consume(socketId, 1);
+      return true;
+    } catch (_rejRes) {
+      return false;
+    }
+  }
 
   // Forward process service events to specific session rooms
   processService.on('app_status', (appInfo: AppInfo) => {
@@ -42,9 +113,14 @@ export function setupWebSocket(httpServer: HTTPServer) {
     console.log('Client connected:', socket.id);
 
     // Allow clients to subscribe to an existing session's updates
-    socket.on('subscribe_to_session', ({ sessionId }) => {
-      socket.join(sessionId);
-      console.log(`Socket ${socket.id} subscribed to session: ${sessionId}`);
+    socket.on('subscribe_to_session', (payload) => {
+      try {
+        const { sessionId } = SubscribeSessionSchema.parse(payload);
+        socket.join(sessionId);
+        console.log(`Socket ${socket.id} subscribed to session: ${sessionId}`);
+      } catch (error) {
+        socket.emit('error', sanitizeError(error));
+      }
     });
 
     socket.on('start_generation', async (payload) => {
@@ -95,12 +171,7 @@ export function setupWebSocket(httpServer: HTTPServer) {
         await strategy.generateApp(validated.prompt, io, sessionId);
       } catch (error) {
         console.error('Generation error:', error);
-        if (error instanceof z.ZodError) {
-          socket.emit('error', `Invalid payload: ${error.errors.map((e) => e.message).join(', ')}`);
-          return;
-        }
-        const message = error instanceof Error ? error.message : 'Unknown error occurred';
-        socket.emit('error', message);
+        socket.emit('error', sanitizeError(error));
       }
     });
 
@@ -110,8 +181,9 @@ export function setupWebSocket(httpServer: HTTPServer) {
     });
 
     // App execution handlers
-    socket.on('start_app', async ({ sessionId }) => {
+    socket.on('start_app', async (payload) => {
       try {
+        const { sessionId } = AppActionSchema.parse(payload);
         console.log(`[WebSocket] Starting app for session: ${sessionId}`);
 
         // Check Docker availability first
@@ -126,43 +198,42 @@ export function setupWebSocket(httpServer: HTTPServer) {
           return;
         }
 
-        // Determine working directory for generated files
-        // Files are in project root /generated/, not /server/generated/
-        const workingDir = path.join(process.cwd(), '..', 'generated', sessionId);
+        // Use filesystem service to get safe sandbox path
+        const workingDir = getSandboxPath(sessionId);
 
         await processService.startApp(sessionId, workingDir);
       } catch (error) {
-        console.error(`[WebSocket] Failed to start app ${sessionId}:`, error);
-        const message = error instanceof Error ? error.message : 'Failed to start app';
-        socket.emit('error', message);
+        console.error('[WebSocket] Failed to start app:', error);
+        socket.emit('error', sanitizeError(error));
       }
     });
 
-    socket.on('stop_app', async ({ sessionId }) => {
+    socket.on('stop_app', async (payload) => {
       try {
-        console.log(`Stopping app for session: ${sessionId}`);
+        const { sessionId } = AppActionSchema.parse(payload);
+        console.log(`[WebSocket] Stopping app for session: ${sessionId}`);
         await processService.stopApp(sessionId);
       } catch (error) {
-        console.error(`Failed to stop app ${sessionId}:`, error);
-        const message = error instanceof Error ? error.message : 'Failed to stop app';
-        socket.emit('error', message);
+        console.error('[WebSocket] Failed to stop app:', error);
+        socket.emit('error', sanitizeError(error));
       }
     });
 
-    socket.on('restart_app', async ({ sessionId }) => {
+    socket.on('restart_app', async (payload) => {
       try {
-        console.log(`Restarting app for session: ${sessionId}`);
+        const { sessionId } = AppActionSchema.parse(payload);
+        console.log(`[WebSocket] Restarting app for session: ${sessionId}`);
         await processService.restartApp(sessionId);
       } catch (error) {
-        console.error(`Failed to restart app ${sessionId}:`, error);
-        const message = error instanceof Error ? error.message : 'Failed to restart app';
-        socket.emit('error', message);
+        console.error('[WebSocket] Failed to restart app:', error);
+        socket.emit('error', sanitizeError(error));
       }
     });
 
     // Get current app status for a session
-    socket.on('get_app_status', ({ sessionId }) => {
+    socket.on('get_app_status', (payload) => {
       try {
+        const { sessionId } = AppActionSchema.parse(payload);
         const appStatus = processService.getAppStatus(sessionId);
         if (appStatus) {
           socket.emit('app_status', {
@@ -181,7 +252,40 @@ export function setupWebSocket(httpServer: HTTPServer) {
           });
         }
       } catch (error) {
-        console.error(`Failed to get app status for ${sessionId}:`, error);
+        console.error('[WebSocket] Failed to get app status:', error);
+        socket.emit('error', sanitizeError(error));
+      }
+    });
+
+    // Save file handler
+    socket.on('save_file', async (payload) => {
+      // Check rate limit
+      if (!(await checkRateLimit(socket.id))) {
+        socket.emit('error', 'Too many requests. Please slow down.');
+        return;
+      }
+
+      try {
+        const { sessionId, path: filePath, content } = SaveFileSchema.parse(payload);
+        console.log(`[WebSocket] Saving file ${filePath} for session: ${sessionId}`);
+
+        // Write file to disk using filesystem service (already sanitizes paths)
+        await writeFile(sessionId, filePath, content);
+
+        // Update file in database
+        await databaseService.saveFile({
+          sessionId,
+          path: filePath,
+          content,
+        });
+
+        // Emit file_updated event to all clients in the session room
+        io.to(sessionId).emit('file_updated', { path: filePath, content });
+
+        console.log(`[WebSocket] File ${filePath} saved successfully`);
+      } catch (error) {
+        console.error('[WebSocket] Failed to save file:', error);
+        socket.emit('error', sanitizeError(error));
       }
     });
 
