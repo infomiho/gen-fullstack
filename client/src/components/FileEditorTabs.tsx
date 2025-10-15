@@ -170,7 +170,7 @@ export function FileEditorTabs({ files, onSaveFile }: FileEditorTabsProps) {
                 disabled={!tab.isDirty}
                 className={`
                   flex items-center gap-2 px-3 py-1 ${radius.sm} ${transitions.colors} ${focus.ring}
-                  ${tab.isDirty ? 'bg-blue-500 text-white hover:bg-blue-600' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}
+                  ${tab.isDirty ? 'bg-gray-900 text-white hover:bg-gray-800' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}
                 `}
               >
                 <Save className="h-4 w-4" />
