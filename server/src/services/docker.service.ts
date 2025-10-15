@@ -271,12 +271,49 @@ export class DockerService extends EventEmitter {
   }
 
   /**
+   * Remove existing container with the same name if it exists
+   */
+  private async cleanupExistingContainer(sessionId: string): Promise<void> {
+    try {
+      const containerName = `gen-${sessionId}`;
+
+      // Check if container exists in Docker
+      const containers = await docker.listContainers({ all: true });
+      const existingContainer = containers.find((c) => c.Names.includes(`/${containerName}`));
+
+      if (existingContainer) {
+        console.log(`[Docker] Found existing container ${containerName}, removing...`);
+        const container = docker.getContainer(existingContainer.Id);
+
+        // Stop if running
+        if (existingContainer.State === 'running') {
+          try {
+            await container.stop({ t: 5 });
+          } catch (_error) {
+            // Ignore stop errors, we'll force remove anyway
+          }
+        }
+
+        // Remove container
+        await container.remove({ force: true });
+        console.log(`[Docker] Removed existing container ${containerName}`);
+      }
+    } catch (error) {
+      console.error('[Docker] Failed to cleanup existing container:', error);
+      // Don't throw - let createContainer fail if there's still a conflict
+    }
+  }
+
+  /**
    * Create and start a container for the generated app
    */
   async createContainer(sessionId: string, workingDir: string): Promise<AppInfo> {
     try {
       // Ensure runner image is built
       await this.buildRunnerImage();
+
+      // Clean up any existing container with this name
+      await this.cleanupExistingContainer(sessionId);
 
       // Find available port (start at 5001 to avoid macOS AirPlay on 5000)
       const hostPort = await this.findAvailablePort(5001, 5100);

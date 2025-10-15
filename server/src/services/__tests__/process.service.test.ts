@@ -98,12 +98,15 @@ describe('ProcessService', () => {
       );
     });
 
-    it('should throw error if app already running', async () => {
-      await processService.startApp('test-session', '/tmp/test-app');
+    it('should return existing info if app already running', async () => {
+      const firstStart = await processService.startApp('test-session', '/tmp/test-app');
 
-      await expect(processService.startApp('test-session', '/tmp/test-app')).rejects.toThrow(
-        'App already running',
-      );
+      // Second start should return existing info, not throw error
+      const secondStart = await processService.startApp('test-session', '/tmp/test-app');
+
+      expect(secondStart).toEqual(firstStart);
+      // Container creation should only be called once
+      expect(mockDocker.createContainer).toHaveBeenCalledTimes(1);
     });
 
     it('should handle errors and emit failed status', async () => {

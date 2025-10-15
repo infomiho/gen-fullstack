@@ -1,5 +1,5 @@
 import type { FileUpdate, LLMMessage, ToolCall, ToolResult } from '@gen-fullstack/shared';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLoaderData, useParams, type LoaderFunctionArgs } from 'react-router';
 import { AppControls } from '../components/AppControls';
 import { AppPreview } from '../components/AppPreview';
@@ -380,6 +380,13 @@ function SessionPage() {
 
   const files =
     isActiveSession && isOwnSession ? mergeByPath(persistedFiles, liveFiles) : persistedFiles;
+
+  // Request app status when page loads
+  useEffect(() => {
+    if (socket && sessionId) {
+      socket.emit('get_app_status', { sessionId });
+    }
+  }, [socket, sessionId]);
 
   return (
     <div className="grid h-screen grid-rows-[auto_1fr] bg-white">

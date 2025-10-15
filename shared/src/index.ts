@@ -136,4 +136,5 @@ export interface ClientToServerEvents {
   start_app: (data: { sessionId: string }) => void;
   stop_app: (data: { sessionId: string }) => void;
   restart_app: (data: { sessionId: string }) => void;
+  get_app_status: (data: { sessionId: string }) => void;
 }

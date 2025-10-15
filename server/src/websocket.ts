@@ -137,6 +137,31 @@ export function setupWebSocket(httpServer: HTTPServer) {
       }
     });
 
+    // Get current app status for a session
+    socket.on('get_app_status', ({ sessionId }) => {
+      try {
+        const appStatus = processService.getAppStatus(sessionId);
+        if (appStatus) {
+          socket.emit('app_status', {
+            sessionId: appStatus.sessionId,
+            status: appStatus.status,
+            port: appStatus.port,
+            url: appStatus.url,
+            error: appStatus.error,
+            containerId: appStatus.containerId,
+          });
+        } else {
+          // No app running for this session
+          socket.emit('app_status', {
+            sessionId,
+            status: 'idle',
+          });
+        }
+      } catch (error) {
+        console.error(`Failed to get app status for ${sessionId}:`, error);
+      }
+    });
+
     socket.on('clear_workspace', () => {
       console.log('Clearing workspace');
       // TODO: Implement clear logic

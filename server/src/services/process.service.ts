@@ -60,7 +60,17 @@ export class ProcessService extends EventEmitter {
     try {
       // Check if already running
       if (this.processes.has(sessionId)) {
-        throw new Error(`App already running: ${sessionId}`);
+        // Verify the container actually exists in Docker
+        const existingStatus = this.docker.getStatus(sessionId);
+        if (existingStatus && existingStatus.status !== 'stopped') {
+          // Container is actually running, return existing info
+          const processInfo = this.processes.get(sessionId);
+          if (processInfo) {
+            return processInfo;
+          }
+        }
+        // Stale entry - container doesn't exist, clean it up
+        this.processes.delete(sessionId);
       }
 
       // Create container
