@@ -122,7 +122,7 @@ const RESOURCE_LIMITS = {
 
 // Timeouts
 const TIMEOUTS = {
-  install: 2 * 60 * 1000, // 2 minutes for pnpm install
+  install: 2 * 60 * 1000, // 2 minutes for npm install
   start: 30 * 1000, // 30 seconds to start dev server
   stop: 10 * 1000, // 10 seconds for graceful shutdown
   maxRuntime: 10 * 60 * 1000, // 10 minutes max runtime
@@ -138,12 +138,58 @@ export interface ContainerInfo {
   logs: AppLog[];
   cleanupTimer?: NodeJS.Timeout;
   streamCleanup?: () => void;
+  devServerStreamCleanup?: () => void;
   readyCheckInterval?: NodeJS.Timeout;
+}
+
+/**
+ * Type guard for stream with destroy method
+ */
+function hasDestroyMethod(stream: unknown): stream is { destroy: () => void } {
+  return (
+    typeof stream === 'object' &&
+    stream !== null &&
+    'destroy' in stream &&
+    typeof (stream as { destroy: unknown }).destroy === 'function'
+  );
+}
+
+/**
+ * Determine log level from message content
+ */
+function determineLogLevel(message: string): 'error' | 'warn' | 'info' {
+  if (message.includes('ERROR') || message.includes('error')) {
+    return 'error';
+  }
+  if (message.includes('WARN') || message.includes('warn')) {
+    return 'warn';
+  }
+  return 'info';
 }
 
 export class DockerService extends EventEmitter {
   private containers = new Map<string, ContainerInfo>();
   private imageBuilt = false;
+
+  /**
+   * Store a log entry with retention management
+   */
+  private storeLogEntry(sessionId: string, log: AppLog): void {
+    const containerInfo = this.containers.get(sessionId);
+    if (containerInfo) {
+      containerInfo.logs.push(log);
+      // Batch removal for better performance
+      if (containerInfo.logs.length > 1200) {
+        containerInfo.logs = containerInfo.logs.slice(-1000);
+      }
+    }
+
+    // Emit log event
+    this.emit('log', log);
+
+    // Check for build events
+    this.parseBuildEvents(sessionId, log.message);
+  }
 
   /**
    * Build the runner image if it doesn't exist
@@ -232,8 +278,8 @@ export class DockerService extends EventEmitter {
       // Ensure runner image is built
       await this.buildRunnerImage();
 
-      // Find available port
-      const hostPort = await this.findAvailablePort(5000, 5100);
+      // Find available port (start at 5001 to avoid macOS AirPlay on 5000)
+      const hostPort = await this.findAvailablePort(5001, 5100);
 
       // Container configuration
       const containerOpts: ContainerCreateOptions = {
@@ -327,8 +373,6 @@ export class DockerService extends EventEmitter {
 
         // Process complete frames
         while (buffer.length >= 8) {
-          // Read 8-byte header
-          const streamType = buffer[0]; // 1=stdout, 2=stderr
           const messageSize = buffer.readUInt32BE(4);
 
           // Check if we have the complete message
@@ -336,7 +380,8 @@ export class DockerService extends EventEmitter {
             break; // Wait for more data
           }
 
-          // Extract message
+          // Extract and process message
+          const streamType = buffer[0]; // 1=stdout, 2=stderr
           const messageBuffer = buffer.slice(8, 8 + messageSize);
           const message = messageBuffer.toString('utf8').trim();
 
@@ -345,38 +390,16 @@ export class DockerService extends EventEmitter {
 
           if (!message) continue;
 
-          // Determine log level
-          const level =
-            message.includes('ERROR') || message.includes('error')
-              ? 'error'
-              : message.includes('WARN') || message.includes('warn')
-                ? 'warn'
-                : 'info';
-
-          // Create log entry
+          // Create and store log entry
           const log: AppLog = {
             sessionId,
             timestamp: Date.now(),
             type: streamType === 2 ? 'stderr' : 'stdout',
-            level,
+            level: determineLogLevel(message),
             message,
           };
 
-          // Store log (with retention limit)
-          const containerInfo = this.containers.get(sessionId);
-          if (containerInfo) {
-            containerInfo.logs.push(log);
-            // Batch removal for better performance
-            if (containerInfo.logs.length > 1200) {
-              containerInfo.logs = containerInfo.logs.slice(-1000);
-            }
-          }
-
-          // Emit log event
-          this.emit('log', log);
-
-          // Check for build events
-          this.parseBuildEvents(sessionId, message);
+          this.storeLogEntry(sessionId, log);
         }
       };
 
@@ -393,8 +416,8 @@ export class DockerService extends EventEmitter {
         containerInfo.streamCleanup = () => {
           stream.off('data', dataHandler);
           stream.off('error', errorHandler);
-          if (typeof (stream as any).destroy === 'function') {
-            (stream as any).destroy();
+          if (hasDestroyMethod(stream)) {
+            stream.destroy();
           }
         };
       }
@@ -451,8 +474,6 @@ export class DockerService extends EventEmitter {
 
       // Process complete frames
       while (buffer.length >= 8) {
-        // Read 8-byte header
-        const streamType = buffer[0]; // 1=stdout, 2=stderr
         const messageSize = buffer.readUInt32BE(4);
 
         // Check if we have the complete message
@@ -460,7 +481,8 @@ export class DockerService extends EventEmitter {
           break; // Wait for more data
         }
 
-        // Extract message
+        // Extract and process message
+        const streamType = buffer[0]; // 1=stdout, 2=stderr
         const messageBuffer = buffer.slice(8, 8 + messageSize);
         const message = messageBuffer.toString('utf8').trim();
 
@@ -469,38 +491,16 @@ export class DockerService extends EventEmitter {
 
         if (!message) continue;
 
-        // Determine log level
-        const level =
-          message.includes('ERROR') || message.includes('error')
-            ? 'error'
-            : message.includes('WARN') || message.includes('warn')
-              ? 'warn'
-              : 'info';
-
-        // Create log entry
+        // Create and store log entry
         const log: AppLog = {
           sessionId,
           timestamp: Date.now(),
           type: streamType === 2 ? 'stderr' : 'stdout',
-          level,
+          level: determineLogLevel(message),
           message,
         };
 
-        // Store log (with retention limit)
-        const containerInfo = this.containers.get(sessionId);
-        if (containerInfo) {
-          containerInfo.logs.push(log);
-          // Batch removal for better performance
-          if (containerInfo.logs.length > 1200) {
-            containerInfo.logs = containerInfo.logs.slice(-1000);
-          }
-        }
-
-        // Emit log event
-        this.emit('log', log);
-
-        // Check for build events
-        this.parseBuildEvents(sessionId, message);
+        this.storeLogEntry(sessionId, log);
 
         // Also log to console for debugging
         console.log(`[Docker:${sessionId}] ${message}`);
@@ -512,8 +512,8 @@ export class DockerService extends EventEmitter {
     // Return cleanup function
     return () => {
       stream.off('data', dataHandler);
-      if (typeof (stream as any).destroy === 'function') {
-        (stream as any).destroy();
+      if (hasDestroyMethod(stream)) {
+        stream.destroy();
       }
     };
   }
@@ -534,7 +534,7 @@ export class DockerService extends EventEmitter {
       this.emit('status_change', { sessionId, status: 'installing' });
 
       const exec = await containerInfo.container.exec({
-        Cmd: ['pnpm', 'install'],
+        Cmd: ['npm', 'install'],
         AttachStdout: true,
         AttachStderr: true,
         WorkingDir: '/app',
@@ -592,7 +592,7 @@ export class DockerService extends EventEmitter {
       this.emit('status_change', { sessionId, status: 'starting' });
 
       const exec = await containerInfo.container.exec({
-        Cmd: ['pnpm', 'dev'],
+        Cmd: ['npm', 'run', 'dev', '--', '--host', '0.0.0.0', '--port', '5173'],
         AttachStdout: true,
         AttachStderr: true,
         WorkingDir: '/app',
@@ -601,10 +601,9 @@ export class DockerService extends EventEmitter {
       // Start the dev server - DON'T detach so we can capture output
       const stream = await exec.start({ Detach: false, Tty: false });
 
-      // Process stream output continuously (dev server keeps running)
-      // Note: We don't store cleanup for dev server streams since they run indefinitely
-      // They will be cleaned up when the container is destroyed
-      this.processExecStream(sessionId, stream);
+      // Process stream output continuously and store cleanup function
+      // This prevents memory leaks on restart by properly cleaning up event listeners
+      containerInfo.devServerStreamCleanup = this.processExecStream(sessionId, stream);
 
       console.log(`[Docker] Dev server starting for ${sessionId}`);
 
@@ -743,6 +742,12 @@ export class DockerService extends EventEmitter {
       if (containerInfo.streamCleanup) {
         containerInfo.streamCleanup();
         containerInfo.streamCleanup = undefined;
+      }
+
+      // Clean up dev server stream listeners
+      if (containerInfo.devServerStreamCleanup) {
+        containerInfo.devServerStreamCleanup();
+        containerInfo.devServerStreamCleanup = undefined;
       }
 
       containerInfo.status = 'stopped';

@@ -30,10 +30,12 @@ export class ProcessService extends EventEmitter {
     });
 
     this.docker.on('status_change', (data: Partial<AppInfo>) => {
-      const processInfo = this.processes.get(data.sessionId!);
+      if (!data.sessionId || !data.status) return;
+
+      const processInfo = this.processes.get(data.sessionId);
       if (processInfo) {
         // Update process info
-        processInfo.status = data.status!;
+        processInfo.status = data.status;
         if (data.error) {
           processInfo.error = data.error;
         }

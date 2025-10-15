@@ -24,7 +24,21 @@ export const writeFile = tool({
     content: z.string().describe('Full content to write to the file'),
   }),
   execute: async ({ path, content }, { experimental_context: context }) => {
-    const sessionId = (context as { sessionId: string }).sessionId;
+    interface ToolContext {
+      sessionId: string;
+      socket?: { emit: (event: string, data: unknown) => void };
+    }
+    const ctx = context as ToolContext;
+    const sessionId = ctx.sessionId;
+
+    // Emit file_updated event immediately (real-time streaming)
+    if (ctx.socket) {
+      ctx.socket.emit('file_updated', {
+        path,
+        content,
+      });
+    }
+
     return await filesystemService.writeFile(sessionId, path, content);
   },
 });

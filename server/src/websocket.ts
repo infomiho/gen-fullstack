@@ -38,6 +38,9 @@ export function setupWebSocket(httpServer: HTTPServer) {
         const validated = StartGenerationSchema.parse(payload);
         console.log('Starting generation with strategy:', validated.strategy);
 
+        // Emit session started event so client can track the session ID
+        socket.emit('session_started', { sessionId: socket.id });
+
         // Instantiate strategy based on user selection
         // For now, we only have NaiveStrategy implemented
         let strategy: NaiveStrategy;
@@ -91,7 +94,8 @@ export function setupWebSocket(httpServer: HTTPServer) {
         }
 
         // Determine working directory for generated files
-        const workingDir = path.join(process.cwd(), 'generated', sessionId);
+        // Files are in project root /generated/, not /server/generated/
+        const workingDir = path.join(process.cwd(), '..', 'generated', sessionId);
 
         await processService.startApp(sessionId, workingDir);
       } catch (error) {

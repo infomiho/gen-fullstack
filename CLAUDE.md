@@ -91,8 +91,8 @@ Docker-based secure execution of generated apps:
 
 - **Process Service** (`server/src/services/process.service.ts`):
   - Simplified API for app execution
-  - Dependency installation (pnpm install)
-  - Dev server management (pnpm dev)
+  - Dependency installation (npm install)
+  - Dev server management (npm run dev)
   - Event forwarding to WebSocket clients
 
 - **Preview Proxy** (`server/src/index.ts`):
@@ -125,8 +125,8 @@ Docker-based secure execution of generated apps:
 
 - **Process Service**: High-level app lifecycle management
   - Start/stop/restart apps with full error handling
-  - Install dependencies (pnpm install) with 2-minute timeout
-  - Start dev servers (pnpm dev) with readiness detection
+  - Install dependencies (npm install) with 2-minute timeout
+  - Start dev servers (npm run dev) with readiness detection
   - Forward logs and build events via EventEmitter
   - Graceful error handling with status tracking
   - Auto-cleanup tracking (timers, intervals, streams)

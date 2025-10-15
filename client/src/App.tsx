@@ -1,7 +1,10 @@
 import { useState } from 'react';
+import { AppControls } from './components/AppControls';
+import { AppPreview } from './components/AppPreview';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { FileTree } from './components/FileTree';
 import { FileViewer } from './components/FileViewer';
+import { LogViewer } from './components/LogViewer';
 import { PromptInput } from './components/PromptInput';
 import { StrategySelector } from './components/StrategySelector';
 import { Timeline } from './components/Timeline';
@@ -9,10 +12,23 @@ import { useWebSocket } from './hooks/useWebSocket';
 import { focus, padding, spacing, transitions, typography } from './lib/design-tokens';
 
 function App() {
-  const { isConnected, messages, startGeneration, isGenerating, toolCalls, toolResults, files } =
-    useWebSocket();
+  const {
+    isConnected,
+    messages,
+    startGeneration,
+    isGenerating,
+    toolCalls,
+    toolResults,
+    files,
+    currentSessionId,
+    appStatus,
+    appLogs,
+    startApp,
+    stopApp,
+    restartApp,
+  } = useWebSocket();
   const [strategy, setStrategy] = useState('naive');
-  const [activeTab, setActiveTab] = useState<'timeline' | 'files'>('timeline');
+  const [activeTab, setActiveTab] = useState<'timeline' | 'files' | 'app'>('timeline');
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
 
   const handleGenerate = (prompt: string) => {
@@ -48,6 +64,17 @@ function App() {
               <h3 className={`mb-3 ${typography.header}`}>Prompt</h3>
               <PromptInput onSubmit={handleGenerate} disabled={isGenerating || !isConnected} />
             </div>
+
+            <div className="pt-4 border-t">
+              <AppControls
+                currentSessionId={currentSessionId}
+                appStatus={appStatus}
+                isGenerating={isGenerating}
+                onStart={startApp}
+                onStop={stopApp}
+                onRestart={restartApp}
+              />
+            </div>
           </div>
         </div>
 
@@ -80,6 +107,20 @@ function App() {
               >
                 Files {files.length > 0 && `(${files.length})`}
               </button>
+              <button
+                type="button"
+                className={`border-b-2 px-3 py-2 ${typography.label} ${transitions.colors} ${focus.ring} ${
+                  activeTab === 'app'
+                    ? 'border-gray-900 text-gray-900'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+                onClick={() => setActiveTab('app')}
+              >
+                App Execution{' '}
+                {appStatus?.status && appStatus.status !== 'idle' && (
+                  <span className="ml-1 text-xs">({appStatus.status})</span>
+                )}
+              </button>
             </div>
           </div>
 
@@ -91,7 +132,7 @@ function App() {
                   <Timeline messages={messages} toolCalls={toolCalls} toolResults={toolResults} />
                 </ErrorBoundary>
               </div>
-            ) : (
+            ) : activeTab === 'files' ? (
               <div className={`h-full flex gap-4 ${padding.panel}`}>
                 <div className="w-64 border-r pr-4 overflow-y-auto">
                   <FileTree
@@ -102,6 +143,13 @@ function App() {
                 </div>
                 <div className="flex-1 overflow-hidden">
                   <FileViewer file={files.find((f) => f.path === selectedFile) || null} />
+                </div>
+              </div>
+            ) : (
+              <div className={`h-full overflow-y-auto ${padding.panel}`}>
+                <div className={spacing.sections}>
+                  <AppPreview appStatus={appStatus} />
+                  <LogViewer logs={appLogs} />
                 </div>
               </div>
             )}

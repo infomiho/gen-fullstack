@@ -28,6 +28,7 @@ const colors = {
 };
 
 function log(message: string, color: keyof typeof colors = 'reset') {
+  // biome-ignore lint/suspicious/noConsole: Test script output to terminal
   console.log(`${colors[color]}${message}${colors.reset}`);
 }
 
@@ -49,6 +50,79 @@ function info(message: string) {
 
 async function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForAppReady(sessionId: string, maxAttempts = 60): Promise<void> {
+  step('Waiting for dev server to be ready...');
+  info('This may take 30-60 seconds for dependency installation...');
+
+  let attempts = 0;
+  let isReady = false;
+
+  while (attempts < maxAttempts && !isReady) {
+    await delay(1000);
+    const status = processService.getAppStatus(sessionId);
+
+    if (status?.status === 'running') {
+      isReady = true;
+      success('Dev server is ready!');
+      break;
+    }
+
+    if (status?.status === 'failed') {
+      error('App failed to start');
+      info(`Error: ${status.error}`);
+      throw new Error('App startup failed');
+    }
+
+    attempts++;
+    process.stdout.write('.');
+  }
+
+  if (!isReady) {
+    error('Timeout waiting for dev server');
+    throw new Error('Startup timeout');
+  }
+}
+
+async function testContainerAccess(sessionId: string): Promise<void> {
+  step('Testing container HTTP access...');
+  const containerStatus = processService.getAppStatus(sessionId);
+  if (!containerStatus) {
+    error('Container status not found');
+    throw new Error('Container status unavailable');
+  }
+
+  info(`Container URL: http://localhost:${containerStatus.port}/`);
+
+  const fetch = (await import('node-fetch')).default;
+  const containerResponse = await fetch(`http://localhost:${containerStatus.port}/`);
+
+  // Vite returns 403 for requests without proper Host header (DNS rebinding protection)
+  // Any response (including 403) means the server is running
+  if (containerResponse.status === 200 || containerResponse.status === 403) {
+    success(`Container HTTP server responding (${containerResponse.status})`);
+    if (containerResponse.status === 403) {
+      info('403 is expected from Vite (DNS rebinding protection)');
+    }
+  } else {
+    error(`Unexpected HTTP status: ${containerResponse.status}`);
+    throw new Error(`HTTP test failed with status ${containerResponse.status}`);
+  }
+}
+
+function printRecentLogs(sessionId: string): void {
+  step('Retrieving container logs...');
+  const logs = processService.getAppLogs(sessionId);
+  info(`Retrieved ${logs.length} log entries`);
+
+  if (logs.length > 0) {
+    info('Last 3 logs:');
+    logs.slice(-3).forEach((log) => {
+      // biome-ignore lint/suspicious/noConsole: Test script output to terminal
+      console.log(`    [${log.level}] ${log.message.substring(0, 80)}`);
+    });
+  }
 }
 
 async function runTest() {
@@ -89,74 +163,13 @@ async function runTest() {
     info(`Status: ${appInfo.status}`);
 
     // Step 4: Wait for app to be ready
-    step('Waiting for dev server to be ready...');
-    info('This may take 30-60 seconds for dependency installation...');
-
-    let attempts = 0;
-    const maxAttempts = 60;
-    let isReady = false;
-
-    while (attempts < maxAttempts && !isReady) {
-      await delay(1000);
-      const status = processService.getAppStatus(sessionId);
-
-      if (status?.status === 'running') {
-        isReady = true;
-        success('Dev server is ready!');
-        break;
-      }
-
-      if (status?.status === 'failed') {
-        error('App failed to start');
-        info(`Error: ${status.error}`);
-        throw new Error('App startup failed');
-      }
-
-      attempts++;
-      process.stdout.write('.');
-    }
-
-    if (!isReady) {
-      error('Timeout waiting for dev server');
-      throw new Error('Startup timeout');
-    }
+    await waitForAppReady(sessionId);
 
     // Step 5: Test container HTTP access
-    step('Testing container HTTP access...');
-    const containerStatus = processService.getAppStatus(sessionId);
-    if (!containerStatus) {
-      error('Container status not found');
-      throw new Error('Container status unavailable');
-    }
-
-    info(`Container URL: http://localhost:${containerStatus.port}/`);
-
-    const fetch = (await import('node-fetch')).default;
-    const containerResponse = await fetch(`http://localhost:${containerStatus.port}/`);
-
-    // Vite returns 403 for requests without proper Host header (DNS rebinding protection)
-    // Any response (including 403) means the server is running
-    if (containerResponse.status === 200 || containerResponse.status === 403) {
-      success(`Container HTTP server responding (${containerResponse.status})`);
-      if (containerResponse.status === 403) {
-        info('403 is expected from Vite (DNS rebinding protection)');
-      }
-    } else {
-      error(`Unexpected HTTP status: ${containerResponse.status}`);
-      throw new Error(`HTTP test failed with status ${containerResponse.status}`);
-    }
+    await testContainerAccess(sessionId);
 
     // Step 6: Get logs
-    step('Retrieving container logs...');
-    const logs = processService.getAppLogs(sessionId);
-    info(`Retrieved ${logs.length} log entries`);
-
-    if (logs.length > 0) {
-      info('Last 3 logs:');
-      logs.slice(-3).forEach((log) => {
-        console.log(`    [${log.level}] ${log.message.substring(0, 80)}`);
-      });
-    }
+    printRecentLogs(sessionId);
 
     // Step 7: Stop app
     step('Stopping app...');

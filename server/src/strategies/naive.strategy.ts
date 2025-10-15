@@ -36,7 +36,7 @@ You have access to four tools to build applications:
 GUIDELINES:
 1. Create a complete Vite + React + TypeScript application
 2. Always include:
-   - package.json with all dependencies
+   - package.json with all dependencies (including @vitejs/plugin-react, @types/react, @types/react-dom)
    - vite.config.ts for Vite configuration
    - tsconfig.json for TypeScript
    - index.html as entry point
@@ -49,7 +49,7 @@ GUIDELINES:
    - TypeScript for type safety
    - Clean, readable code
 
-4. After creating files, run "npm install" to install dependencies
+4. DO NOT run "npm install" or any install commands - dependencies will be installed automatically when the app runs
 
 5. Keep it simple but functional - focus on working code
 
@@ -81,7 +81,7 @@ Now, generate the application based on the user's requirements.`;
         system: this.getSystemPrompt(),
         prompt,
         tools,
-        experimental_context: { sessionId },
+        experimental_context: { sessionId, socket },
         stopWhen: stepCountIs(MAX_TOOL_CALLS),
         onStepFinish({ toolCalls, toolResults }) {
           // Emit complete tool calls with all data
@@ -113,21 +113,8 @@ Now, generate the application based on the user's requirements.`;
             };
             socket.emit('tool_result', resultData);
 
-            // Emit file_updated event for writeFile tool calls
-            if (toolResult.toolName === 'writeFile') {
-              const matchingToolCall = toolCalls.find(
-                (tc) => tc.toolCallId === toolResult.toolCallId,
-              );
-              if (matchingToolCall?.input) {
-                const input = matchingToolCall.input as { path?: string; content?: string };
-                if (input.path && input.content) {
-                  socket.emit('file_updated', {
-                    path: input.path,
-                    content: input.content,
-                  });
-                }
-              }
-            }
+            // Note: file_updated events are now emitted immediately from the writeFile tool
+            // during execution, not here after the fact. This provides real-time file streaming.
           }
         },
       });

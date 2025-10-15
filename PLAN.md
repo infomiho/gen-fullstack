@@ -436,6 +436,311 @@ USER node
 - ✅ Comprehensive testing documentation (TESTING.md)
 - ✅ Integration test script with detailed output
 
+### Phase 4.5: Session Persistence & History
+
+**Goal**: Persist sessions to SQLite database so users can resume work after browser refresh
+
+**Status**: Planning - Pending implementation
+
+**Problem**: Currently, all session data (timeline, files, status) is lost on browser refresh since everything is stored in-memory via WebSocket state.
+
+**Solution**: Use Drizzle ORM with SQLite to persist sessions, timeline items, and file metadata.
+
+#### Technology Choice: Drizzle ORM
+
+**Why Drizzle over Prisma:**
+- ✅ **Lightweight** - Smaller runtime overhead, faster queries, tree-shakable
+- ✅ **Type-safe** - TypeScript-first with full type inference from schema
+- ✅ **SQL control** - Closer to raw SQL, easier to optimize queries
+- ✅ **Zero dependencies** - No Node.js binary client (unlike Prisma)
+- ✅ **Modern** - Growing rapidly in 2025, serverless/edge friendly
+- ✅ **Better SQLite support** - Native SQLite dialect with better-sqlite3 driver
+
+**References**:
+- Drizzle ORM Docs: `/drizzle-team/drizzle-orm-docs` via Context7
+- Key benefits: ESM-first, minimal bundle size, direct SQL generation
+- Perfect for local SQLite use cases with Node.js backend
+
+#### Database Schema
+
+**1. Sessions Table**
+```typescript
+export const sessions = sqliteTable('sessions', {
+  id: text('id').primaryKey(),                    // session ID (UUID)
+  prompt: text('prompt').notNull(),               // user's original prompt
+  strategy: text('strategy').notNull(),           // 'naive', 'plan-first', etc.
+  status: text('status').notNull(),               // 'generating', 'completed', 'failed'
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }),
+  completedAt: integer('completed_at', { mode: 'timestamp' }),
+  errorMessage: text('error_message'),
+
+  // Metrics
+  inputTokens: integer('input_tokens').default(0),
+  outputTokens: integer('output_tokens').default(0),
+  durationMs: integer('duration_ms').default(0),
+  stepCount: integer('step_count').default(0),
+});
+```
+
+**2. Timeline Items Table**
+```typescript
+export const timelineItems = sqliteTable('timeline_items', {
+  id: text('id').primaryKey(),                    // UUID
+  sessionId: text('session_id').notNull()
+    .references(() => sessions.id, { onDelete: 'cascade' }),
+  timestamp: integer('timestamp', { mode: 'timestamp' }).notNull(),
+  type: text('type').notNull(),                   // 'message' | 'tool_call' | 'tool_result' | 'file_update'
+
+  // Message fields
+  role: text('role'),                             // 'user' | 'assistant' | 'system'
+  content: text('content'),                       // message content
+
+  // Tool call/result fields
+  toolName: text('tool_name'),
+  toolCallId: text('tool_call_id'),               // links tool_call to tool_result
+  toolArgs: text('tool_args'),                    // JSON string
+  toolResult: text('tool_result'),                // JSON string
+
+  // File update fields
+  filePath: text('file_path'),
+}, (table) => ({
+  sessionIdx: index('timeline_session_idx').on(table.sessionId),
+  timestampIdx: index('timeline_timestamp_idx').on(table.timestamp),
+}));
+```
+
+**3. Files Table (Metadata)**
+```typescript
+export const files = sqliteTable('files', {
+  id: text('id').primaryKey(),                    // UUID
+  sessionId: text('session_id').notNull()
+    .references(() => sessions.id, { onDelete: 'cascade' }),
+  filePath: text('file_path').notNull(),          // relative to generated/{sessionId}/
+  size: integer('size').notNull(),                // bytes
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+}, (table) => ({
+  sessionIdx: index('files_session_idx').on(table.sessionId),
+}));
+```
+
+**Note**: Actual file contents remain on disk in `generated/{sessionId}/` structure. Database only stores metadata.
+
+#### 4.5.1: Drizzle ORM Setup (2-3 hours)
+
+- [ ] Install dependencies
+  ```bash
+  pnpm add drizzle-orm better-sqlite3
+  pnpm add -D drizzle-kit @types/better-sqlite3
+  ```
+
+- [ ] Create database configuration
+  - `server/drizzle.config.ts` - Drizzle Kit configuration
+  - `server/src/db/schema.ts` - Table definitions (sessions, timelineItems, files)
+  - `server/src/db/index.ts` - Database client singleton with better-sqlite3
+
+- [ ] Setup migrations system
+  ```bash
+  # Generate initial migration
+  npx drizzle-kit generate
+
+  # Apply migration
+  npx drizzle-kit migrate
+  ```
+
+- [ ] Configure database location
+  - Database path: `server/data/sessions.db`
+  - Add to `.env`: `DATABASE_URL=./data/sessions.db`
+  - Update `.gitignore`: `data/*.db`, `data/*.db-journal`
+  - Create `data/` directory with README explaining purpose
+
+#### 4.5.2: Repository Layer (3-4 hours)
+
+- [ ] Create `SessionRepository` (`server/src/db/repositories/session.repository.ts`)
+  ```typescript
+  class SessionRepository {
+    createSession(prompt: string, strategy: string): string
+    getSession(sessionId: string): Session | null
+    updateSessionStatus(sessionId: string, status: AppStatus, error?: string): void
+    updateSessionMetrics(sessionId: string, metrics: GenerationMetrics): void
+    listSessions(limit?: number, offset?: number): Session[]
+    deleteOldSessions(olderThanDays: number): number
+  }
+  ```
+
+- [ ] Create `TimelineRepository` (`server/src/db/repositories/timeline.repository.ts`)
+  ```typescript
+  class TimelineRepository {
+    addMessage(sessionId: string, role: string, content: string, timestamp: number): void
+    addToolCall(sessionId: string, toolCallId: string, toolName: string, args: object, timestamp: number): void
+    addToolResult(sessionId: string, toolCallId: string, toolName: string, result: any, timestamp: number): void
+    addFileUpdate(sessionId: string, filePath: string, timestamp: number): void
+    getTimelineItems(sessionId: string): TimelineItem[]
+  }
+  ```
+
+- [ ] Create `FileRepository` (`server/src/db/repositories/file.repository.ts`)
+  ```typescript
+  class FileRepository {
+    trackFile(sessionId: string, filePath: string, size: number): void
+    updateFile(sessionId: string, filePath: string, size: number): void
+    getFiles(sessionId: string): FileMetadata[]
+  }
+  ```
+
+#### 4.5.3: Strategy Integration (2-3 hours)
+
+- [ ] Update `BaseStrategy` to persist data
+  - Call `sessionRepository.createSession()` at start
+  - Call `sessionRepository.updateSessionMetrics()` on completion
+  - Call `sessionRepository.updateSessionStatus()` on error
+
+- [ ] Update strategy event emitters
+  - `emitMessage()` → persist to timeline via `timelineRepository.addMessage()`
+  - `emitToolCall()` → persist via `timelineRepository.addToolCall()`
+  - `emitToolResult()` → persist via `timelineRepository.addToolResult()`
+  - Maintain WebSocket events for real-time updates
+
+- [ ] Update filesystem service
+  - Track file writes via `fileRepository.trackFile()`
+  - Emit both WebSocket event and persist to DB
+
+#### 4.5.4: REST API Endpoints (2-3 hours)
+
+- [ ] Create sessions API (`server/src/routes/sessions.ts`)
+  ```typescript
+  GET  /api/sessions              // List all sessions (paginated)
+  GET  /api/sessions/:id          // Get session details + timeline
+  GET  /api/sessions/:id/files    // Get file list for session
+  GET  /api/sessions/:id/files/*  // Download specific file
+  DELETE /api/sessions/:id        // Delete session (DB + files)
+  ```
+
+- [ ] Add Express router setup
+  - Mount routes in `server/src/index.ts`
+  - Add CORS configuration if needed
+  - Error handling middleware
+
+#### 4.5.5: Client Session Management (3-4 hours)
+
+- [ ] Add session list sidebar
+  - Component: `client/src/components/SessionList.tsx`
+  - Fetch sessions from `/api/sessions`
+  - Display: prompt preview, timestamp, status, strategy
+  - Click to load session
+
+- [ ] Add session restoration logic
+  - Component: `client/src/components/SessionView.tsx`
+  - Fetch full session data from `/api/sessions/:id`
+  - Hydrate timeline state from database
+  - Hydrate file tree state
+  - Show loading indicator during restoration
+
+- [ ] Add URL routing for sessions
+  - Add routing library: `react-router-dom`
+  - Routes: `/` (home), `/session/:id` (session view)
+  - Update URL when session changes
+  - Support deep links to specific sessions
+
+- [ ] Add session management UI
+  - "New Session" button to start fresh
+  - "Delete Session" button in session view
+  - "Recent Sessions" list with search/filter
+  - Session status indicators (completed, failed, generating)
+
+#### 4.5.6: Database Maintenance (1-2 hours)
+
+- [ ] Add cleanup utilities
+  - Cron job or manual script to delete old sessions (30+ days)
+  - Cleanup orphaned files when sessions are deleted
+  - Database vacuum/optimize commands
+
+- [ ] Add database backup
+  - Script: `server/scripts/backup-database.ts`
+  - Creates timestamped backup of sessions.db
+  - Optional: Cloud backup integration
+
+- [ ] Update documentation
+  - Document database schema in CLAUDE.md
+  - Add migration workflow to TESTING.md
+  - Add session management guide for users
+
+#### File Structure
+
+```
+server/
+├── src/
+│   ├── db/
+│   │   ├── schema.ts              # Drizzle table definitions
+│   │   ├── index.ts               # Database client singleton
+│   │   └── repositories/
+│   │       ├── session.repository.ts
+│   │       ├── timeline.repository.ts
+│   │       └── file.repository.ts
+│   ├── routes/
+│   │   └── sessions.ts            # REST API endpoints
+│   └── ...
+├── data/
+│   ├── sessions.db                # SQLite database (gitignored)
+│   └── README.md                  # Database info
+├── drizzle/
+│   └── migrations/                # Generated SQL migrations
+├── drizzle.config.ts
+└── scripts/
+    └── backup-database.ts
+
+client/
+├── src/
+│   ├── components/
+│   │   ├── SessionList.tsx        # Sidebar with session list
+│   │   └── SessionView.tsx        # Main session viewer
+│   └── routes/                    # React Router routes
+└── ...
+```
+
+#### Configuration
+
+```bash
+# .env additions
+DATABASE_URL=./data/sessions.db
+SESSION_RETENTION_DAYS=30
+```
+
+#### Migration Strategy
+
+**For existing sessions**: Not migrated - start fresh after Phase 4.5 deployment
+**For new sessions**: All automatically persisted
+**Rollback plan**: Keep WebSocket-only flow, database writes are additive
+
+#### Benefits
+
+✅ Sessions survive browser refresh
+✅ View historical generations
+✅ Share sessions via URL (`/session/:id`)
+✅ Analytics on token usage, strategy effectiveness
+✅ Type-safe database queries with Drizzle
+✅ Easy schema evolution with migrations
+✅ Minimal runtime overhead (lightweight ORM)
+
+#### Trade-offs
+
+❌ Added complexity (database layer + migrations)
+❌ Disk space usage (sessions accumulate over time)
+❌ Requires cleanup maintenance
+✅ Worth it: Critical UX improvement for production use
+
+**Estimated Time**: 14-18 hours total
+
+**Deliverables**:
+- [ ] Working SQLite database with Drizzle ORM
+- [ ] Session, timeline, and file persistence
+- [ ] REST API for session management
+- [ ] Client UI for browsing/restoring sessions
+- [ ] URL-based session navigation
+- [ ] Database cleanup utilities
+- [ ] Documentation updates
+
 ### Phase 5: Optimization Toggles
 
 **Goal**: Implement different generation strategies
@@ -596,11 +901,12 @@ gen-fullstack/
 | Phase 2: LLM Integration | ✅ Complete | 100% |
 | Phase 3: File System Operations | ✅ Complete | 100% |
 | Phase 4: App Execution & Preview | ✅ Complete | 100% |
+| Phase 4.5: Session Persistence | 📋 Planning | 0% |
 | Phase 5: Optimization Toggles | ⏳ Pending | 0% |
 | Phase 6: Demo Scenarios | ⏳ Pending | 0% |
 | Phase 7: Polish & UX | ⏳ Pending | 0% |
 
-**Current Status**: 4 out of 7 phases complete (57% total progress)
+**Current Status**: 4 out of 8 phases complete (50% total progress)
 
 ## Key Achievements & Findings
 
@@ -623,7 +929,25 @@ gen-fullstack/
 - Graceful fallback when socket paths are unavailable
 - Clear error messages for Docker availability issues
 
-## Next Steps for Phase 5
+## Next Steps
+
+### Immediate Priority: Phase 4.5 (Session Persistence)
+
+**Why this is critical**: Without session persistence, the application loses all data on browser refresh, making it unusable in production. This is a fundamental infrastructure improvement that will support all future phases.
+
+**Next actions**:
+1. Install Drizzle ORM and better-sqlite3
+2. Create database schema (sessions, timeline_items, files tables)
+3. Set up migrations with drizzle-kit
+4. Implement repository layer (SessionRepository, TimelineRepository, FileRepository)
+5. Integrate persistence into existing strategy and WebSocket code
+6. Build REST API endpoints for session management
+7. Create client UI for session browsing and restoration
+8. Add URL routing with react-router-dom
+
+**Expected outcome**: Users can refresh the browser and pick up where they left off, view historical sessions, and share session URLs.
+
+### After Phase 4.5: Phase 5 (Optimization Toggles)
 
 1. Implement remaining generation strategies:
    - Plan-first strategy (generate architectural plan before code)

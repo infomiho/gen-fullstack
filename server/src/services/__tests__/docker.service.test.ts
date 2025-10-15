@@ -248,7 +248,7 @@ describe('DockerService', () => {
   });
 
   describe('installDependencies', () => {
-    it('should execute pnpm install in container', async () => {
+    it('should execute npm install in container', async () => {
       const sessionId = 'install-test';
       await dockerService.createContainer(sessionId, '/tmp/test-app');
 
@@ -268,7 +268,7 @@ describe('DockerService', () => {
       const mockContainer = (Docker as any).mockContainer;
       expect(mockContainer.exec).toHaveBeenCalledWith(
         expect.objectContaining({
-          Cmd: ['pnpm', 'install'],
+          Cmd: ['npm', 'install'],
           WorkingDir: '/app',
         }),
       );
@@ -310,7 +310,7 @@ describe('DockerService', () => {
   });
 
   describe('startDevServer', () => {
-    it('should execute pnpm dev in container', async () => {
+    it('should execute npm run dev with host and port flags in container', async () => {
       const sessionId = 'dev-test';
       await dockerService.createContainer(sessionId, '/tmp/test-app');
 
@@ -331,7 +331,7 @@ describe('DockerService', () => {
       const mockContainer = (Docker as any).mockContainer;
       expect(mockContainer.exec).toHaveBeenCalledWith(
         expect.objectContaining({
-          Cmd: ['pnpm', 'dev'],
+          Cmd: ['npm', 'run', 'dev', '--', '--host', '0.0.0.0', '--port', '5173'],
           WorkingDir: '/app',
         }),
       );

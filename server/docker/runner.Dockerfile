@@ -6,8 +6,7 @@
 
 FROM node:22-alpine
 
-# Install pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# npm comes bundled with Node.js, no additional installation needed
 
 # Create non-root user for security
 RUN addgroup -g 1001 appuser && \

@@ -1,24 +1,37 @@
 import type {
+  AppInfo,
+  AppLog,
+  BuildEvent,
   FileUpdate,
   GenerationMetrics,
   LLMMessage,
   ToolCall,
   ToolResult,
 } from '@gen-fullstack/shared';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
 
 interface UseWebSocketReturn {
   socket: Socket | null;
   isConnected: boolean;
   isGenerating: boolean;
+  currentSessionId: string | null;
   messages: LLMMessage[];
   toolCalls: ToolCall[];
   toolResults: ToolResult[];
   files: FileUpdate[];
+  // App execution state
+  appStatus: AppInfo | null;
+  appLogs: AppLog[];
+  buildEvents: BuildEvent[];
+  // Generation functions
   startGeneration: (prompt: string, strategy: string) => void;
   stopGeneration: () => void;
   clearMessages: () => void;
+  // App execution functions
+  startApp: (sessionId: string) => void;
+  stopApp: (sessionId: string) => void;
+  restartApp: (sessionId: string) => void;
 }
 
 const SERVER_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
@@ -28,10 +41,18 @@ export function useWebSocket(): UseWebSocketReturn {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<LLMMessage[]>([]);
   const [toolCalls, setToolCalls] = useState<ToolCall[]>([]);
   const [toolResults, setToolResults] = useState<ToolResult[]>([]);
   const [files, setFiles] = useState<FileUpdate[]>([]);
+  // App execution state
+  const [appStatus, setAppStatus] = useState<AppInfo | null>(null);
+  const [appLogs, setAppLogs] = useState<AppLog[]>([]);
+  const [buildEvents, setBuildEvents] = useState<BuildEvent[]>([]);
+
+  // Use ref to track currentSessionId for event listeners
+  const sessionIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     const newSocket = io(SERVER_URL);
@@ -42,6 +63,11 @@ export function useWebSocket(): UseWebSocketReturn {
 
     newSocket.on('disconnect', () => {
       setIsConnected(false);
+    });
+
+    newSocket.on('session_started', ({ sessionId }) => {
+      setCurrentSessionId(sessionId);
+      sessionIdRef.current = sessionId;
     });
 
     newSocket.on('llm_message', (message: LLMMessage) => {
@@ -105,6 +131,13 @@ export function useWebSocket(): UseWebSocketReturn {
         ];
         return newMessages.slice(-MAX_MESSAGES);
       });
+
+      // Auto-start the app after a short delay to let files finish writing
+      if (sessionIdRef.current) {
+        setTimeout(() => {
+          newSocket.emit('start_app', { sessionId: sessionIdRef.current });
+        }, 1000); // 1 second delay to let file writes complete
+      }
     });
 
     newSocket.on('error', (error: string) => {
@@ -121,6 +154,23 @@ export function useWebSocket(): UseWebSocketReturn {
         ];
         return newMessages.slice(-MAX_MESSAGES);
       });
+    });
+
+    // App execution events
+    newSocket.on('app_status', (data: AppInfo) => {
+      setAppStatus(data);
+    });
+
+    newSocket.on('app_log', (log: AppLog) => {
+      setAppLogs((prev) => {
+        const newLogs = [...prev, log];
+        // Keep last 500 logs to prevent memory issues
+        return newLogs.slice(-500);
+      });
+    });
+
+    newSocket.on('build_event', (event: BuildEvent) => {
+      setBuildEvents((prev) => [...prev, event]);
     });
 
     setSocket(newSocket);
@@ -155,18 +205,59 @@ export function useWebSocket(): UseWebSocketReturn {
     setToolCalls([]);
     setToolResults([]);
     setFiles([]);
+    setCurrentSessionId(null);
+    sessionIdRef.current = null;
+    setAppStatus(null);
+    setAppLogs([]);
+    setBuildEvents([]);
   }, []);
+
+  const startApp = useCallback(
+    (sessionId: string) => {
+      if (socket) {
+        socket.emit('start_app', { sessionId });
+      }
+    },
+    [socket],
+  );
+
+  const stopApp = useCallback(
+    (sessionId: string) => {
+      if (socket) {
+        socket.emit('stop_app', { sessionId });
+      }
+    },
+    [socket],
+  );
+
+  const restartApp = useCallback(
+    (sessionId: string) => {
+      if (socket) {
+        socket.emit('restart_app', { sessionId });
+      }
+    },
+    [socket],
+  );
 
   return {
     socket,
     isConnected,
     isGenerating,
+    currentSessionId,
     messages,
     toolCalls,
     toolResults,
     files,
+    // App execution state
+    appStatus,
+    appLogs,
+    buildEvents,
+    // Functions
     startGeneration,
     stopGeneration,
     clearMessages,
+    startApp,
+    stopApp,
+    restartApp,
   };
 }

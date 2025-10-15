@@ -9,6 +9,47 @@ interface FileTreeProps {
 }
 
 /**
+ * Build tree structure from flat file list
+ */
+function buildFileTree(files: FileUpdate[]): TreeNode {
+  const root: TreeNode = { name: '', type: 'directory', children: new Map(), path: '' };
+
+  for (const file of files) {
+    const parts = file.path.split('/');
+    let current = root;
+
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      const isFile = i === parts.length - 1;
+
+      if (!current.children.has(part)) {
+        current.children.set(part, {
+          name: part,
+          type: isFile ? 'file' : 'directory',
+          children: new Map(),
+          path: parts.slice(0, i + 1).join('/'),
+        });
+      }
+
+      const nextNode = current.children.get(part);
+      if (!nextNode) {
+        // Log error but continue processing other files instead of crashing
+        // biome-ignore lint/suspicious/noConsole: Error logging for malformed file paths in development
+        console.error(`Failed to create tree node for path: ${file.path}`, {
+          part,
+          currentPath: parts.slice(0, i).join('/'),
+          allParts: parts,
+        });
+        break; // Skip this file and continue with next file
+      }
+      current = nextNode;
+    }
+  }
+
+  return root;
+}
+
+/**
  * FileTree Component
  *
  * Displays a tree view of generated files organized by directory structure.
@@ -16,43 +57,7 @@ interface FileTreeProps {
  */
 export function FileTree({ files, selectedFile, onSelectFile }: FileTreeProps) {
   // Build tree structure from flat file list
-  const tree = useMemo(() => {
-    const root: TreeNode = { name: '', type: 'directory', children: new Map(), path: '' };
-
-    for (const file of files) {
-      const parts = file.path.split('/');
-      let current = root;
-
-      for (let i = 0; i < parts.length; i++) {
-        const part = parts[i];
-        const isFile = i === parts.length - 1;
-
-        if (!current.children.has(part)) {
-          current.children.set(part, {
-            name: part,
-            type: isFile ? 'file' : 'directory',
-            children: new Map(),
-            path: parts.slice(0, i + 1).join('/'),
-          });
-        }
-
-        const nextNode = current.children.get(part);
-        if (!nextNode) {
-          // Log error but continue processing other files instead of crashing
-          // biome-ignore lint/suspicious/noConsole: Error logging for malformed file paths in development
-          console.error(`Failed to create tree node for path: ${file.path}`, {
-            part,
-            currentPath: parts.slice(0, i).join('/'),
-            allParts: parts,
-          });
-          break; // Skip this file and continue with next file
-        }
-        current = nextNode;
-      }
-    }
-
-    return root;
-  }, [files]);
+  const tree = useMemo(() => buildFileTree(files), [files]);
 
   if (files.length === 0) {
     return (

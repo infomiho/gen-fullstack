@@ -91,8 +91,8 @@ pnpm test:docker
 1. ✓ Checks Docker availability
 2. ✓ Builds Docker runner image (`gen-fullstack-runner`)
 3. ✓ Creates isolated container
-4. ✓ Installs dependencies (pnpm install)
-5. ✓ Starts dev server (pnpm dev)
+4. ✓ Installs dependencies (npm install)
+5. ✓ Starts dev server (npm run dev)
 6. ✓ Waits for "ready" signal (up to 60 seconds)
 7. ✓ Tests preview proxy (`/preview/:sessionId/`)
 8. ✓ Retrieves container logs
@@ -443,7 +443,7 @@ This automatic detection means you don't need to configure anything - the system
 **Issue**: "Port already in use"
 **Solution**: Stop conflicting process or change PORT in .env
 
-**Issue**: "pnpm install fails in container"
+**Issue**: "npm install fails in container"
 **Solution**: Check internet connection, verify package.json
 
 **Issue**: "Container exits immediately"

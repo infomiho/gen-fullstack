@@ -106,6 +106,8 @@ export interface GenerationMetrics {
 // ============================================================================
 
 export interface ServerToClientEvents {
+  // Generation events
+  session_started: (data: { sessionId: string }) => void;
   llm_message: (message: LLMMessage) => void;
   tool_call: (toolCall: ToolCall) => void;
   tool_result: (result: ToolResult) => void;
