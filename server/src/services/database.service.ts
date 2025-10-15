@@ -47,6 +47,7 @@ class DatabaseService {
     // Initialize SQLite connection
     this.sqlite = new Database(dbPath);
     this.sqlite.pragma('journal_mode = WAL'); // Enable WAL mode for better concurrency
+    this.sqlite.pragma('foreign_keys = ON'); // Enable foreign key constraints for cascade deletes
     this.db = drizzle(this.sqlite);
 
     console.log(`[Database] Connected to SQLite database: ${dbPath}`);
