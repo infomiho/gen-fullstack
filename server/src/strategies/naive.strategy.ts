@@ -2,6 +2,7 @@ import { stepCountIs, streamText } from 'ai';
 import type { Socket } from 'socket.io';
 import { tools } from '../tools/index.js';
 import { BaseStrategy, type GenerationMetrics } from './base.strategy.js';
+import { databaseService } from '../services/database.service.js';
 
 // Maximum number of tool calls allowed in a single generation
 const MAX_TOOL_CALLS = 20;
@@ -68,6 +69,9 @@ Now, generate the application based on the user's requirements.`;
     const startTime = Date.now();
     this.logStart(sessionId, prompt);
 
+    // Enable database persistence for this session
+    this.setSessionId(sessionId);
+
     try {
       // Initialize sandbox
       await this.initializeSandbox(sessionId);
@@ -92,16 +96,31 @@ Now, generate the application based on the user's requirements.`;
                 ? (toolCall.input as Record<string, unknown>)
                 : {};
 
+            const timestamp = Date.now();
+
             socket.emit('tool_call', {
               id: toolCall.toolCallId,
               name: toolCall.toolName,
               args: toolInput,
-              timestamp: Date.now(),
+              timestamp,
             });
+
+            // Persist to database (fire-and-forget)
+            databaseService
+              .addTimelineItem({
+                sessionId,
+                timestamp: new Date(timestamp),
+                type: 'tool_call',
+                toolCallId: toolCall.toolCallId,
+                toolName: toolCall.toolName,
+                toolArgs: JSON.stringify(toolInput),
+              })
+              .catch((err) => console.error('[NaiveStrategy] Failed to persist tool call:', err));
           }
 
           // Emit complete tool results
           for (const toolResult of toolResults) {
+            const timestamp = Date.now();
             const resultData = {
               id: `result-${toolResult.toolCallId}`,
               toolName: toolResult.toolName,
@@ -109,9 +128,23 @@ Now, generate the application based on the user's requirements.`;
                 typeof toolResult.output === 'string'
                   ? toolResult.output
                   : JSON.stringify(toolResult.output),
-              timestamp: Date.now(),
+              timestamp,
             };
             socket.emit('tool_result', resultData);
+
+            // Persist to database (fire-and-forget)
+            databaseService
+              .addTimelineItem({
+                sessionId,
+                timestamp: new Date(timestamp),
+                type: 'tool_result',
+                toolResultId: resultData.id,
+                toolResultFor: toolResult.toolCallId,
+                toolName: toolResult.toolName,
+                result: resultData.result,
+                isError: false,
+              })
+              .catch((err) => console.error('[NaiveStrategy] Failed to persist tool result:', err));
 
             // Note: file_updated events are now emitted immediately from the writeFile tool
             // during execution, not here after the fact. This provides real-time file streaming.

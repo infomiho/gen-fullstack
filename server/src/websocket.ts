@@ -6,6 +6,7 @@ import { NaiveStrategy } from './strategies/naive.strategy.js';
 import type { ClientToServerEvents, ServerToClientEvents } from './types/index.js';
 import { StartGenerationSchema } from './types/index.js';
 import { processService } from './services/process.service.js';
+import { databaseService } from './services/database.service.js';
 import type { AppInfo, AppLog, BuildEvent } from '@gen-fullstack/shared';
 
 export function setupWebSocket(httpServer: HTTPServer) {
@@ -38,8 +39,17 @@ export function setupWebSocket(httpServer: HTTPServer) {
         const validated = StartGenerationSchema.parse(payload);
         console.log('Starting generation with strategy:', validated.strategy);
 
+        // Create session in database
+        const sessionId = socket.id;
+        await databaseService.createSession({
+          id: sessionId,
+          prompt: validated.prompt,
+          strategy: validated.strategy,
+          status: 'generating',
+        });
+
         // Emit session started event so client can track the session ID
-        socket.emit('session_started', { sessionId: socket.id });
+        socket.emit('session_started', { sessionId });
 
         // Instantiate strategy based on user selection
         // For now, we only have NaiveStrategy implemented
@@ -59,7 +69,7 @@ export function setupWebSocket(httpServer: HTTPServer) {
         }
 
         // Generate app using the selected strategy
-        await strategy.generateApp(validated.prompt, socket, socket.id);
+        await strategy.generateApp(validated.prompt, socket, sessionId);
       } catch (error) {
         console.error('Generation error:', error);
         if (error instanceof z.ZodError) {

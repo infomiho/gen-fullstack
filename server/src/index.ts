@@ -7,6 +7,7 @@ import { validateEnv } from './config/env.js';
 import { setupWebSocket } from './websocket.js';
 import { processService } from './services/process.service.js';
 import { databaseService } from './services/database.service.js';
+import sessionRoutes from './routes/sessions.js';
 
 dotenv.config();
 
@@ -21,6 +22,9 @@ const CLIENT_URL = env.CLIENT_URL;
 // Middleware
 app.use(cors({ origin: CLIENT_URL }));
 app.use(express.json());
+
+// API Routes
+app.use('/api/sessions', sessionRoutes);
 
 // Create proxy for app previews
 const proxy = httpProxy.createProxyServer({

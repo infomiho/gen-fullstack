@@ -61,6 +61,19 @@ class DatabaseService {
     }
 
     try {
+      // Check if tables already exist
+      const tablesExist = this.sqlite
+        .prepare(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('sessions', 'timeline_items', 'files')",
+        )
+        .all();
+
+      if (tablesExist.length === 3) {
+        console.log('[Database] Tables already exist, skipping migrations');
+        this.initialized = true;
+        return;
+      }
+
       // Read and execute migration SQL
       const migrationPath = path.join(__dirname, '../../drizzle/0000_cuddly_sersi.sql');
 

@@ -2,6 +2,7 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import * as commandService from '../services/command.service.js';
 import * as filesystemService from '../services/filesystem.service.js';
+import { databaseService } from '../services/database.service.js';
 
 /**
  * Tool definitions for LLM-powered app generation
@@ -39,7 +40,19 @@ export const writeFile = tool({
       });
     }
 
-    return await filesystemService.writeFile(sessionId, path, content);
+    // Write file to filesystem
+    const result = await filesystemService.writeFile(sessionId, path, content);
+
+    // Persist file to database (fire-and-forget)
+    databaseService
+      .saveFile({
+        sessionId,
+        path,
+        content,
+      })
+      .catch((err) => console.error('[writeFile] Failed to persist file to database:', err));
+
+    return result;
   },
 });
 
