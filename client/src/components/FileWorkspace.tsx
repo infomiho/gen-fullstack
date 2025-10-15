@@ -56,6 +56,14 @@ export function FileWorkspace({ files, onSaveFile }: FileWorkspaceProps) {
     onSaveFile(path, content);
   };
 
+  // Handle tab close - remove from openTabs so it can be reopened
+  const handleCloseTab = (path: string) => {
+    setOpenTabs((prev) => prev.filter((tab) => tab.path !== path));
+    if (selectedFile === path) {
+      setSelectedFile(null);
+    }
+  };
+
   return (
     <ErrorBoundary>
       <PanelGroup direction="horizontal" className="h-full">
@@ -71,7 +79,7 @@ export function FileWorkspace({ files, onSaveFile }: FileWorkspaceProps) {
 
         {/* Editor tabs panel */}
         <Panel defaultSize={80} minSize={60}>
-          <FileEditorTabs files={openTabs} onSaveFile={handleSave} />
+          <FileEditorTabs files={openTabs} onSaveFile={handleSave} onCloseTab={handleCloseTab} />
         </Panel>
       </PanelGroup>
     </ErrorBoundary>

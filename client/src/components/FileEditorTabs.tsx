@@ -21,9 +21,10 @@ interface FileTab {
 interface FileEditorTabsProps {
   files: Array<{ path: string; content: string }>;
   onSaveFile?: (path: string, content: string) => void;
+  onCloseTab?: (path: string) => void;
 }
 
-export function FileEditorTabs({ files, onSaveFile }: FileEditorTabsProps) {
+export function FileEditorTabs({ files, onSaveFile, onCloseTab }: FileEditorTabsProps) {
   const { showToast } = useToast();
   const [openTabs, setOpenTabs] = useState<FileTab[]>([]);
   const [activeTab, setActiveTab] = useState<string | undefined>(undefined);
@@ -78,6 +79,9 @@ export function FileEditorTabs({ files, onSaveFile }: FileEditorTabsProps) {
       }
       return filtered;
     });
+
+    // Notify parent that tab was closed
+    onCloseTab?.(path);
   };
 
   // Update tab content
