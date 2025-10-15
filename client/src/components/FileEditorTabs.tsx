@@ -169,12 +169,12 @@ export function FileEditorTabs({ files, onSaveFile }: FileEditorTabsProps) {
                 onClick={() => saveFile(tab.path)}
                 disabled={!tab.isDirty}
                 className={`
-                  flex items-center gap-2 px-3 py-1 ${radius.sm} ${transitions.colors} ${focus.ring}
+                  flex items-center gap-2 px-3 py-1 text-sm font-medium ${radius.sm} ${transitions.colors} ${focus.ring}
                   ${tab.isDirty ? 'bg-gray-900 text-white hover:bg-gray-800' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}
                 `}
               >
                 <Save className="h-4 w-4" />
-                <span className={typography.label}>Save {tab.isDirty && '(Cmd/Ctrl+S)'}</span>
+                <span>Save {tab.isDirty && '(Cmd/Ctrl+S)'}</span>
               </button>
             </div>
 
