@@ -50,6 +50,43 @@ export interface FileUpdate {
 }
 
 // ============================================================================
+// App Execution Types
+// ============================================================================
+
+export type AppStatus =
+  | 'idle'
+  | 'creating'
+  | 'installing'
+  | 'starting'
+  | 'running'
+  | 'failed'
+  | 'stopped';
+
+export interface AppInfo {
+  sessionId: string;
+  status: AppStatus;
+  port?: number;
+  url?: string;
+  error?: string;
+  containerId?: string;
+}
+
+export interface AppLog {
+  sessionId: string;
+  timestamp: number;
+  type: 'stdout' | 'stderr';
+  level: 'info' | 'warn' | 'error';
+  message: string;
+}
+
+export interface BuildEvent {
+  sessionId: string;
+  timestamp: number;
+  event: 'start' | 'success' | 'error';
+  details?: string;
+}
+
+// ============================================================================
 // Generation Metrics
 // ============================================================================
 
@@ -73,10 +110,14 @@ export interface ServerToClientEvents {
   tool_call: (toolCall: ToolCall) => void;
   tool_result: (result: ToolResult) => void;
   file_updated: (data: FileUpdate) => void;
-  app_started: (data: { url: string; pid: number }) => void;
-  app_log: (data: { type: 'stdout' | 'stderr'; message: string }) => void;
-  compilation_error: (data: { errors: string[] }) => void;
   generation_complete: (metrics: GenerationMetrics) => void;
+
+  // App execution events
+  app_status: (data: AppInfo) => void;
+  app_log: (log: AppLog) => void;
+  build_event: (event: BuildEvent) => void;
+
+  // Error events
   error: (message: string) => void;
 }
 
@@ -87,6 +128,10 @@ export interface ServerToClientEvents {
 export interface ClientToServerEvents {
   start_generation: (payload: StartGenerationPayload) => void;
   stop_generation: () => void;
-  restart_app: () => void;
   clear_workspace: () => void;
+
+  // App execution commands
+  start_app: (data: { sessionId: string }) => void;
+  stop_app: (data: { sessionId: string }) => void;
+  restart_app: (data: { sessionId: string }) => void;
 }

@@ -1,0 +1,9 @@
+# Docker ignore file for runner image
+node_modules
+npm-debug.log
+.env
+.DS_Store
+*.log
+dist
+build
+.git

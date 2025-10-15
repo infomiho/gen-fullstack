@@ -1,9 +1,12 @@
 import type { Server as HTTPServer } from 'node:http';
+import path from 'node:path';
 import { Server as SocketIOServer } from 'socket.io';
 import { z } from 'zod';
 import { NaiveStrategy } from './strategies/naive.strategy.js';
 import type { ClientToServerEvents, ServerToClientEvents } from './types/index.js';
 import { StartGenerationSchema } from './types/index.js';
+import { processService } from './services/process.service.js';
+import type { AppInfo, AppLog, BuildEvent } from '@gen-fullstack/shared';
 
 export function setupWebSocket(httpServer: HTTPServer) {
   const io = new SocketIOServer<ClientToServerEvents, ServerToClientEvents>(httpServer, {
@@ -11,6 +14,19 @@ export function setupWebSocket(httpServer: HTTPServer) {
       origin: process.env.CLIENT_URL || 'http://localhost:5173',
       methods: ['GET', 'POST'],
     },
+  });
+
+  // Forward process service events to all connected clients
+  processService.on('app_status', (appInfo: AppInfo) => {
+    io.emit('app_status', appInfo);
+  });
+
+  processService.on('app_log', (log: AppLog) => {
+    io.emit('app_log', log);
+  });
+
+  processService.on('build_event', (event: BuildEvent) => {
+    io.emit('build_event', event);
   });
 
   io.on('connection', (socket) => {
@@ -57,9 +73,54 @@ export function setupWebSocket(httpServer: HTTPServer) {
       // TODO: Implement stop logic
     });
 
-    socket.on('restart_app', () => {
-      console.log('Restarting app');
-      // TODO: Implement restart logic
+    // App execution handlers
+    socket.on('start_app', async ({ sessionId }) => {
+      try {
+        console.log(`[WebSocket] Starting app for session: ${sessionId}`);
+
+        // Check Docker availability first
+        const dockerAvailable = await processService.checkDockerAvailability();
+        if (!dockerAvailable) {
+          socket.emit('error', 'Docker is not available. Cannot start app.');
+          socket.emit('app_status', {
+            sessionId,
+            status: 'failed',
+            error: 'Docker not available',
+          });
+          return;
+        }
+
+        // Determine working directory for generated files
+        const workingDir = path.join(process.cwd(), 'generated', sessionId);
+
+        await processService.startApp(sessionId, workingDir);
+      } catch (error) {
+        console.error(`[WebSocket] Failed to start app ${sessionId}:`, error);
+        const message = error instanceof Error ? error.message : 'Failed to start app';
+        socket.emit('error', message);
+      }
+    });
+
+    socket.on('stop_app', async ({ sessionId }) => {
+      try {
+        console.log(`Stopping app for session: ${sessionId}`);
+        await processService.stopApp(sessionId);
+      } catch (error) {
+        console.error(`Failed to stop app ${sessionId}:`, error);
+        const message = error instanceof Error ? error.message : 'Failed to stop app';
+        socket.emit('error', message);
+      }
+    });
+
+    socket.on('restart_app', async ({ sessionId }) => {
+      try {
+        console.log(`Restarting app for session: ${sessionId}`);
+        await processService.restartApp(sessionId);
+      } catch (error) {
+        console.error(`Failed to restart app ${sessionId}:`, error);
+        const message = error instanceof Error ? error.message : 'Failed to restart app';
+        socket.emit('error', message);
+      }
     });
 
     socket.on('clear_workspace', () => {

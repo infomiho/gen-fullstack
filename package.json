@@ -24,5 +24,12 @@
     "@biomejs/biome": "^2.2.6",
     "husky": "^9.1.7",
     "typescript": "^5.9.0"
+  },
+  "dependencies": {
+    "@types/dockerode": "^3.3.44",
+    "@types/http-proxy": "^1.17.16",
+    "dockerode": "^4.0.9",
+    "http-proxy": "^1.18.1",
+    "tree-kill": "^1.2.2"
   }
 }
