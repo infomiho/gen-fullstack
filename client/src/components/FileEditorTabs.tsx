@@ -22,9 +22,10 @@ interface FileEditorTabsProps {
   files: Array<{ path: string; content: string }>;
   onSaveFile?: (path: string, content: string) => void;
   onCloseTab?: (path: string) => void;
+  activeFile?: string; // File path that should be active
 }
 
-export function FileEditorTabs({ files, onSaveFile, onCloseTab }: FileEditorTabsProps) {
+export function FileEditorTabs({ files, onSaveFile, onCloseTab, activeFile }: FileEditorTabsProps) {
   const { showToast } = useToast();
   const [openTabs, setOpenTabs] = useState<FileTab[]>([]);
   const [activeTab, setActiveTab] = useState<string | undefined>(undefined);
@@ -57,6 +58,17 @@ export function FileEditorTabs({ files, onSaveFile, onCloseTab }: FileEditorTabs
       return currentTabs;
     });
   }, [files]);
+
+  // Activate a specific file when activeFile prop changes
+  useEffect(() => {
+    if (activeFile) {
+      // Only activate if the file is already open in tabs
+      const isOpen = openTabs.some((tab) => tab.path === activeFile);
+      if (isOpen) {
+        setActiveTab(activeFile);
+      }
+    }
+  }, [activeFile, openTabs]);
 
   // Close a tab
   const closeTab = (path: string) => {

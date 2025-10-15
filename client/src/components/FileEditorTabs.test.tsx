@@ -234,6 +234,43 @@ describe('FileEditorTabs', () => {
       expect(screen.getByText('index.tsx')).toBeInTheDocument();
     });
 
+    it('should switch to an already-open inactive tab when that file is selected', async () => {
+      const user = userEvent.setup();
+      const files = [
+        { path: 'src/App.tsx', content: 'app content' },
+        { path: 'src/index.tsx', content: 'index content' },
+      ];
+
+      const { rerender } = renderWithToast(<FileEditorTabs files={files} />);
+
+      // Both tabs should be open, first one active by default
+      expect(screen.getByText('App.tsx')).toBeInTheDocument();
+      expect(screen.getByText('index.tsx')).toBeInTheDocument();
+      const appEditor = screen.getByTestId('editor-textarea');
+      expect(appEditor).toHaveValue('app content');
+
+      // Click the second tab to make it active
+      await user.click(screen.getByText('index.tsx'));
+      await waitFor(() => {
+        const indexEditor = screen.getByTestId('editor-textarea');
+        expect(indexEditor).toHaveValue('index content');
+      });
+
+      // Simulate parent telling us to activate the first tab by passing activeFile prop
+      // This simulates clicking App.tsx in the file tree when it's already open but inactive
+      rerender(
+        <ToastProvider>
+          <FileEditorTabs files={files} activeFile="src/App.tsx" />
+        </ToastProvider>,
+      );
+
+      // The first tab should become active
+      await waitFor(() => {
+        const appEditorAfter = screen.getByTestId('editor-textarea');
+        expect(appEditorAfter).toHaveValue('app content');
+      });
+    });
+
     it('should allow re-opening a previously closed file', async () => {
       const user = userEvent.setup();
       const initialFiles = [{ path: 'src/App.tsx', content: 'app content' }];

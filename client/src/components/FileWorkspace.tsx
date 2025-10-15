@@ -79,7 +79,12 @@ export function FileWorkspace({ files, onSaveFile }: FileWorkspaceProps) {
 
         {/* Editor tabs panel */}
         <Panel defaultSize={80} minSize={60}>
-          <FileEditorTabs files={openTabs} onSaveFile={handleSave} onCloseTab={handleCloseTab} />
+          <FileEditorTabs
+            files={openTabs}
+            onSaveFile={handleSave}
+            onCloseTab={handleCloseTab}
+            activeFile={selectedFile ?? undefined}
+          />
         </Panel>
       </PanelGroup>
     </ErrorBoundary>
