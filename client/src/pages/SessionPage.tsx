@@ -1,6 +1,6 @@
 import type { FileUpdate, LLMMessage, ToolCall, ToolResult } from '@gen-fullstack/shared';
-import { useEffect, useState } from 'react';
-import { useLoaderData, useParams } from 'react-router';
+import { useState } from 'react';
+import { useLoaderData, useParams, type LoaderFunctionArgs } from 'react-router';
 import { AppControls } from '../components/AppControls';
 import { AppPreview } from '../components/AppPreview';
 import { ErrorBoundary } from '../components/ErrorBoundary';
@@ -13,6 +13,20 @@ import { useWebSocket } from '../hooks/useWebSocket';
 import { focus, padding, spacing, transitions, typography } from '../lib/design-tokens';
 
 const SERVER_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
+/**
+ * Safely parse JSON with fallback
+ */
+function safeJsonParse<T>(json: string | undefined, fallback: T): T {
+  if (!json) return fallback;
+  try {
+    return JSON.parse(json) as T;
+  } catch (error) {
+    // biome-ignore lint/suspicious/noConsole: Useful for debugging malformed JSON data
+    console.warn('Failed to parse JSON:', json, error);
+    return fallback;
+  }
+}
 
 /**
  * Session data structure from the API
@@ -67,7 +81,7 @@ interface SessionData {
  *
  * Fetches session, timeline, and files from the REST API
  */
-export async function clientLoader({ params }: any) {
+export async function clientLoader({ params }: LoaderFunctionArgs) {
   const sessionId = params.sessionId as string;
   const response = await fetch(`${SERVER_URL}/api/sessions/${sessionId}`);
 
@@ -83,6 +97,233 @@ export async function clientLoader({ params }: any) {
 }
 
 /**
+ * Helper: Convert persisted timeline messages to client format
+ */
+function convertPersistedMessages(timeline: SessionData['timeline']): LLMMessage[] {
+  return timeline
+    .filter((item) => item.type === 'message' && item.role && item.content !== undefined)
+    .map((item) => ({
+      id: `persisted-${item.id}`,
+      role: item.role as 'user' | 'assistant' | 'system',
+      content: item.content || '',
+      timestamp: new Date(item.timestamp).getTime(),
+    }));
+}
+
+/**
+ * Helper: Convert persisted timeline tool calls to client format
+ */
+function convertPersistedToolCalls(timeline: SessionData['timeline']): ToolCall[] {
+  return timeline
+    .filter((item) => item.type === 'tool_call' && item.toolCallId && item.toolName)
+    .map((item) => ({
+      id: item.toolCallId as string,
+      name: item.toolName as string,
+      args: safeJsonParse<Record<string, unknown>>(item.toolArgs, {}),
+      timestamp: new Date(item.timestamp).getTime(),
+    }));
+}
+
+/**
+ * Helper: Convert persisted timeline tool results to client format
+ */
+function convertPersistedToolResults(timeline: SessionData['timeline']): ToolResult[] {
+  return timeline
+    .filter((item) => item.type === 'tool_result' && item.toolResultId)
+    .map((item) => ({
+      id: item.toolResultId as string,
+      toolName: item.toolName || '',
+      result: item.result || '',
+      timestamp: new Date(item.timestamp).getTime(),
+    }));
+}
+
+/**
+ * Helper: Convert persisted files to client format
+ */
+function convertPersistedFiles(files: SessionData['files']): FileUpdate[] {
+  return files.map((file) => ({
+    path: file.path,
+    content: file.content,
+  }));
+}
+
+/**
+ * Helper: Merge and deduplicate arrays by ID
+ */
+function mergeByIdAndSort<T extends { id: string; timestamp: number }>(
+  persisted: T[],
+  live: T[],
+): T[] {
+  return Array.from(new Map([...persisted, ...live].map((item) => [item.id, item])).values()).sort(
+    (a, b) => a.timestamp - b.timestamp,
+  );
+}
+
+/**
+ * Helper: Merge files by path (no timestamp sorting needed)
+ */
+function mergeByPath(persisted: FileUpdate[], live: FileUpdate[]): FileUpdate[] {
+  return Array.from(new Map([...persisted, ...live].map((file) => [file.path, file])).values());
+}
+
+/**
+ * Helper: SessionHeader component
+ */
+function SessionHeader({
+  sessionId,
+  status,
+  isConnected,
+  isOwnSession,
+}: {
+  sessionId: string | undefined;
+  status: 'generating' | 'completed' | 'failed';
+  isConnected: boolean;
+  isOwnSession: boolean;
+}) {
+  const showLiveBadge = status === 'generating' && isConnected && isOwnSession;
+
+  return (
+    <header className={`border-b ${padding.page}`}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <h1 className={`${typography.label} text-lg text-gray-900`}>Gen Fullstack</h1>
+          <span className={typography.caption}>Session: {sessionId}</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <div
+            className={`px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1.5 ${
+              status === 'completed'
+                ? 'bg-gray-100 text-gray-700'
+                : status === 'generating'
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'bg-red-100 text-red-700'
+            }`}
+          >
+            {showLiveBadge && (
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
+              </span>
+            )}
+            {showLiveBadge ? 'Live' : status}
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div
+              className={`h-1.5 w-1.5 rounded-full ${isConnected ? 'bg-gray-900' : 'bg-gray-300'}`}
+            />
+            <span className={typography.caption}>{isConnected ? 'connected' : 'disconnected'}</span>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+/**
+ * Helper: SessionSidebar component
+ */
+function SessionSidebar({
+  sessionData,
+  sessionId,
+  appStatus,
+  isGenerating,
+  isOwnSession,
+  startApp,
+  stopApp,
+  restartApp,
+}: {
+  sessionData: SessionData;
+  sessionId: string | undefined;
+  appStatus: ReturnType<typeof useWebSocket>['appStatus'];
+  isGenerating: boolean;
+  isOwnSession: boolean;
+  startApp: () => void;
+  stopApp: () => void;
+  restartApp: () => void;
+}) {
+  return (
+    <div className={`border-r ${padding.panel} overflow-y-auto`}>
+      <div className={spacing.controls}>
+        <div>
+          <h2 className={`mb-3 ${typography.header}`}>Strategy</h2>
+          <StrategySelector
+            value={sessionData.session.strategy}
+            onChange={() => {}}
+            disabled={true}
+          />
+        </div>
+
+        <div>
+          <h3 className={`mb-3 ${typography.header}`}>Prompt (readonly)</h3>
+          <div className="p-3 bg-gray-50 border rounded-md">
+            <p className={`${typography.body} text-gray-700 whitespace-pre-wrap`}>
+              {sessionData.session.prompt}
+            </p>
+          </div>
+        </div>
+
+        {sessionData.session.status === 'generating' && !isOwnSession && (
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded-md">
+            <p className={`${typography.caption} text-amber-700`}>
+              This session is currently generating in another window. Live updates are not available
+              here. Refresh the page to see the latest persisted data.
+            </p>
+          </div>
+        )}
+
+        {sessionData.session.status === 'completed' && sessionData.session.totalTokens && (
+          <div>
+            <h3 className={`mb-2 ${typography.header}`}>Metrics</h3>
+            <div className={`${typography.caption} space-y-1`}>
+              <div className="flex justify-between">
+                <span>Tokens:</span>
+                <span className="font-mono">{sessionData.session.totalTokens}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Cost:</span>
+                <span className="font-mono">
+                  ${Number.parseFloat(sessionData.session.cost || '0').toFixed(4)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>Duration:</span>
+                <span className="font-mono">
+                  {((sessionData.session.durationMs || 0) / 1000).toFixed(1)}s
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>Steps:</span>
+                <span className="font-mono">{sessionData.session.stepCount}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {sessionData.session.errorMessage && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+            <p className={`${typography.caption} text-red-700`}>
+              {sessionData.session.errorMessage}
+            </p>
+          </div>
+        )}
+
+        <div className="pt-4 border-t">
+          <AppControls
+            currentSessionId={sessionId || null}
+            appStatus={appStatus}
+            isGenerating={isGenerating}
+            onStart={startApp}
+            onStop={stopApp}
+            onRestart={restartApp}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
  * SessionPage - View persisted session
  *
  * Displays a readonly view of a persisted session with its timeline and files.
@@ -93,6 +334,7 @@ function SessionPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const sessionData = useLoaderData() as SessionData;
   const {
+    socket,
     isConnected,
     messages: liveMessages,
     toolCalls: liveToolCalls,
@@ -109,187 +351,57 @@ function SessionPage() {
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
 
   const isActiveSession = sessionData.session.status === 'generating';
+  // Check if this is the current socket's session
+  // Only true if socket is connected AND sessionId matches
+  const isOwnSession = socket !== null && sessionId === socket.id;
 
   // Convert persisted timeline items to client types
-  const persistedMessages: LLMMessage[] = sessionData.timeline
-    .filter((item) => item.type === 'message')
-    .map((item) => ({
-      id: `persisted-${item.id}`,
-      role: item.role!,
-      content: item.content || '',
-      timestamp: new Date(item.timestamp).getTime(),
-    }));
+  const persistedMessages = convertPersistedMessages(sessionData.timeline);
+  const persistedToolCalls = convertPersistedToolCalls(sessionData.timeline);
+  const persistedToolResults = convertPersistedToolResults(sessionData.timeline);
+  const persistedFiles = convertPersistedFiles(sessionData.files);
 
-  const persistedToolCalls: ToolCall[] = sessionData.timeline
-    .filter((item) => item.type === 'tool_call')
-    .map((item) => ({
-      id: item.toolCallId!,
-      name: item.toolName!,
-      args: item.toolArgs ? JSON.parse(item.toolArgs) : {},
-      timestamp: new Date(item.timestamp).getTime(),
-    }));
+  // Only merge live data if this is our own active session
+  // Otherwise, live updates won't work due to session/socket ID mismatch
+  const messages =
+    isActiveSession && isOwnSession
+      ? mergeByIdAndSort(persistedMessages, liveMessages)
+      : persistedMessages;
 
-  const persistedToolResults: ToolResult[] = sessionData.timeline
-    .filter((item) => item.type === 'tool_result')
-    .map((item) => ({
-      id: item.toolResultId!,
-      toolName: item.toolName || '',
-      result: item.result || '',
-      timestamp: new Date(item.timestamp).getTime(),
-    }));
+  const toolCalls =
+    isActiveSession && isOwnSession
+      ? mergeByIdAndSort(persistedToolCalls, liveToolCalls)
+      : persistedToolCalls;
 
-  const persistedFiles: FileUpdate[] = sessionData.files.map((file) => ({
-    path: file.path,
-    content: file.content,
-  }));
+  const toolResults =
+    isActiveSession && isOwnSession
+      ? mergeByIdAndSort(persistedToolResults, liveToolResults)
+      : persistedToolResults;
 
-  // Merge persisted and live data with deduplication
-  // For active sessions: concatenate and deduplicate by ID, sorted by timestamp
-  // For completed sessions: use only persisted data
-  const messages = isActiveSession
-    ? Array.from(
-        new Map([...persistedMessages, ...liveMessages].map((msg) => [msg.id, msg])).values(),
-      ).sort((a, b) => a.timestamp - b.timestamp)
-    : persistedMessages;
-
-  const toolCalls = isActiveSession
-    ? Array.from(
-        new Map([...persistedToolCalls, ...liveToolCalls].map((call) => [call.id, call])).values(),
-      ).sort((a, b) => a.timestamp - b.timestamp)
-    : persistedToolCalls;
-
-  const toolResults = isActiveSession
-    ? Array.from(
-        new Map(
-          [...persistedToolResults, ...liveToolResults].map((result) => [result.id, result]),
-        ).values(),
-      ).sort((a, b) => a.timestamp - b.timestamp)
-    : persistedToolResults;
-
-  const files = isActiveSession
-    ? Array.from(
-        new Map([...persistedFiles, ...liveFiles].map((file) => [file.path, file])).values(),
-      )
-    : persistedFiles;
-
-  // Show readonly prompt in input box
-  useEffect(() => {
-    // This is a readonly view, so we don't need to do anything special
-    // The PromptInput component will be replaced with a readonly display
-  }, []);
+  const files =
+    isActiveSession && isOwnSession ? mergeByPath(persistedFiles, liveFiles) : persistedFiles;
 
   return (
     <div className="grid h-screen grid-rows-[auto_1fr] bg-white">
-      {/* Header */}
-      <header className={`border-b ${padding.page}`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h1 className={`${typography.label} text-lg text-gray-900`}>Gen Fullstack</h1>
-            <span className={typography.caption}>Session: {sessionId}</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <div
-              className={`px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1.5 ${
-                sessionData.session.status === 'completed'
-                  ? 'bg-gray-100 text-gray-700'
-                  : sessionData.session.status === 'generating'
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'bg-red-100 text-red-700'
-              }`}
-            >
-              {sessionData.session.status === 'generating' && isConnected && (
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
-                </span>
-              )}
-              {sessionData.session.status === 'generating' && isConnected
-                ? 'Live'
-                : sessionData.session.status}
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div
-                className={`h-1.5 w-1.5 rounded-full ${isConnected ? 'bg-gray-900' : 'bg-gray-300'}`}
-              />
-              <span className={typography.caption}>
-                {isConnected ? 'connected' : 'disconnected'}
-              </span>
-            </div>
-          </div>
-        </div>
-      </header>
+      <SessionHeader
+        sessionId={sessionId}
+        status={sessionData.session.status}
+        isConnected={isConnected}
+        isOwnSession={isOwnSession}
+      />
 
       {/* Main content */}
       <main className="grid grid-cols-[320px_1fr] overflow-hidden">
-        {/* Left panel - Session Info (readonly) */}
-        <div className={`border-r ${padding.panel} overflow-y-auto`}>
-          <div className={spacing.controls}>
-            <div>
-              <h2 className={`mb-3 ${typography.header}`}>Strategy</h2>
-              <StrategySelector
-                value={sessionData.session.strategy}
-                onChange={() => {}}
-                disabled={true}
-              />
-            </div>
-
-            <div>
-              <h3 className={`mb-3 ${typography.header}`}>Prompt (readonly)</h3>
-              <div className="p-3 bg-gray-50 border rounded-md">
-                <p className={`${typography.body} text-gray-700 whitespace-pre-wrap`}>
-                  {sessionData.session.prompt}
-                </p>
-              </div>
-            </div>
-
-            {sessionData.session.status === 'completed' && sessionData.session.totalTokens && (
-              <div>
-                <h3 className={`mb-2 ${typography.header}`}>Metrics</h3>
-                <div className={`${typography.caption} space-y-1`}>
-                  <div className="flex justify-between">
-                    <span>Tokens:</span>
-                    <span className="font-mono">{sessionData.session.totalTokens}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Cost:</span>
-                    <span className="font-mono">
-                      ${Number.parseFloat(sessionData.session.cost || '0').toFixed(4)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Duration:</span>
-                    <span className="font-mono">
-                      {((sessionData.session.durationMs || 0) / 1000).toFixed(1)}s
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Steps:</span>
-                    <span className="font-mono">{sessionData.session.stepCount}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {sessionData.session.errorMessage && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-                <p className={`${typography.caption} text-red-700`}>
-                  {sessionData.session.errorMessage}
-                </p>
-              </div>
-            )}
-
-            <div className="pt-4 border-t">
-              <AppControls
-                currentSessionId={sessionId || null}
-                appStatus={appStatus}
-                isGenerating={false}
-                onStart={startApp}
-                onStop={stopApp}
-                onRestart={restartApp}
-              />
-            </div>
-          </div>
-        </div>
+        <SessionSidebar
+          sessionData={sessionData}
+          sessionId={sessionId}
+          appStatus={appStatus}
+          isGenerating={isActiveSession}
+          isOwnSession={isOwnSession}
+          startApp={() => startApp(sessionId || '')}
+          stopApp={() => stopApp(sessionId || '')}
+          restartApp={() => restartApp(sessionId || '')}
+        />
 
         {/* Right panel - Timeline & Files */}
         <div className="grid grid-rows-[auto_1fr] overflow-hidden">
