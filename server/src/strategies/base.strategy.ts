@@ -290,4 +290,39 @@ export abstract class BaseStrategy {
       `\nSteps: ${metrics.steps}`,
     );
   }
+
+  /**
+   * Create an onStepFinish handler for streamText calls
+   *
+   * This handler processes tool calls and results from the AI SDK,
+   * emitting them via WebSocket and persisting to database.
+   *
+   * @param socket - Socket.io connection
+   * @returns onStepFinish callback function
+   */
+  protected createOnStepFinishHandler(socket: Socket) {
+    // biome-ignore lint/suspicious/noExplicitAny: AI SDK onStepFinish callback types are not strictly typed
+    return ({ toolCalls, toolResults }: { toolCalls: any[]; toolResults: any[] }) => {
+      // Emit tool calls with all data
+      // AI SDK 5.0 changed property names: toolCall.args → toolCall.input, toolCall.id → toolCall.toolCallId
+      for (const toolCall of toolCalls) {
+        const toolInput =
+          typeof toolCall.input === 'object' && toolCall.input !== null
+            ? (toolCall.input as Record<string, unknown>)
+            : {};
+
+        this.emitToolCall(socket, toolCall.toolCallId, toolCall.toolName, toolInput);
+      }
+
+      // Emit tool results
+      for (const toolResult of toolResults) {
+        const result =
+          typeof toolResult.output === 'string'
+            ? toolResult.output
+            : JSON.stringify(toolResult.output);
+
+        this.emitToolResult(socket, toolResult.toolCallId, toolResult.toolName, result);
+      }
+    };
+  }
 }
