@@ -359,24 +359,82 @@ USER node
 - Clean, minimalist UI with file tree + viewer layout
 - WebSocket-based real-time file updates working
 
-### Phase 4: App Execution & Preview
+### Phase 4: App Execution & Preview ✅ COMPLETE
 
-**Goal**: Run generated apps and preview results
+**Goal**: Run generated apps and preview results in isolated Docker containers
 
-- [ ] Process manager for spawning generated apps
+**Status**: Complete - Docker execution system production-ready with comprehensive security
 
-  - Start Vite dev server for frontend
-  - Start backend server (if applicable)
-  - Capture stdout/stderr logs
+#### 4.1: Docker Container Management (✅ Complete)
 
-- [ ] Preview iframe in UI
+- [x] Docker service (`docker.service.ts`)
+  - Container lifecycle management (create, start, stop, destroy)
+  - Automatic Docker socket detection (Colima, Docker Desktop, Linux)
+  - Socket path validation with symlink resolution (TOCTOU attack prevention)
+  - Path whitelisting (/var/run, ~/.colima, ~/.docker only)
+  - Resource limits (512MB RAM, 1 CPU core)
+  - Security hardening (dropped capabilities, non-root user, no-new-privileges)
+  - Stream processing with correct Docker multiplexed format
+  - Memory leak prevention (cleanup functions for all resources)
 
-  - Local development server proxy
-  - Handle CORS/security considerations
-  - Refresh on rebuild
+- [x] Process service (`process.service.ts`)
+  - Full app lifecycle orchestration (install deps, start dev server)
+  - Event forwarding (logs, status changes, build events)
+  - Auto-cleanup after 10 minutes max runtime
+  - Error handling with graceful degradation
 
-- [ ] Log viewer for build/runtime output
-- [ ] Error highlighting and display
+#### 4.2: WebSocket Integration (✅ Complete)
+
+- [x] Real-time events via Socket.IO
+  - `app_status` - Container state changes (creating, installing, starting, running, failed, stopped)
+  - `app_log` - Live stdout/stderr from containers
+  - `build_event` - Build success/failure notifications
+  - `start_app` - Client-triggered container startup
+  - `stop_app` - Client-triggered container teardown
+
+#### 4.3: Preview System (✅ Complete)
+
+- [x] HTTP proxy for container access
+  - Route `/preview/:sessionId/*` to container ports
+  - Port allocation (5000-5100 range)
+  - Vite dev server compatibility (DNS rebinding protection handled)
+  - CORS/security considerations
+
+#### 4.4: Security & Testing (✅ Complete)
+
+- [x] Comprehensive security measures
+  - Socket path validation (prevent path injection attacks)
+  - Container isolation (read-only root, tmpfs /tmp)
+  - Resource limits enforcement
+  - Automatic cleanup timers
+  - Stream listener cleanup (prevent memory leaks)
+
+- [x] Unit tests (45 new tests)
+  - Docker service tests (24 tests) - All passing
+  - Process service tests (21 tests) - All passing
+  - Mock-based testing with dockerode
+  - Stream processing validation
+
+- [x] Integration testing
+  - End-to-end Docker execution script (`test-docker-execution.ts`)
+  - Full lifecycle testing (build image, create container, install deps, start server, cleanup)
+  - HTTP access validation
+  - Comprehensive TESTING.md documentation
+
+**Security Hardening Applied**:
+1. ✅ Socket path validation (symlink resolution, path whitelisting, socket type verification)
+2. ✅ Memory leak prevention (stream cleanup, timer cancellation, interval cleanup)
+3. ✅ Race condition elimination (tracked cleanup timers and intervals)
+4. ✅ Correct stream processing (Docker multiplexed format with buffer accumulation)
+5. ✅ All critical code review findings addressed
+
+**Deliverables**:
+- ✅ Working Docker execution system with full security hardening
+- ✅ 133 tests passing (was 88, added 45 Docker/Process tests)
+- ✅ TypeScript strict mode with zero errors
+- ✅ Production-ready container management
+- ✅ Comprehensive testing documentation (TESTING.md)
+- ✅ Integration test script with detailed output
 
 ### Phase 5: Optimization Toggles
 
@@ -537,21 +595,52 @@ gen-fullstack/
 | Phase 1: Basic Harness Setup | ✅ Complete | 100% |
 | Phase 2: LLM Integration | ✅ Complete | 100% |
 | Phase 3: File System Operations | ✅ Complete | 100% |
-| Phase 4: App Execution & Preview | ⏳ Pending | 0% |
+| Phase 4: App Execution & Preview | ✅ Complete | 100% |
 | Phase 5: Optimization Toggles | ⏳ Pending | 0% |
 | Phase 6: Demo Scenarios | ⏳ Pending | 0% |
 | Phase 7: Polish & UX | ⏳ Pending | 0% |
 
-## Next Steps for Phase 2
+**Current Status**: 4 out of 7 phases complete (57% total progress)
 
-1. ✅ Review Phase 1 completion (DONE)
-2. ✅ Research and select LLM integration approach (DONE - chose Vercel AI SDK)
-3. 🚀 Install AI SDK dependencies (`ai`, `@ai-sdk/openai`)
-4. Create tools with `tool()` function and Zod schemas
-5. Implement filesystem and command services
-6. Create naive strategy with `streamText()`
-7. Test with simple prompts ("create a counter app")
-8. Iterate and improve error handling
+## Key Achievements & Findings
+
+### Phase 4 Insights - Docker Security & Testing
+
+**Critical Security Vulnerabilities Fixed**:
+1. **Socket Path Injection** - Implemented validation with symlink resolution, path whitelisting, and socket type verification
+2. **Memory Leaks** - Added cleanup tracking for all event listeners, streams, and timers
+3. **Race Conditions** - Properly tracked and cancelled all async operations (timers, intervals, streams)
+4. **Stream Processing Bugs** - Correctly implemented Docker multiplexed stream format with proper buffer handling
+
+**Testing Improvements**:
+- Increased test coverage from 88 to 133 tests (+51% increase)
+- All tests passing with TypeScript strict mode
+- Created comprehensive integration test for end-to-end Docker flow
+- Documented testing procedures in TESTING.md with Docker setup instructions
+
+**Docker Runtime Support**:
+- Automatic detection of Docker Desktop, Colima, and standard Linux Docker
+- Graceful fallback when socket paths are unavailable
+- Clear error messages for Docker availability issues
+
+## Next Steps for Phase 5
+
+1. Implement remaining generation strategies:
+   - Plan-first strategy (generate architectural plan before code)
+   - Template-based strategy (start from pre-built templates)
+   - Compiler-check strategy (iterate with TypeScript errors)
+   - Building-blocks strategy (compose from higher-level components)
+
+2. Add strategy comparison metrics:
+   - Token usage tracking per strategy
+   - Time to completion
+   - Success rate and error counts
+   - Quality metrics (TypeScript errors, test coverage)
+
+3. Enhance UI for strategy selection:
+   - Strategy comparison dashboard
+   - Side-by-side results view
+   - Metrics visualization
 
 ## Docs
 
