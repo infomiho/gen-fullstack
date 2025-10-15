@@ -7,7 +7,7 @@
 
 import * as Tabs from '@radix-ui/react-tabs';
 import { Save, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { CodeEditor } from './CodeEditor';
 import { focus, radius, transitions, typography } from '../lib/design-tokens';
 import { useToast } from './ToastProvider';
@@ -28,29 +28,31 @@ export function FileEditorTabs({ files, onSaveFile }: FileEditorTabsProps) {
   const [openTabs, setOpenTabs] = useState<FileTab[]>([]);
   const [activeTab, setActiveTab] = useState<string | undefined>(undefined);
 
+  // Track open paths to avoid unnecessary re-renders
+  const openPathsRef = React.useRef<Set<string>>(new Set());
+
   // Sync open tabs with files prop
   useEffect(() => {
     // Add any new files from props that aren't already open
-    // Use Set for O(n) lookup instead of O(n²)
-    const openPaths = new Set(openTabs.map((tab) => tab.path));
-    const newTabs = files.filter((file) => !openPaths.has(file.path));
+    const newTabs = files.filter((file) => !openPathsRef.current.has(file.path));
 
     if (newTabs.length > 0) {
+      // Update ref with new paths
+      for (const tab of newTabs) {
+        openPathsRef.current.add(tab.path);
+      }
+
       setOpenTabs((prev) => [
         ...prev,
         ...newTabs.map((f) => ({ path: f.path, content: f.content, isDirty: false })),
       ]);
 
       // Set first new tab as active if no tab is active
-      // Use callback form to read latest activeTab
-      setActiveTab((currentActive) => {
-        if (!currentActive && newTabs.length > 0) {
-          return newTabs[0].path;
-        }
-        return currentActive;
-      });
+      if (!activeTab && newTabs.length > 0) {
+        setActiveTab(newTabs[0].path);
+      }
     }
-  }, [files, openTabs]);
+  }, [files, activeTab]);
 
   // Close a tab
   const closeTab = (path: string) => {
@@ -60,6 +62,9 @@ export function FileEditorTabs({ files, onSaveFile }: FileEditorTabsProps) {
         return;
       }
     }
+
+    // Don't remove from ref - it tracks "ever opened", not "currently open"
+    // Removing it would cause useEffect to re-add the file
 
     setOpenTabs((prev) => {
       const filtered = prev.filter((tab) => tab.path !== path);
@@ -133,21 +138,35 @@ export function FileEditorTabs({ files, onSaveFile }: FileEditorTabsProps) {
               {tab.path.split('/').pop()}
             </span>
             {tab.isDirty && <span className="text-blue-500">●</span>}
-            <button
-              type="button"
+            {/* biome-ignore lint/a11y/useSemanticElements: Cannot use button here as Tabs.Trigger renders as button and HTML forbids nested buttons */}
+            <span
+              role="button"
+              tabIndex={0}
+              onPointerDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
               onClick={(e) => {
+                e.preventDefault();
                 e.stopPropagation();
                 closeTab(tab.path);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  closeTab(tab.path);
+                }
               }}
               className={`
                 p-0.5 ${radius.sm} ${transitions.colors}
                 opacity-0 group-hover:opacity-100
-                hover:bg-gray-200
+                hover:bg-gray-200 cursor-pointer
               `}
               aria-label="Close tab"
             >
               <X className="h-3 w-3" />
-            </button>
+            </span>
           </Tabs.Trigger>
         ))}
       </Tabs.List>
