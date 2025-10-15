@@ -96,7 +96,7 @@ export function AppControls({
                 : ''
           }
         >
-          Start App
+          Start
         </button>
         <button
           type="button"
@@ -104,7 +104,7 @@ export function AppControls({
           disabled={!canStop}
           className={button.secondary}
         >
-          Stop App
+          Stop
         </button>
         <button
           type="button"
@@ -112,7 +112,7 @@ export function AppControls({
           disabled={!canRestart}
           className={button.secondary}
         >
-          Restart App
+          Restart
         </button>
       </div>
     </div>
