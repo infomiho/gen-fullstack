@@ -234,9 +234,10 @@ export default defineConfig({
 /**
  * Client App.tsx example
  */
-export const CLIENT_APP_EXAMPLE = `8. **client/src/App.tsx** - Make API calls:
+export const CLIENT_APP_EXAMPLE = `8. **client/src/App.tsx** - Make API calls with styled UI:
 \`\`\`typescript
 import { useEffect, useState } from 'react';
+import './App.css'; // Import CSS file
 
 export default function App() {
   const [data, setData] = useState([]);
@@ -248,12 +249,54 @@ export default function App() {
   }, []);
 
   return (
-    <div>
-      {/* Your UI here */}
+    <div className="container">
+      <h1 className="title">{/* Your title here */}</h1>
+      {/* Use CSS classes for all styling */}
     </div>
   );
 }
-\`\`\``;
+\`\`\`
+
+9. **client/src/App.css** - Professional styling with CSS:
+\`\`\`css
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  line-height: 1.6;
+  color: #1f2937;
+  background: #f9fafb;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  color: #111827;
+}
+
+/* Add more classes for buttons, cards, forms, etc. */
+\`\`\`
+
+**STYLING REQUIREMENTS:**
+- **Create a CSS file** (e.g., App.css) and import it in your component
+- Use CSS classes, NOT inline styles
+- Include proper spacing (padding, margins), colors, typography
+- Add visual hierarchy with font sizes, weights, and colors
+- Use borders, shadows, or backgrounds to separate sections
+- Style interactive elements (buttons, links, inputs) with hover states
+- Ensure good contrast and readability
+- Add a CSS reset or normalize at the top of the file`;
 
 /**
  * Important guidelines shared across strategies
@@ -265,6 +308,8 @@ export const IMPORTANT_GUIDELINES = `IMPORTANT GUIDELINES:
 - Use proper TypeScript types everywhere
 - All API calls from client go to /api/* (proxied to Express)
 - Keep database models simple but functional
+- **The app MUST be styled** - Use modern CSS, proper spacing, colors, and layout
+- Make the UI visually appealing with professional design
 
 ERROR HANDLING:
 Express 5 automatically catches async errors, but you MUST handle specific cases:
@@ -362,6 +407,8 @@ ${VITE_CONFIG}
    - Use fetch('/api/...') for all API calls
    - Implement state management as planned
    - Create component hierarchy as outlined
+   - **Apply professional styling** - Use modern CSS with proper spacing, colors, typography
+   - Make the UI visually appealing with good layout and design hierarchy
 
 ${IMPORTANT_GUIDELINES}
 

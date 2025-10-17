@@ -777,10 +777,10 @@ export class DockerService extends EventEmitter {
 
       // Step 1: Install all dependencies (root + client + server workspaces)
       this.emitSystemLog(sessionId, 'Installing dependencies...');
-      this.emitCommandLog(sessionId, '$ npm install');
+      this.emitCommandLog(sessionId, '$ npm install --loglevel=info');
 
       const installExec = await containerInfo.container.exec({
-        Cmd: ['npm', 'install'],
+        Cmd: ['npm', 'install', '--loglevel=info'],
         AttachStdout: true,
         AttachStderr: true,
         WorkingDir: '/app',

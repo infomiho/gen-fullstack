@@ -68,6 +68,7 @@ Analyze the user's requirements and create a comprehensive architectural plan fo
    - State management approach
    - API integration patterns
    - Component hierarchy
+   - **UI/UX and Styling approach** - Modern, professional design with proper spacing and colors
 
 6. **Implementation Strategy**
    - Step-by-step implementation order:
@@ -87,6 +88,7 @@ GUIDELINES:
 - Think about CORS and API proxying from client to server
 - Use Express 5's automatic async error handling
 - Keep database models simple but functional
+- **Plan for a visually appealing, well-styled UI** - Include design considerations
 - Focus on creating a working full-stack application
 
 OUTPUT FORMAT:
@@ -95,6 +97,7 @@ Provide a well-structured plan in markdown format with clear sections. Include:
 - API endpoints list
 - File structure tree
 - Component breakdown
+- UI/UX styling approach (colors, spacing, layout strategy)
 - Implementation steps
 
 This plan will guide the implementation phase to create a complete full-stack app.`;
@@ -197,11 +200,13 @@ Implement the application following this plan exactly. Create all files as speci
       const duration = Date.now() - startTime;
       const totalInputTokens = (usage.inputTokens || 0) + (planUsage.inputTokens || 0);
       const totalOutputTokens = (usage.outputTokens || 0) + (planUsage.outputTokens || 0);
+      // Add 1 for the planning step (generateText call) + implementation steps (streamText)
+      const totalSteps = 1 + (steps?.length || 0);
       const metrics = this.calculateMetrics(
         totalInputTokens,
         totalOutputTokens,
         duration,
-        steps?.length || 0,
+        totalSteps,
       );
 
       // Log completion

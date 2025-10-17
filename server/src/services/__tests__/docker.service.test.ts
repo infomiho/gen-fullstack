@@ -376,7 +376,7 @@ describe('DockerService', () => {
       const mockContainer = (Docker as any).mockContainer;
       expect(mockContainer.exec).toHaveBeenCalledWith(
         expect.objectContaining({
-          Cmd: ['npm', 'install'],
+          Cmd: ['npm', 'install', '--loglevel=info'],
           WorkingDir: '/app',
         }),
       );
@@ -396,7 +396,7 @@ describe('DockerService', () => {
         expect.objectContaining({
           sessionId,
           level: 'command',
-          message: '$ npm install',
+          message: '$ npm install --loglevel=info',
           type: 'stdout',
           timestamp: expect.any(Number),
         }),
