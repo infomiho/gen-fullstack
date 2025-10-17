@@ -134,6 +134,13 @@ const RETRY_CONFIG = {
   backoffMultiplier: 2, // Exponential backoff
 };
 
+// HTTP readiness check configuration
+const HTTP_READY_CHECK = {
+  maxAttempts: 10, // ~5 seconds total with 500ms delays
+  delayMs: 500, // Wait between retry attempts
+  requestTimeoutMs: 1000, // Timeout for each HTTP request
+};
+
 /**
  * Retry helper for Docker operations that may fail with 409 conflicts
  */
@@ -181,6 +188,7 @@ export interface ContainerInfo {
   streamCleanup?: () => void;
   devServerStreamCleanup?: () => void;
   readyCheckInterval?: NodeJS.Timeout;
+  readyCheckInProgress?: boolean;
 }
 
 /**
@@ -540,21 +548,46 @@ export class DockerService extends EventEmitter {
 
   /**
    * Check if HTTP server is actually ready to accept connections
+   *
+   * Polls the HTTP endpoint with HEAD requests until the server responds.
+   * This prevents the iframe from loading before the server is ready to
+   * handle requests, avoiding "Unable to connect" errors.
+   *
+   * @param port - The host port to check
+   * @returns Promise<boolean> - true if server responds within timeout, false otherwise
+   *
+   * @remarks
+   * - Uses HEAD requests to minimize overhead
+   * - Accepts any HTTP response (including 404) as "ready"
+   * - Retries up to 10 times with 500ms delays (~5 seconds total)
+   * - Each request has a 1 second timeout
+   * - Logs first and last failures for debugging
    */
-  private async checkHttpReady(port: number, maxAttempts = 10): Promise<boolean> {
-    for (let i = 0; i < maxAttempts; i++) {
+  private async checkHttpReady(port: number): Promise<boolean> {
+    const shouldLog = (attempt: number) =>
+      attempt === 0 || attempt === HTTP_READY_CHECK.maxAttempts - 1;
+
+    for (let i = 0; i < HTTP_READY_CHECK.maxAttempts; i++) {
       try {
-        const response = await fetch(`http://localhost:${port}`, {
+        await fetch(`http://localhost:${port}`, {
           method: 'HEAD',
-          signal: AbortSignal.timeout(1000),
+          signal: AbortSignal.timeout(HTTP_READY_CHECK.requestTimeoutMs),
         });
         // Any response (even 404) means the server is listening
-        if (response) {
-          return true;
+        return true;
+      } catch (error) {
+        // Log first and last failures for debugging
+        if (shouldLog(i)) {
+          console.log(
+            `[Docker] HTTP ready check attempt ${i + 1}/${HTTP_READY_CHECK.maxAttempts} failed:`,
+            error instanceof Error ? error.message : error,
+          );
         }
-      } catch (_error) {
         // Server not ready yet, wait and retry
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        const isLastAttempt = i === HTTP_READY_CHECK.maxAttempts - 1;
+        if (!isLastAttempt) {
+          await new Promise((resolve) => setTimeout(resolve, HTTP_READY_CHECK.delayMs));
+        }
       }
     }
     return false;
@@ -575,30 +608,52 @@ export class DockerService extends EventEmitter {
 
       // Update container status to running after HTTP readiness check
       const containerInfo = this.containers.get(sessionId);
-      if (containerInfo && containerInfo.status !== 'running') {
+      if (
+        containerInfo &&
+        containerInfo.status !== 'running' &&
+        !containerInfo.readyCheckInProgress
+      ) {
+        // Prevent concurrent HTTP checks with flag
+        containerInfo.readyCheckInProgress = true;
+
         // Run readiness check in background to avoid blocking log processing
-        this.checkHttpReady(containerInfo.port).then((ready) => {
-          if (ready && containerInfo.status !== 'running') {
-            containerInfo.status = 'running';
-            this.emit('status_change', {
-              sessionId,
-              status: 'running',
-            });
-            console.log(
-              `[Docker] HTTP server ready for ${sessionId} on port ${containerInfo.port}`,
-            );
-          } else if (!ready) {
-            console.warn(
-              `[Docker] HTTP readiness check failed for ${sessionId}, but VITE reported ready`,
-            );
-            // Still mark as running since VITE said it's ready
-            containerInfo.status = 'running';
-            this.emit('status_change', {
-              sessionId,
-              status: 'running',
-            });
-          }
-        });
+        this.checkHttpReady(containerInfo.port)
+          .then((ready) => {
+            if (ready && containerInfo.status !== 'running') {
+              containerInfo.status = 'running';
+              this.emit('status_change', {
+                sessionId,
+                status: 'running',
+              });
+              console.log(
+                `[Docker] HTTP server ready for ${sessionId} on port ${containerInfo.port}`,
+              );
+            } else if (!ready) {
+              console.warn(
+                `[Docker] HTTP readiness check failed for ${sessionId}, but VITE reported ready`,
+              );
+
+              // Emit warning event that surfaces in the UI
+              const warningEvent: BuildEvent = {
+                sessionId,
+                timestamp: Date.now(),
+                event: 'error',
+                details:
+                  'Dev server reported ready but HTTP health check failed. The preview may not load correctly.',
+              };
+              this.emit('build_event', warningEvent);
+
+              // Still mark as running since VITE said it's ready
+              containerInfo.status = 'running';
+              this.emit('status_change', {
+                sessionId,
+                status: 'running',
+              });
+            }
+          })
+          .finally(() => {
+            containerInfo.readyCheckInProgress = false;
+          });
       }
     }
 

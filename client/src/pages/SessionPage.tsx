@@ -404,7 +404,7 @@ function SessionPage() {
             ) : activeTab === 'preview' ? (
               <div ref={previewContainerRef} className={`h-full overflow-y-auto ${padding.panel}`}>
                 <AppPreview appStatus={appStatus} />
-                <div className="mt-6">
+                <div className={spacing.componentGap}>
                   <LogViewer logs={appLogs} />
                 </div>
               </div>

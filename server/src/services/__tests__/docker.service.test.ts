@@ -156,6 +156,108 @@ describe('DockerService', () => {
     });
   });
 
+  describe('checkHttpReady', () => {
+    beforeEach(() => {
+      // Reset fetch mock before each test
+      vi.unstubAllGlobals();
+    });
+
+    it('should return true when server responds immediately', async () => {
+      // Mock global fetch to succeed
+      global.fetch = vi.fn().mockResolvedValueOnce(new Response());
+
+      const ready = await (dockerService as any).checkHttpReady(5173);
+
+      expect(ready).toBe(true);
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      expect(global.fetch).toHaveBeenCalledWith(
+        'http://localhost:5173',
+        expect.objectContaining({
+          method: 'HEAD',
+        }),
+      );
+    });
+
+    it('should retry and eventually succeed', async () => {
+      // Mock fetch to fail twice, then succeed
+      global.fetch = vi
+        .fn()
+        .mockRejectedValueOnce(new Error('ECONNREFUSED'))
+        .mockRejectedValueOnce(new Error('ECONNREFUSED'))
+        .mockResolvedValueOnce(new Response());
+
+      const ready = await (dockerService as any).checkHttpReady(5173);
+
+      expect(ready).toBe(true);
+      expect(global.fetch).toHaveBeenCalledTimes(3);
+    });
+
+    it('should return false after all retries fail', async () => {
+      // Mock fetch to always fail
+      global.fetch = vi.fn().mockRejectedValue(new Error('ECONNREFUSED'));
+
+      const ready = await (dockerService as any).checkHttpReady(5173);
+
+      expect(ready).toBe(false);
+      expect(global.fetch).toHaveBeenCalledTimes(10); // maxAttempts from HTTP_READY_CHECK
+    });
+
+    it('should accept 404 responses as ready', async () => {
+      // Mock fetch to return 404 (which means server is listening)
+      global.fetch = vi.fn().mockResolvedValueOnce(new Response(null, { status: 404 }));
+
+      const ready = await (dockerService as any).checkHttpReady(5173);
+
+      expect(ready).toBe(true);
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('should accept any HTTP response as ready', async () => {
+      // Mock fetch to return 500 (server error, but server is listening)
+      global.fetch = vi.fn().mockResolvedValueOnce(new Response(null, { status: 500 }));
+
+      const ready = await (dockerService as any).checkHttpReady(5173);
+
+      expect(ready).toBe(true);
+    });
+
+    it('should wait between retry attempts', async () => {
+      vi.useFakeTimers();
+
+      // Mock fetch to fail twice, then succeed
+      global.fetch = vi
+        .fn()
+        .mockRejectedValueOnce(new Error('ECONNREFUSED'))
+        .mockRejectedValueOnce(new Error('ECONNREFUSED'))
+        .mockResolvedValueOnce(new Response());
+
+      const readyPromise = (dockerService as any).checkHttpReady(5173);
+
+      // Advance timers by 500ms between each retry
+      await vi.advanceTimersByTimeAsync(500);
+      await vi.advanceTimersByTimeAsync(500);
+
+      const ready = await readyPromise;
+
+      expect(ready).toBe(true);
+      expect(global.fetch).toHaveBeenCalledTimes(3);
+
+      vi.useRealTimers();
+    });
+
+    it('should handle timeout errors', async () => {
+      // Mock fetch to throw timeout error
+      global.fetch = vi
+        .fn()
+        .mockRejectedValue(new DOMException('The operation was aborted', 'AbortError'));
+
+      const ready = await (dockerService as any).checkHttpReady(5173);
+
+      expect(ready).toBe(false);
+      expect(global.fetch).toHaveBeenCalledTimes(10);
+    });
+  });
+
   describe('createContainer', () => {
     it('should create and start container with correct configuration', async () => {
       const sessionId = 'test-session-1';

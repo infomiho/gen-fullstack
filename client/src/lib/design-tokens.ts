@@ -48,6 +48,11 @@ export const radius = {
   md: 'rounded-lg', // 8px - for cards/panels
 } as const;
 
+// Dimensions
+export const dimensions = {
+  previewHeight: '600px', // Standard height for iframe previews
+} as const;
+
 // Spacing
 export const spacing = {
   sections: 'space-y-6',
@@ -55,6 +60,7 @@ export const spacing = {
   form: 'space-y-2',
   list: 'space-y-2',
   cards: 'space-y-4',
+  componentGap: 'mt-6', // Gap between major components (24px)
 } as const;
 
 // Padding
