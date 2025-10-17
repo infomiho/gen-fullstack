@@ -40,6 +40,10 @@ interface ToolExecution {
  * Tool calls can be clicked to view details in a modal dialog.
  */
 export function Timeline({ messages, toolCalls, toolResults }: TimelineProps) {
+  // Track which tool dialog is open (by tool ID)
+  // This state is lifted to Timeline to persist across re-renders
+  const [openToolId, setOpenToolId] = useState<string | null>(null);
+
   // Merge tool calls with their results
   const toolExecutions = useMemo(() => {
     const resultsMap = new Map<string, ToolResult>();
@@ -104,7 +108,12 @@ export function Timeline({ messages, toolCalls, toolResults }: TimelineProps) {
         item.type === 'message' ? (
           <MessageItem key={`${item.data.id}-${index}`} message={item.data} />
         ) : (
-          <ToolItem key={`${item.data.id}-${index}`} tool={item.data} />
+          <ToolItem
+            key={`${item.data.id}-${index}`}
+            tool={item.data}
+            isOpen={openToolId === item.data.id}
+            onOpenChange={(open) => setOpenToolId(open ? item.data.id : null)}
+          />
         ),
       )}
     </div>
@@ -144,12 +153,19 @@ function MessageItem({ message }: { message: LLMMessage }) {
 /**
  * Tool Item Component with Modal Dialog
  */
-function ToolItem({ tool }: { tool: ToolExecution }) {
-  const [open, setOpen] = useState(false);
+function ToolItem({
+  tool,
+  isOpen,
+  onOpenChange,
+}: {
+  tool: ToolExecution;
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   const colors = roleColors.tool;
 
   return (
-    <Dialog.Root open={open} onOpenChange={setOpen}>
+    <Dialog.Root open={isOpen} onOpenChange={onOpenChange}>
       <Dialog.Trigger asChild>
         <button
           type="button"
