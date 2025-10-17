@@ -8,9 +8,11 @@ import type {
   ToolCall,
   ToolResult,
 } from '@gen-fullstack/shared';
-import { MAX_LOGS, MAX_MESSAGES, TIMEOUTS } from '@gen-fullstack/shared';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { TIMEOUTS } from '@gen-fullstack/shared';
+import { useCallback, useEffect, useRef } from 'react';
 import { io, type Socket } from 'socket.io-client';
+import { useToast } from '../components/ToastProvider';
+import { useAppStore, useConnectionStore, useGenerationStore } from '../stores';
 
 interface UseWebSocketReturn {
   socket: Socket | null;
@@ -39,156 +41,236 @@ interface UseWebSocketReturn {
 const SERVER_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 export function useWebSocket(): UseWebSocketReturn {
-  const [socket, setSocket] = useState<Socket | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<LLMMessage[]>([]);
-  const [toolCalls, setToolCalls] = useState<ToolCall[]>([]);
-  const [toolResults, setToolResults] = useState<ToolResult[]>([]);
-  const [files, setFiles] = useState<FileUpdate[]>([]);
-  // App execution state
-  const [appStatus, setAppStatus] = useState<AppInfo | null>(null);
-  const [appLogs, setAppLogs] = useState<AppLog[]>([]);
-  const [buildEvents, setBuildEvents] = useState<BuildEvent[]>([]);
+  const { showToast } = useToast();
 
-  // Use ref to track currentSessionId for event listeners
-  const sessionIdRef = useRef<string | null>(null);
+  // Get stores
+  const socket = useConnectionStore((state) => state.socket);
+  const isConnected = useConnectionStore((state) => state.isConnected);
+  const setSocket = useConnectionStore((state) => state.setSocket);
+  const setConnected = useConnectionStore((state) => state.setConnected);
+
+  const isGenerating = useGenerationStore((state) => state.isGenerating);
+  const currentSessionId = useGenerationStore((state) => state.currentSessionId);
+  const messages = useGenerationStore((state) => state.messages);
+  const toolCalls = useGenerationStore((state) => state.toolCalls);
+  const toolResults = useGenerationStore((state) => state.toolResults);
+  const files = useGenerationStore((state) => state.files);
+
+  const appStatus = useAppStore((state) => state.appStatus);
+  const appLogs = useAppStore((state) => state.appLogs);
+  const buildEvents = useAppStore((state) => state.buildEvents);
+
+  // Stable ref for showToast to avoid re-renders
+  const showToastRef = useRef(showToast);
+  useEffect(() => {
+    showToastRef.current = showToast;
+  }, [showToast]);
+
+  // Debouncing for truncation notifications (max once per 10 seconds per type)
+  const lastTruncationToast = useRef<Record<string, number>>({});
+  const notifyTruncation = useCallback((title: string, message: string, type: string) => {
+    const now = Date.now();
+    const lastShown = lastTruncationToast.current[type] || 0;
+    if (now - lastShown > 10000) {
+      showToastRef.current(title, message, 'info');
+      lastTruncationToast.current[type] = now;
+    }
+  }, []);
 
   useEffect(() => {
-    const newSocket = io(SERVER_URL);
+    // Check if socket already exists in store (persists across navigation)
+    let newSocket = useConnectionStore.getState().socket;
+    let shouldSetSocket = false;
 
-    newSocket.on('connect', () => {
-      setIsConnected(true);
-    });
+    if (!newSocket || !newSocket.connected) {
+      try {
+        newSocket = io(SERVER_URL, {
+          reconnection: true,
+          reconnectionDelay: 1000,
+          reconnectionDelayMax: 5000,
+          reconnectionAttempts: 5,
+        });
+        shouldSetSocket = true;
 
-    newSocket.on('disconnect', () => {
-      setIsConnected(false);
-    });
+        // Handle connection errors
+        newSocket.on('connect_error', (_error) => {
+          showToastRef.current(
+            'Connection Error',
+            'Failed to connect to server. Retrying...',
+            'error',
+          );
+        });
+      } catch (_error) {
+        showToastRef.current(
+          'Connection Failed',
+          'Could not establish connection to server.',
+          'error',
+        );
+        return;
+      }
+    } else {
+    }
 
-    newSocket.on('session_started', ({ sessionId }) => {
-      setCurrentSessionId(sessionId);
-      sessionIdRef.current = sessionId;
-    });
+    // Define all handlers as named functions for proper cleanup
+    const handleConnect = () => {
+      setConnected(true);
+    };
 
-    newSocket.on('llm_message', (message: LLMMessage) => {
-      setMessages((prev) => {
-        // Find existing message with same ID to accumulate content
-        const existingIndex = prev.findIndex((m) => m.id === message.id);
+    const handleDisconnect = () => {
+      setConnected(false);
+    };
 
-        if (existingIndex >= 0) {
-          // Accumulate content into existing message
-          const updated = [...prev];
-          updated[existingIndex] = {
-            ...updated[existingIndex],
-            content: updated[existingIndex].content + message.content,
-          };
-          return updated.slice(-MAX_MESSAGES);
-        }
+    const handleSessionStarted = ({ sessionId }: { sessionId: string }) => {
+      useGenerationStore.getState().setSessionId(sessionId);
+    };
 
-        // New message - add to list
-        const newMessages = [...prev, message];
-        return newMessages.slice(-MAX_MESSAGES);
-      });
-    });
+    const handleLLMMessage = (message: LLMMessage) => {
+      useGenerationStore.getState().addMessage(message);
 
-    newSocket.on('tool_call', (toolCall: ToolCall) => {
-      setToolCalls((prev) => {
-        const newToolCalls = [...prev, toolCall];
-        return newToolCalls.slice(-MAX_MESSAGES);
-      });
-    });
+      // Check for truncation and notify user
+      const { truncated, count, type } = useGenerationStore.getState().checkAndTruncate();
+      if (truncated) {
+        notifyTruncation(
+          'Message Limit Reached',
+          `${count} oldest ${type === 'messages' ? 'messages' : 'tool calls'} removed to maintain performance.`,
+          type,
+        );
+      }
+    };
 
-    newSocket.on('tool_result', (result: ToolResult) => {
-      setToolResults((prev) => {
-        const newToolResults = [...prev, result];
-        return newToolResults.slice(-MAX_MESSAGES);
-      });
-    });
+    const handleToolCall = (toolCall: ToolCall) => {
+      useGenerationStore.getState().addToolCall(toolCall);
 
-    newSocket.on('file_updated', (file: FileUpdate) => {
-      setFiles((prev) => {
-        const existing = prev.findIndex((f) => f.path === file.path);
-        if (existing >= 0) {
-          const updated = [...prev];
-          updated[existing] = file;
-          return updated;
-        }
-        return [...prev, file];
-      });
-    });
+      // Check for truncation and notify user
+      const { truncated, count, type } = useGenerationStore.getState().checkAndTruncate();
+      if (truncated) {
+        notifyTruncation(
+          'Tool Call Limit Reached',
+          `${count} oldest ${type === 'toolCalls' ? 'tool calls' : 'items'} removed to maintain performance.`,
+          type,
+        );
+      }
+    };
 
-    newSocket.on('generation_complete', (metrics: GenerationMetrics) => {
-      setIsGenerating(false);
-      setMessages((prev) => {
-        const newMessages = [
-          ...prev,
-          {
-            id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-            role: 'system' as const,
-            content: `Generation completed! Tokens: ${metrics.totalTokens}, Cost: $${metrics.cost.toFixed(4)}, Duration: ${(metrics.duration / 1000).toFixed(1)}s`,
-            timestamp: Date.now(),
-          },
-        ];
-        return newMessages.slice(-MAX_MESSAGES);
+    const handleToolResult = (result: ToolResult) => {
+      useGenerationStore.getState().addToolResult(result);
+    };
+
+    const handleFileUpdated = (file: FileUpdate) => {
+      useGenerationStore.getState().updateFile(file);
+    };
+
+    const handleGenerationComplete = (metrics: GenerationMetrics) => {
+      useGenerationStore.getState().setGenerating(false);
+      useGenerationStore.getState().setMetrics(metrics);
+
+      // Add completion message
+      useGenerationStore.getState().addMessage({
+        id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+        role: 'system' as const,
+        content: `Generation completed! Tokens: ${metrics.totalTokens}, Cost: $${metrics.cost.toFixed(4)}, Duration: ${(metrics.duration / 1000).toFixed(1)}s`,
+        timestamp: Date.now(),
       });
 
       // Auto-start the app after a short delay to let files finish writing
-      if (sessionIdRef.current) {
+      const sessionId = useGenerationStore.getState().currentSessionId;
+      if (sessionId) {
         setTimeout(() => {
-          newSocket.emit('start_app', { sessionId: sessionIdRef.current });
+          newSocket.emit('start_app', { sessionId });
         }, TIMEOUTS.AUTO_START_DELAY);
       }
-    });
-
-    newSocket.on('error', (error: string) => {
-      setIsGenerating(false);
-      setMessages((prev) => {
-        const newMessages = [
-          ...prev,
-          {
-            id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-            role: 'system' as const,
-            content: `Error: ${error}`,
-            timestamp: Date.now(),
-          },
-        ];
-        return newMessages.slice(-MAX_MESSAGES);
-      });
-    });
-
-    // App execution events
-    newSocket.on('app_status', (data: AppInfo) => {
-      setAppStatus(data);
-    });
-
-    newSocket.on('app_log', (log: AppLog) => {
-      setAppLogs((prev) => {
-        const newLogs = [...prev, log];
-        // Keep last N logs to prevent memory issues
-        return newLogs.slice(-MAX_LOGS);
-      });
-    });
-
-    newSocket.on('build_event', (event: BuildEvent) => {
-      setBuildEvents((prev) => [...prev, event]);
-    });
-
-    setSocket(newSocket);
-
-    return () => {
-      newSocket.close();
     };
-  }, []);
+
+    const handleError = (error: string) => {
+      useGenerationStore.getState().setGenerating(false);
+
+      // Add error message
+      useGenerationStore.getState().addMessage({
+        id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+        role: 'system' as const,
+        content: `Error: ${error}`,
+        timestamp: Date.now(),
+      });
+    };
+
+    const handleAppStatus = (data: AppInfo) => {
+      useAppStore.getState().setAppStatus(data);
+    };
+
+    const handleAppLog = (log: AppLog) => {
+      useAppStore.getState().addAppLog(log);
+
+      // Check for log truncation
+      const { truncated, count } = useAppStore.getState().checkAndTruncateLogs();
+      if (truncated) {
+        notifyTruncation(
+          'Log Limit Reached',
+          `${count} oldest logs removed to maintain performance.`,
+          'logs',
+        );
+      }
+    };
+
+    const handleBuildEvent = (event: BuildEvent) => {
+      useAppStore.getState().addBuildEvent(event);
+    };
+
+    // ALWAYS register handlers on every mount to prevent memory leaks
+    // Remove any existing handlers first (prevents accumulation from previous mounts)
+    newSocket.off('connect');
+    newSocket.off('disconnect');
+    newSocket.off('session_started');
+    newSocket.off('llm_message');
+    newSocket.off('tool_call');
+    newSocket.off('tool_result');
+    newSocket.off('file_updated');
+    newSocket.off('generation_complete');
+    newSocket.off('error');
+    newSocket.off('app_status');
+    newSocket.off('app_log');
+    newSocket.off('build_event');
+
+    // Register new handlers
+    newSocket.on('connect', handleConnect);
+    newSocket.on('disconnect', handleDisconnect);
+    newSocket.on('session_started', handleSessionStarted);
+    newSocket.on('llm_message', handleLLMMessage);
+    newSocket.on('tool_call', handleToolCall);
+    newSocket.on('tool_result', handleToolResult);
+    newSocket.on('file_updated', handleFileUpdated);
+    newSocket.on('generation_complete', handleGenerationComplete);
+    newSocket.on('error', handleError);
+    newSocket.on('app_status', handleAppStatus);
+    newSocket.on('app_log', handleAppLog);
+    newSocket.on('build_event', handleBuildEvent);
+
+    if (shouldSetSocket) {
+      setSocket(newSocket);
+    }
+
+    // Cleanup: Remove THIS mount's specific handlers
+    // Socket persists, but we clean up our specific handler references
+    return () => {
+      newSocket.off('connect', handleConnect);
+      newSocket.off('disconnect', handleDisconnect);
+      newSocket.off('session_started', handleSessionStarted);
+      newSocket.off('llm_message', handleLLMMessage);
+      newSocket.off('tool_call', handleToolCall);
+      newSocket.off('tool_result', handleToolResult);
+      newSocket.off('file_updated', handleFileUpdated);
+      newSocket.off('generation_complete', handleGenerationComplete);
+      newSocket.off('error', handleError);
+      newSocket.off('app_status', handleAppStatus);
+      newSocket.off('app_log', handleAppLog);
+      newSocket.off('build_event', handleBuildEvent);
+    };
+  }, [setSocket, setConnected, notifyTruncation]);
 
   const startGeneration = useCallback(
     (prompt: string, strategy: string) => {
       if (socket) {
-        setMessages([]);
-        setToolCalls([]);
-        setToolResults([]);
-        setFiles([]);
-        setIsGenerating(true);
+        useGenerationStore.getState().reset();
+        useGenerationStore.getState().setGenerating(true);
         socket.emit('start_generation', { prompt, strategy });
       }
     },
@@ -202,22 +284,15 @@ export function useWebSocket(): UseWebSocketReturn {
   }, [socket]);
 
   const clearMessages = useCallback(() => {
-    setMessages([]);
-    setToolCalls([]);
-    setToolResults([]);
-    setFiles([]);
-    setCurrentSessionId(null);
-    sessionIdRef.current = null;
-    setAppStatus(null);
-    setAppLogs([]);
-    setBuildEvents([]);
+    useGenerationStore.getState().reset();
+    useAppStore.getState().reset();
   }, []);
 
   const startApp = useCallback(
     (sessionId: string) => {
       if (socket) {
         // Clear old logs before starting
-        setAppLogs([]);
+        useAppStore.getState().clearAppLogs();
         socket.emit('start_app', { sessionId });
       }
     },

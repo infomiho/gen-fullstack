@@ -39,6 +39,7 @@ interface SessionData {
     timestamp: Date;
     type: 'message' | 'tool_call' | 'tool_result';
     // Message fields
+    messageId?: string;
     role?: 'user' | 'assistant' | 'system';
     content?: string;
     // Tool call fields

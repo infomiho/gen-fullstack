@@ -40,7 +40,7 @@ describe('useSessionData', () => {
 
       expect(result.current.messages).toHaveLength(1);
       expect(result.current.messages[0]).toEqual({
-        id: 'persisted-1',
+        id: 'msg-1', // Uses messageId from database
         role: 'system',
         content: 'Starting generation...',
         timestamp: Date.parse('2024-01-01T10:00:00Z'),
@@ -295,7 +295,7 @@ describe('useSessionData', () => {
 
       const liveMessages: LLMMessage[] = [
         {
-          id: 'persisted-1', // Same ID as persisted
+          id: 'msg-1', // Same ID as persisted messageId
           role: 'system',
           content: 'Live content (should override)',
           timestamp: Date.parse('2024-01-01T10:00:00Z'),

@@ -24,6 +24,7 @@ interface SessionTimeline {
   timestamp: Date;
   type: 'message' | 'tool_call' | 'tool_result';
   // Message fields
+  messageId?: string;
   role?: 'user' | 'assistant' | 'system';
   content?: string;
   // Tool call fields
@@ -53,7 +54,8 @@ function convertPersistedMessages(timeline: SessionTimeline[]): LLMMessage[] {
   return timeline
     .filter((item) => item.type === 'message' && item.role && item.content !== undefined)
     .map((item) => ({
-      id: `persisted-${item.id}`,
+      // Use messageId from database for proper deduplication with live messages
+      id: item.messageId || `persisted-${item.id}`,
       role: item.role as 'user' | 'assistant' | 'system',
       content: item.content || '',
       timestamp: new Date(item.timestamp).getTime(),

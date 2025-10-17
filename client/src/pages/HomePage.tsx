@@ -106,7 +106,7 @@ function HomePage() {
 
         {/* Generation form */}
         <div className="mb-16">
-          <div className={`p-6 ${spacing.sections}`}>
+          <div className={`${spacing.sections}`}>
             {/* Strategy selector */}
             <div>
               <label htmlFor="strategy-select" className={`block mb-3 ${typography.header}`}>
