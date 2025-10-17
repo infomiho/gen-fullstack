@@ -73,8 +73,10 @@ export const Running: Story = {
     appStatus: {
       sessionId: 'test-session-123',
       status: 'running',
-      port: 5173,
-      url: 'http://localhost:3001/preview/test-session-123',
+      clientPort: 5173,
+      serverPort: 3000,
+      clientUrl: 'http://localhost:3001/preview/test-session-123',
+      serverUrl: 'http://localhost:3002',
     },
   },
 };

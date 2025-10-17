@@ -95,7 +95,7 @@ export function AppPreview({ appStatus }: AppPreviewProps) {
   const [iframeError, setIframeError] = useState(false);
 
   const isRunning = appStatus?.status === 'running';
-  const url = appStatus?.url;
+  const url = appStatus?.clientUrl;
 
   const handleReload = () => {
     setIframeKey((prev) => prev + 1);

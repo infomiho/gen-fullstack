@@ -224,8 +224,10 @@ export function setupWebSocket(httpServer: HTTPServer) {
           socket.emit('app_status', {
             sessionId: appStatus.sessionId,
             status: appStatus.status,
-            port: appStatus.port,
-            url: appStatus.url,
+            clientPort: appStatus.clientPort,
+            serverPort: appStatus.serverPort,
+            clientUrl: appStatus.clientUrl,
+            serverUrl: appStatus.serverUrl,
             error: appStatus.error,
             containerId: appStatus.containerId,
           });

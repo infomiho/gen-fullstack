@@ -38,8 +38,10 @@ describe('useAppStore', () => {
       const status: AppInfo = {
         sessionId: 'test-session',
         status: 'running',
-        port: 5000,
-        url: 'http://localhost:5000',
+        clientPort: 5173,
+        serverPort: 3000,
+        clientUrl: 'http://localhost:5173',
+        serverUrl: 'http://localhost:3000',
         containerId: 'container-123',
       };
 
@@ -61,7 +63,8 @@ describe('useAppStore', () => {
       const status2: AppInfo = {
         sessionId: 'test-session',
         status: 'running',
-        port: 5000,
+        clientPort: 5173,
+        serverPort: 3000,
       };
 
       act(() => {

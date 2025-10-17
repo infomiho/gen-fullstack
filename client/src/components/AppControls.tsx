@@ -121,14 +121,14 @@ export function AppControls({
         >
           {status}
         </span>
-        {appStatus?.url && status === 'running' && (
+        {appStatus?.clientUrl && status === 'running' && (
           <a
-            href={appStatus.url}
+            href={appStatus.clientUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="text-sm text-blue-600 hover:text-blue-800 underline"
           >
-            {appStatus.url}
+            {appStatus.clientUrl}
           </a>
         )}
       </div>

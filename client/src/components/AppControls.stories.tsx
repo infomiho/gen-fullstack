@@ -81,7 +81,14 @@ export const Starting: Story = {
 export const Running: Story = {
   args: {
     currentSessionId: 'test-session-123',
-    appStatus: { sessionId: 'test-session-123', status: 'running', port: 5173 },
+    appStatus: {
+      sessionId: 'test-session-123',
+      status: 'running',
+      clientPort: 5173,
+      serverPort: 3000,
+      clientUrl: 'http://localhost:5173',
+      serverUrl: 'http://localhost:3000',
+    },
     isGenerating: false,
     onStart: () => {},
     onStop: () => {},

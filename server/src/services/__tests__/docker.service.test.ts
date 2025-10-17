@@ -272,8 +272,10 @@ describe('DockerService', () => {
         sessionId,
         containerId: 'mock-container-id',
         status: 'creating',
-        port: expect.any(Number),
-        url: expect.stringContaining('http://localhost:'),
+        clientPort: expect.any(Number),
+        serverPort: expect.any(Number),
+        clientUrl: expect.stringContaining('http://localhost:'),
+        serverUrl: expect.stringContaining('http://localhost:'),
       });
 
       // Verify container was created with correct config
@@ -295,7 +297,9 @@ describe('DockerService', () => {
       const container1 = await dockerService.createContainer('session-1', '/tmp/app1');
       const container2 = await dockerService.createContainer('session-2', '/tmp/app2');
 
-      expect(container1.port).not.toBe(container2.port);
+      expect(container1.clientPort).not.toBe(container2.clientPort);
+      expect(container1.serverPort).not.toBe(container2.serverPort);
+      expect(container1.clientPort).not.toBe(container2.serverPort);
     });
 
     it('should emit log events when container produces output', async () => {
@@ -456,7 +460,7 @@ describe('DockerService', () => {
       const mockContainer = (Docker as any).mockContainer;
       expect(mockContainer.exec).toHaveBeenCalledWith(
         expect.objectContaining({
-          Cmd: ['npm', 'run', 'dev', '--', '--host', '0.0.0.0', '--port', '5173'],
+          Cmd: ['npm', 'run', 'dev'],
           WorkingDir: '/app',
         }),
       );
@@ -479,7 +483,7 @@ describe('DockerService', () => {
         expect.objectContaining({
           sessionId,
           level: 'command',
-          message: '$ npm run dev -- --host 0.0.0.0 --port 5173',
+          message: '$ npm run dev',
           type: 'stdout',
           timestamp: expect.any(Number),
         }),
@@ -504,8 +508,10 @@ describe('DockerService', () => {
         sessionId,
         containerId: 'mock-container-id',
         status: 'creating',
-        port: expect.any(Number),
-        url: expect.stringContaining('http://localhost:'),
+        clientPort: expect.any(Number),
+        serverPort: expect.any(Number),
+        clientUrl: expect.stringContaining('http://localhost:'),
+        serverUrl: expect.stringContaining('http://localhost:'),
       });
     });
 

@@ -1,5 +1,10 @@
 import { stepCountIs, streamText } from 'ai';
 import type { Server as SocketIOServer } from 'socket.io';
+import {
+  ARCHITECTURE_DESCRIPTION,
+  FILE_STRUCTURE,
+  getNaiveImplementationSteps,
+} from '../config/prompt-snippets.js';
 import { tools } from '../tools/index.js';
 import type { ClientToServerEvents, ServerToClientEvents } from '../types/index.js';
 import { BaseStrategy, type GenerationMetrics } from './base.strategy.js';
@@ -25,7 +30,7 @@ export class NaiveStrategy extends BaseStrategy {
   }
 
   getSystemPrompt(): string {
-    return `You are an expert full-stack web application generator. Your goal is to create complete, working applications based on user requirements.
+    return `You are an expert full-stack web application generator. Your goal is to create complete, working full-stack applications with client, server, and database.
 
 CAPABILITIES:
 You have access to four tools to build applications:
@@ -34,50 +39,11 @@ You have access to four tools to build applications:
 3. listFiles - List files in a directory
 4. executeCommand - Run commands (npm install, npm dev, etc.)
 
-GUIDELINES:
-1. Create a complete Vite + React + TypeScript application
-2. Always include:
-   - package.json with all dependencies (including @vitejs/plugin-react, @types/react, @types/react-dom)
-   - vite.config.ts for Vite configuration
-   - tsconfig.json for TypeScript
-   - index.html as entry point
-   - src/main.tsx as React entry
-   - src/App.tsx as main component
-   - Basic styling (inline or CSS)
+${ARCHITECTURE_DESCRIPTION}
 
-3. Use modern React patterns:
-   - Functional components with hooks
-   - TypeScript for type safety
-   - Clean, readable code
+${FILE_STRUCTURE}
 
-4. DO NOT run "npm install" or any install commands - dependencies will be installed automatically when the app runs
-
-5. Keep it simple but functional - focus on working code
-
-6. If you encounter errors, read the files and fix the issues
-
-REQUIRED VERSIONS (use exactly):
-{
-  "dependencies": {
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0"
-  },
-  "devDependencies": {
-    "@types/react": "^19.2.2",
-    "@types/react-dom": "^19.2.2",
-    "@vitejs/plugin-react": "^5.0.4",
-    "typescript": "~5.9.3",
-    "vite": "^7.1.9"
-  }
-}
-
-IMPORTANT:
-- Use exact versions above
-- Write complete file contents (not placeholders)
-- Use proper TypeScript types
-- Include all necessary imports
-
-Now, generate the application based on the user's requirements.`;
+${getNaiveImplementationSteps()}`;
   }
 
   async generateApp(

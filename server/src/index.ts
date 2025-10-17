@@ -41,6 +41,7 @@ proxy.on('error', (err, _req, res) => {
 });
 
 // Preview proxy endpoint - routes traffic to running Docker containers
+// Routes to client (Vite) which internally proxies /api/* to server (Express)
 app.use('/preview/:sessionId', (req, res) => {
   const { sessionId } = req.params;
   const appStatus = processService.getAppStatus(sessionId);
@@ -53,15 +54,24 @@ app.use('/preview/:sessionId', (req, res) => {
     return;
   }
 
+  if (!appStatus.clientPort) {
+    res.status(500).json({
+      error: 'Configuration error',
+      message: 'App is running but client port is not configured',
+    });
+    return;
+  }
+
   // Remove /preview/:sessionId from the path
   const targetPath = req.url.replace(/^\/[^/]+/, '');
 
-  // Proxy to the container's port
+  // Proxy to the container's Vite client port
+  // Vite's internal proxy will forward /api/* requests to Express server
   proxy.web(
     req,
     res,
     {
-      target: `http://localhost:${appStatus.port}${targetPath}`,
+      target: `http://localhost:${appStatus.clientPort}${targetPath}`,
       ignorePath: true,
     },
     (err) => {
@@ -82,9 +92,9 @@ httpServer.on('upgrade', (req, socket, head) => {
     const sessionId = match[1];
     const appStatus = processService.getAppStatus(sessionId);
 
-    if (appStatus && appStatus.status === 'running') {
+    if (appStatus && appStatus.status === 'running' && appStatus.clientPort) {
       proxy.ws(req, socket, head, {
-        target: `ws://localhost:${appStatus.port}`,
+        target: `ws://localhost:${appStatus.clientPort}`,
       });
     } else {
       socket.destroy();

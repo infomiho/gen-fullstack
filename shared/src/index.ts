@@ -95,8 +95,10 @@ export type AppStatus =
 export interface AppInfo {
   sessionId: string;
   status: AppStatus;
-  port?: number;
-  url?: string;
+  clientPort?: number; // Vite dev server port (5173)
+  serverPort?: number; // Express API server port (3000)
+  clientUrl?: string; // URL to access the client
+  serverUrl?: string; // URL to access the API
   error?: string;
   containerId?: string;
 }

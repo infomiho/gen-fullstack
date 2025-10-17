@@ -2,7 +2,12 @@
 
 ## Project Overview
 
-This is Gen Fullstack - an experimental LLM-powered full-stack application generator. It provides a real-time interface for generating complete applications using different prompting strategies and tool-calling approaches.
+This is Gen Fullstack - an experimental LLM-powered full-stack application generator. It generates complete, working full-stack applications with:
+- **Client**: Vite + React 19 + TypeScript
+- **Server**: Express 5 + TypeScript + RESTful API
+- **Database**: Prisma ORM + SQLite
+
+The system provides a real-time interface for generating applications using different prompting strategies and tool-calling approaches, with Docker-based execution for immediate previewing.
 
 ## Architecture
 
@@ -58,12 +63,22 @@ gen-fullstack/
   - **Amber**: System messages
 
 ### 3. Generation Strategies
-Multiple approaches to code generation (extensible):
-- **Naive**: Direct prompt-to-code generation
-- **Plan First**: Generate plan before implementation
-- **With Template**: Start from pre-built template
-- **Compiler Checks**: Self-correct with TypeScript errors
-- **Building Blocks**: Use higher-level components
+Multiple approaches to full-stack app generation (extensible):
+- **Naive**: Direct prompt-to-code generation of complete full-stack apps
+- **Plan First**: Generate architectural plan (database schema, API endpoints, components) before implementation
+- **With Template**: Start from pre-built full-stack template (future)
+- **Compiler Checks**: Self-correct with TypeScript errors (future)
+- **Building Blocks**: Use higher-level components (future)
+
+All strategies generate monorepo structure with npm workspaces:
+```
+generated/session-id/
+├── package.json       (root with workspaces, concurrently)
+├── .env               (DATABASE_URL)
+├── client/            (Vite + React)
+├── server/            (Express 5 + TypeScript)
+└── prisma/            (schema + migrations)
+```
 
 ### 4. LLM Tools
 File system tools available to the LLM:
@@ -82,21 +97,23 @@ Centralized design tokens in `client/src/lib/design-tokens.ts`:
 - **Transitions**: Standard transition durations
 
 ### 6. App Execution (Phase 4)
-Docker-based secure execution of generated apps:
+Docker-based secure execution of generated full-stack apps:
 - **Docker Service** (`server/src/services/docker.service.ts`):
   - Container lifecycle management (create, start, stop, destroy)
+  - Dual-port mapping: client (5173) and server (3000) mapped to host ports 5001-5200
   - Resource limits and security constraints
   - Log streaming and event forwarding
   - Automatic cleanup with configurable timeouts
 
 - **Process Service** (`server/src/services/process.service.ts`):
-  - Simplified API for app execution
-  - Dependency installation (npm install)
-  - Dev server management (npm run dev)
+  - Simplified API for full-stack app execution
+  - Dependency installation (npm install for monorepo + workspaces)
+  - Prisma client generation and database migrations
+  - Dev server management (npm run dev with concurrently for client + server)
   - Event forwarding to WebSocket clients
 
 - **Preview Proxy** (`server/src/index.ts`):
-  - HTTP proxy: `/preview/:sessionId/*` → container ports
+  - HTTP proxy: `/preview/:sessionId/*` → container client port (Vite)
   - WebSocket proxy for Vite HMR
   - Error handling and status checks
 
@@ -152,13 +169,54 @@ export const Default: Story = {
 
 ## Recent Changes
 
-### Phase 4: Docker-Based App Execution (Latest - Production Ready ✅)
+### Full-Stack App Generator Upgrade (Latest - January 2025) ✅
+Complete upgrade from single-app generator to full-stack application generator:
+
+**Architecture Changes**:
+- Updated all strategy prompts (naive, plan-first) to generate full-stack monorepo apps
+- Client: Vite + React 19 + TypeScript
+- Server: Express 5 + TypeScript with automatic async error handling
+- Database: Prisma ORM + SQLite for simplicity
+- Monorepo: npm workspaces with concurrently for parallel dev servers
+
+**Docker Configuration**:
+- Updated runner.Dockerfile with Prisma CLI support
+- Dual-port mapping: container ports 5173 (Vite) and 3000 (Express) → host ports 5001-5200
+- Vite runs with `--host 0.0.0.0 --port 5173` flags (passed via root package.json dev:client script)
+
+**Process Execution**:
+- 3-step dependency installation:
+  1. `npm install` (root + workspaces)
+  2. `npx prisma generate` (generate Prisma client)
+  3. `npx prisma migrate dev --name init` (run database migrations)
+- Dev server execution: `npm run dev` (uses concurrently to run both client and server)
+
+**Type System Updates**:
+- Updated `AppInfo` interface with dual-port architecture:
+  - `clientPort` and `clientUrl` for Vite dev server
+  - `serverPort` and `serverUrl` for Express API
+- Removed backward compatibility fields (old `port` and `url`)
+
+**Preview Proxy**:
+- Updated to use `clientPort` for HTTP/WebSocket proxying
+- Proper error handling for missing port configuration
+
+**Testing**:
+- All 133 tests passing with new dual-port architecture
+- Updated Docker service tests for full-stack setup
+- Updated client component tests and Storybook stories
+
+**Documentation**:
+- Updated CLAUDE.md with full-stack architecture details
+- Updated strategy prompts with latest best practices (Express 5, Prisma 6, React 19, Vite 7)
+
+### Phase 4: Docker-Based App Execution (Production Ready ✅)
 - **Docker Service**: Production-ready container management with comprehensive security
   - Build and manage runner images with automatic detection (Colima, Docker Desktop, Linux)
   - Socket path validation with symlink resolution (TOCTOU attack prevention)
   - Path whitelisting (/var/run, ~/.colima, ~/.docker only)
   - Create isolated containers with resource limits (512MB RAM, 1 CPU core)
-  - Port mapping for Vite dev servers (ports 5000-5100)
+  - Dual-port mapping: client and server (ports 5001-5200)
   - Real-time log streaming with correct Docker multiplexed stream format
   - Buffer accumulation for partial stream chunks
   - Memory leak prevention: cleanup functions for all event listeners, timers, streams
@@ -325,11 +383,12 @@ Client hook (`useWebSocket.ts`) manages:
 2. Single active generation at a time
 3. File viewer uses client-side syntax highlighting (limited language support)
 4. No authentication or multi-user support
-5. Frontend UI for app execution not yet implemented (Phase 4 backend complete, WebSocket events ready)
-6. Docker required for app execution:
+5. Docker required for app execution:
    - Automatic detection supports Docker Desktop, Colima, and standard Linux Docker
    - Clear error messages if Docker is unavailable
    - No WebContainer fallback for browser-based execution (future consideration)
+6. Generated apps use SQLite (simple but not production-ready for concurrent access)
+7. No automatic code formatting/linting in generated apps
 
 ## Future Considerations
 
@@ -338,8 +397,9 @@ Client hook (`useWebSocket.ts`) manages:
 - Add diff view for file changes
 - Support for multiple concurrent generations
 - Cost tracking and budgeting features
-- More sophisticated strategy implementations
-- Frontend UI components for app execution (AppControls, AppPreview, LogViewer)
-- Docker availability detection and fallback handling
-- Multi-container support for full-stack apps (frontend + backend containers)
+- More sophisticated strategy implementations (compiler checks, building blocks, templates)
 - WebContainer integration as Docker alternative for browser-based execution
+- Support for PostgreSQL/MySQL in addition to SQLite
+- Deployment integration (Vercel, Railway, Fly.io)
+- Code quality improvements: automatic formatting (Prettier), linting (ESLint)
+- Multi-database support in single app (separate DBs for client/server)

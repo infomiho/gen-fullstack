@@ -41,8 +41,10 @@ export class ProcessService extends EventEmitter {
         this.emit('app_status', {
           sessionId: processInfo.sessionId,
           status: processInfo.status,
-          port: processInfo.port,
-          url: processInfo.url,
+          clientPort: processInfo.clientPort,
+          serverPort: processInfo.serverPort,
+          clientUrl: processInfo.clientUrl,
+          serverUrl: processInfo.serverUrl,
           error: processInfo.error,
           containerId: processInfo.containerId,
         });

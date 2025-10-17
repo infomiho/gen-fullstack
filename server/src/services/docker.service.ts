@@ -181,14 +181,15 @@ export interface ContainerInfo {
   containerId: string;
   container: Container;
   status: AppStatus;
-  port: number;
+  clientPort: number; // Host port mapped to container's Vite port (5173)
+  serverPort: number; // Host port mapped to container's Express port (3000)
   createdAt: number;
   logs: AppLog[];
   cleanupTimer?: NodeJS.Timeout;
   streamCleanup?: () => void;
   devServerStreamCleanup?: () => void;
   readyCheckInterval?: NodeJS.Timeout;
-  readyCheckInProgress?: boolean;
+  readyCheckPromise?: Promise<void>;
 }
 
 /**
@@ -372,16 +373,31 @@ export class DockerService extends EventEmitter {
   }
 
   /**
-   * Find an available port in the range
+   * Find an available port in the range, optionally excluding a specific port
    */
-  private async findAvailablePort(start: number, end: number): Promise<number> {
+  private async findAvailablePort(start: number, end: number, exclude?: number): Promise<number> {
     for (let port = start; port <= end; port++) {
-      const isAvailable = ![...this.containers.values()].some((c) => c.port === port);
+      if (port === exclude) {
+        continue; // Skip excluded port
+      }
+      const isAvailable = ![...this.containers.values()].some(
+        (c) => c.clientPort === port || c.serverPort === port,
+      );
       if (isAvailable) {
         return port;
       }
     }
     throw new Error(`No available ports in range ${start}-${end}`);
+  }
+
+  /**
+   * Find two distinct available ports for client and server
+   * Ensures clientPort !== serverPort to avoid bind conflicts
+   */
+  private async findTwoAvailablePorts(start: number, end: number): Promise<[number, number]> {
+    const clientPort = await this.findAvailablePort(start, end);
+    const serverPort = await this.findAvailablePort(start, end, clientPort);
+    return [clientPort, serverPort];
   }
 
   /**
@@ -419,7 +435,7 @@ export class DockerService extends EventEmitter {
   }
 
   /**
-   * Create and start a container for the generated app
+   * Create and start a container for the generated full-stack app
    */
   async createContainer(sessionId: string, workingDir: string): Promise<AppInfo> {
     try {
@@ -427,7 +443,8 @@ export class DockerService extends EventEmitter {
       await this.buildRunnerImage();
       await this.cleanupExistingContainer(sessionId);
 
-      const hostPort = await this.findAvailablePort(5001, 5100);
+      // Allocate ports for both client (Vite) and server (Express)
+      const [clientHostPort, serverHostPort] = await this.findTwoAvailablePorts(5001, 5200);
 
       const containerOpts: ContainerCreateOptions = {
         Image: RUNNER_IMAGE,
@@ -437,23 +454,28 @@ export class DockerService extends EventEmitter {
         AttachStderr: true,
         WorkingDir: '/app',
         ExposedPorts: {
-          '5173/tcp': {}, // Vite default port
+          '5173/tcp': {}, // Vite client port
+          '3000/tcp': {}, // Express server port
         },
         HostConfig: {
           Memory: RESOURCE_LIMITS.memory,
           NanoCpus: RESOURCE_LIMITS.nanoCPUs,
           PortBindings: {
-            '5173/tcp': [{ HostPort: hostPort.toString() }],
+            '5173/tcp': [{ HostPort: clientHostPort.toString() }],
+            '3000/tcp': [{ HostPort: serverHostPort.toString() }],
           },
           Binds: [`${path.resolve(workingDir)}:/app:rw`],
-          ReadonlyRootfs: false, // Allow writes to /tmp
+          ReadonlyRootfs: false, // Allow writes to /tmp and database file
           Tmpfs: {
             '/tmp': 'rw,noexec,nosuid,size=100m',
           },
           CapDrop: ['ALL'], // Drop all capabilities for security
           SecurityOpt: ['no-new-privileges'], // Prevent privilege escalation
         },
-        Env: ['NODE_ENV=development', 'PORT=5173'],
+        Env: [
+          'NODE_ENV=development',
+          'DATABASE_URL=file:./dev.db', // Prisma database connection
+        ],
       };
 
       const container = await docker.createContainer(containerOpts);
@@ -466,7 +488,8 @@ export class DockerService extends EventEmitter {
         containerId,
         container,
         status: 'creating',
-        port: hostPort,
+        clientPort: clientHostPort,
+        serverPort: serverHostPort,
         createdAt: Date.now(),
         logs: [],
       };
@@ -482,8 +505,10 @@ export class DockerService extends EventEmitter {
         sessionId,
         containerId,
         status: 'creating',
-        port: hostPort,
-        url: `http://localhost:${hostPort}`,
+        clientPort: clientHostPort,
+        serverPort: serverHostPort,
+        clientUrl: `http://localhost:${clientHostPort}`,
+        serverUrl: `http://localhost:${serverHostPort}`,
       };
     } catch (error) {
       console.error('[Docker] Failed to create container:', error);
@@ -625,51 +650,52 @@ export class DockerService extends EventEmitter {
 
       // Update container status to running after HTTP readiness check
       const containerInfo = this.containers.get(sessionId);
-      if (
-        containerInfo &&
-        containerInfo.status !== 'running' &&
-        !containerInfo.readyCheckInProgress
-      ) {
-        // Prevent concurrent HTTP checks with flag
-        containerInfo.readyCheckInProgress = true;
+      if (containerInfo && containerInfo.status !== 'running') {
+        // Prevent concurrent HTTP checks with promise-based lock
+        if (containerInfo.readyCheckPromise) {
+          return; // Already checking, skip duplicate
+        }
 
         // Run readiness check in background to avoid blocking log processing
-        this.checkHttpReady(containerInfo.port)
+        containerInfo.readyCheckPromise = this.checkHttpReady(containerInfo.clientPort)
           .then((ready) => {
-            if (ready && containerInfo.status !== 'running') {
-              containerInfo.status = 'running';
-              this.emit('status_change', {
-                sessionId,
-                status: 'running',
-              });
-              console.log(
-                `[Docker] HTTP server ready for ${sessionId} on port ${containerInfo.port}`,
-              );
-            } else if (!ready) {
-              console.warn(
-                `[Docker] HTTP readiness check failed for ${sessionId}, but VITE reported ready`,
-              );
+            // Guard against race: only update if still not running
+            if (containerInfo.status !== 'running') {
+              if (ready) {
+                containerInfo.status = 'running';
+                this.emit('status_change', {
+                  sessionId,
+                  status: 'running',
+                });
+                console.log(
+                  `[Docker] HTTP server ready for ${sessionId} on client port ${containerInfo.clientPort}`,
+                );
+              } else {
+                console.warn(
+                  `[Docker] HTTP readiness check failed for ${sessionId}, but VITE reported ready`,
+                );
 
-              // Emit warning event that surfaces in the UI
-              const warningEvent: BuildEvent = {
-                sessionId,
-                timestamp: Date.now(),
-                event: 'error',
-                details:
-                  'Dev server reported ready but HTTP health check failed. The preview may not load correctly.',
-              };
-              this.emit('build_event', warningEvent);
+                // Emit warning event that surfaces in the UI
+                const warningEvent: BuildEvent = {
+                  sessionId,
+                  timestamp: Date.now(),
+                  event: 'error',
+                  details:
+                    'Dev server reported ready but HTTP health check failed. The preview may not load correctly.',
+                };
+                this.emit('build_event', warningEvent);
 
-              // Still mark as running since VITE said it's ready
-              containerInfo.status = 'running';
-              this.emit('status_change', {
-                sessionId,
-                status: 'running',
-              });
+                // Still mark as running since VITE said it's ready
+                containerInfo.status = 'running';
+                this.emit('status_change', {
+                  sessionId,
+                  status: 'running',
+                });
+              }
             }
           })
           .finally(() => {
-            containerInfo.readyCheckInProgress = false;
+            containerInfo.readyCheckPromise = undefined;
           });
       }
     }
@@ -735,7 +761,7 @@ export class DockerService extends EventEmitter {
   }
 
   /**
-   * Install dependencies in container
+   * Install dependencies in container (monorepo with workspaces)
    */
   async installDependencies(sessionId: string): Promise<void> {
     const containerInfo = this.containers.get(sessionId);
@@ -749,35 +775,169 @@ export class DockerService extends EventEmitter {
       containerInfo.status = 'installing';
       this.emit('status_change', { sessionId, status: 'installing' });
 
+      // Step 1: Install all dependencies (root + client + server workspaces)
       this.emitSystemLog(sessionId, 'Installing dependencies...');
       this.emitCommandLog(sessionId, '$ npm install');
 
-      const exec = await containerInfo.container.exec({
+      const installExec = await containerInfo.container.exec({
         Cmd: ['npm', 'install'],
         AttachStdout: true,
         AttachStderr: true,
         WorkingDir: '/app',
       });
 
-      const stream = await exec.start({ Detach: false, Tty: false });
-
-      cleanupStream = this.processExecStream(sessionId, stream);
+      const installStream = await installExec.start({ Detach: false, Tty: false });
+      cleanupStream = this.processExecStream(sessionId, installStream);
 
       await Promise.race([
         new Promise((resolve, reject) => {
-          stream.on('end', resolve);
-          stream.on('error', reject);
+          installStream.on('end', resolve);
+          installStream.on('error', reject);
         }),
         new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Installation timeout')), TIMEOUTS.install),
         ),
       ]);
 
+      if (cleanupStream) {
+        cleanupStream();
+        cleanupStream = undefined;
+      }
+
       console.log(`[Docker] Dependencies installed for ${sessionId}`);
       this.emitSystemLog(sessionId, 'Dependencies installed successfully');
 
+      // Step 2: Generate Prisma client
+      this.emitSystemLog(sessionId, 'Generating Prisma client...');
+      this.emitCommandLog(sessionId, '$ npx prisma generate');
+
+      const generateExec = await containerInfo.container.exec({
+        Cmd: ['npx', 'prisma', 'generate'],
+        AttachStdout: true,
+        AttachStderr: true,
+        WorkingDir: '/app',
+      });
+
+      const generateStream = await generateExec.start({ Detach: false, Tty: false });
+      cleanupStream = this.processExecStream(sessionId, generateStream);
+
+      await Promise.race([
+        new Promise((resolve, reject) => {
+          generateStream.on('end', resolve);
+          generateStream.on('error', reject);
+        }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Prisma generate timeout')), 60000),
+        ),
+      ]);
+
       if (cleanupStream) {
         cleanupStream();
+        cleanupStream = undefined;
+      }
+
+      this.emitSystemLog(sessionId, 'Prisma client generated successfully');
+
+      // Step 3: Check if migrations exist, then run database migrations
+      this.emitSystemLog(sessionId, 'Checking for existing migrations...');
+
+      const checkMigrationsExec = await containerInfo.container.exec({
+        Cmd: ['sh', '-c', 'test -d prisma/migrations && echo "exists" || echo "none"'],
+        AttachStdout: true,
+        AttachStderr: true,
+        WorkingDir: '/app',
+      });
+
+      const checkStream = await checkMigrationsExec.start({ Detach: false, Tty: false });
+      let migrationsExist = false;
+      let checkBuffer = '';
+
+      const checkHandler = (chunk: Buffer) => {
+        checkBuffer += chunk.toString('utf8');
+      };
+
+      checkStream.on('data', checkHandler);
+
+      try {
+        await new Promise((resolve, reject) => {
+          checkStream.on('end', resolve);
+          checkStream.on('error', reject);
+        });
+
+        migrationsExist = checkBuffer.includes('exists');
+      } finally {
+        // Clean up stream handler
+        checkStream.off('data', checkHandler);
+        if (hasDestroyMethod(checkStream)) {
+          checkStream.destroy();
+        }
+      }
+
+      if (migrationsExist) {
+        this.emitSystemLog(
+          sessionId,
+          'Migrations directory already exists, applying existing migrations...',
+        );
+        this.emitCommandLog(sessionId, '$ npx prisma migrate deploy');
+
+        const deployExec = await containerInfo.container.exec({
+          Cmd: ['npx', 'prisma', 'migrate', 'deploy'],
+          AttachStdout: true,
+          AttachStderr: true,
+          WorkingDir: '/app',
+          Env: ['DATABASE_URL=file:./dev.db'],
+        });
+
+        const deployStream = await deployExec.start({ Detach: false, Tty: false });
+        cleanupStream = this.processExecStream(sessionId, deployStream);
+
+        await Promise.race([
+          new Promise((resolve, reject) => {
+            deployStream.on('end', resolve);
+            deployStream.on('error', reject);
+          }),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Prisma migrate deploy timeout')), 60000),
+          ),
+        ]);
+
+        if (cleanupStream) {
+          cleanupStream();
+          cleanupStream = undefined;
+        }
+
+        this.emitSystemLog(sessionId, 'Existing migrations applied successfully');
+      } else {
+        this.emitSystemLog(sessionId, 'Running initial database migration...');
+        this.emitCommandLog(sessionId, '$ npx prisma migrate dev --name init');
+
+        const migrateExec = await containerInfo.container.exec({
+          Cmd: ['npx', 'prisma', 'migrate', 'dev', '--name', 'init'],
+          AttachStdout: true,
+          AttachStderr: true,
+          WorkingDir: '/app',
+          Env: ['DATABASE_URL=file:./dev.db'],
+        });
+
+        const migrateStream = await migrateExec.start({ Detach: false, Tty: false });
+        cleanupStream = this.processExecStream(sessionId, migrateStream);
+
+        await Promise.race([
+          new Promise((resolve, reject) => {
+            migrateStream.on('end', resolve);
+            migrateStream.on('error', reject);
+          }),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Prisma migrate timeout')), 60000),
+          ),
+        ]);
+
+        if (cleanupStream) {
+          cleanupStream();
+          cleanupStream = undefined;
+        }
+
+        this.emitSystemLog(sessionId, 'Initial database migration completed successfully');
       }
     } catch (error) {
       if (cleanupStream) {
@@ -795,7 +955,7 @@ export class DockerService extends EventEmitter {
   }
 
   /**
-   * Start dev server in container
+   * Start dev servers in container (both client and server via concurrently)
    */
   async startDevServer(sessionId: string): Promise<void> {
     const containerInfo = this.containers.get(sessionId);
@@ -807,22 +967,22 @@ export class DockerService extends EventEmitter {
       containerInfo.status = 'starting';
       this.emit('status_change', { sessionId, status: 'starting' });
 
-      this.emitSystemLog(sessionId, 'Starting development server...');
-      this.emitCommandLog(sessionId, '$ npm run dev -- --host 0.0.0.0 --port 5173');
+      this.emitSystemLog(sessionId, 'Starting development servers (client + server)...');
+      this.emitCommandLog(sessionId, '$ npm run dev');
 
       const exec = await containerInfo.container.exec({
-        Cmd: ['npm', 'run', 'dev', '--', '--host', '0.0.0.0', '--port', '5173'],
+        Cmd: ['npm', 'run', 'dev'],
         AttachStdout: true,
         AttachStderr: true,
         WorkingDir: '/app',
       });
 
-      // Start the dev server - DON'T detach so we can capture output
+      // Start both dev servers via concurrently - DON'T detach so we can capture output
       const stream = await exec.start({ Detach: false, Tty: false });
 
       containerInfo.devServerStreamCleanup = this.processExecStream(sessionId, stream);
 
-      console.log(`[Docker] Dev server starting for ${sessionId}`);
+      console.log(`[Docker] Dev servers starting for ${sessionId} (client + server)`);
 
       await this.waitForReady(sessionId, TIMEOUTS.start);
     } catch (error) {
@@ -835,7 +995,7 @@ export class DockerService extends EventEmitter {
       this.emit('status_change', {
         sessionId,
         status: 'failed',
-        error: `Failed to start dev server: ${error}`,
+        error: `Failed to start dev servers: ${error}`,
       });
       throw error;
     }
@@ -922,8 +1082,10 @@ export class DockerService extends EventEmitter {
       sessionId,
       containerId: containerInfo.containerId,
       status: containerInfo.status,
-      port: containerInfo.port,
-      url: `http://localhost:${containerInfo.port}`,
+      clientPort: containerInfo.clientPort,
+      serverPort: containerInfo.serverPort,
+      clientUrl: `http://localhost:${containerInfo.clientPort}`,
+      serverUrl: `http://localhost:${containerInfo.serverPort}`,
     };
   }
 

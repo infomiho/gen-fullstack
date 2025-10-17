@@ -1,5 +1,10 @@
 import { generateText, stepCountIs, streamText } from 'ai';
 import type { Server as SocketIOServer } from 'socket.io';
+import {
+  ARCHITECTURE_DESCRIPTION,
+  FILE_STRUCTURE,
+  getPlanFirstImplementationGuidelines,
+} from '../config/prompt-snippets.js';
 import { tools } from '../tools/index.js';
 import type { ClientToServerEvents, ServerToClientEvents } from '../types/index.js';
 import { BaseStrategy, type GenerationMetrics } from './base.strategy.js';
@@ -26,44 +31,77 @@ export class PlanFirstStrategy extends BaseStrategy {
   }
 
   getPlanningPrompt(): string {
-    return `You are an expert software architect. Your task is to create a detailed implementation plan for a web application.
+    return `You are an expert full-stack software architect. Your task is to create a detailed implementation plan for a full-stack web application with client, server, and database.
 
 TASK:
-Analyze the user's requirements and create a comprehensive architectural plan that includes:
+Analyze the user's requirements and create a comprehensive architectural plan for a FULL-STACK application that includes:
 
 1. **Architecture Overview**
-   - Technology stack decisions (already using Vite + React + TypeScript)
-   - Key architectural patterns to use
-   - Data flow and state management approach
+   - Full-stack monorepo structure (client + server + database)
+   - Technology decisions:
+     * Client: Vite + React 19 + TypeScript
+     * Server: Express 5 + TypeScript
+     * Database: Prisma ORM + SQLite
+     * Tooling: npm workspaces + concurrently
+   - API design (RESTful endpoints)
+   - Data flow: Client ↔ Express API ↔ Prisma ↔ SQLite
 
-2. **File Structure**
-   - Complete list of files to create
-   - Purpose of each file
-   - Dependencies between files
+2. **Database Schema Design**
+   - Database models and relationships
+   - Field types and constraints
+   - Indexes and unique constraints
+   - Example Prisma schema structure
 
-3. **Component Design**
-   - Main components needed
-   - Props and state for each component
+3. **API Endpoint Design**
+   - Required REST endpoints (GET, POST, PUT, DELETE)
+   - Request/response formats
+   - Error handling strategy
+   - Example Express routes
+
+4. **File Structure**
+   - Complete file tree for monorepo
+   - Purpose of each major file
+   - Dependencies between client and server
+
+5. **Component Design (Client)**
+   - Main React components needed
+   - State management approach
+   - API integration patterns
    - Component hierarchy
 
-4. **Implementation Strategy**
-   - Step-by-step implementation order
+6. **Implementation Strategy**
+   - Step-by-step implementation order:
+     1. Root setup (package.json, .env)
+     2. Database schema (prisma/schema.prisma)
+     3. Server setup (Express + Prisma)
+     4. API routes implementation
+     5. Client setup (Vite + React)
+     6. Client-server integration
    - Key considerations and potential pitfalls
    - Testing approach
 
 GUIDELINES:
-- Be specific and detailed
-- Consider edge cases and error handling
-- Think about scalability and maintainability
-- Keep it practical and implementable
-- Focus on creating a working application
+- Design for a monorepo with client/, server/, and prisma/ directories
+- Plan RESTful API endpoints that match the data requirements
+- Consider database relationships and foreign keys
+- Think about CORS and API proxying from client to server
+- Use Express 5's automatic async error handling
+- Keep database models simple but functional
+- Focus on creating a working full-stack application
 
 OUTPUT FORMAT:
-Provide a well-structured plan in markdown format that will guide the implementation phase.`;
+Provide a well-structured plan in markdown format with clear sections. Include:
+- Database schema outline
+- API endpoints list
+- File structure tree
+- Component breakdown
+- Implementation steps
+
+This plan will guide the implementation phase to create a complete full-stack app.`;
   }
 
   getSystemPrompt(): string {
-    return `You are an expert full-stack web application generator. Your goal is to create complete, working applications based on user requirements and an architectural plan.
+    return `You are an expert full-stack web application generator. Your goal is to create complete, working full-stack applications with client, server, and database based on user requirements and an architectural plan.
 
 CAPABILITIES:
 You have access to four tools to build applications:
@@ -72,52 +110,11 @@ You have access to four tools to build applications:
 3. listFiles - List files in a directory
 4. executeCommand - Run commands (npm install, npm dev, etc.)
 
-GUIDELINES:
-1. Follow the architectural plan provided
-2. Create a complete Vite + React + TypeScript application
-3. Always include:
-   - package.json with all dependencies (including @vitejs/plugin-react, @types/react, @types/react-dom)
-   - vite.config.ts for Vite configuration
-   - tsconfig.json for TypeScript
-   - index.html as entry point
-   - src/main.tsx as React entry
-   - src/App.tsx as main component
-   - Additional files as specified in the plan
+${ARCHITECTURE_DESCRIPTION}
 
-4. Use modern React patterns:
-   - Functional components with hooks
-   - TypeScript for type safety
-   - Clean, readable code
+${FILE_STRUCTURE}
 
-5. DO NOT run "npm install" or any install commands - dependencies will be installed automatically when the app runs
-
-6. Follow the plan systematically, implementing files in the suggested order
-
-7. If you encounter issues, refer back to the plan and adjust accordingly
-
-REQUIRED VERSIONS (use exactly):
-{
-  "dependencies": {
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0"
-  },
-  "devDependencies": {
-    "@types/react": "^19.2.2",
-    "@types/react-dom": "^19.2.2",
-    "@vitejs/plugin-react": "^5.0.4",
-    "typescript": "~5.9.3",
-    "vite": "^7.1.9"
-  }
-}
-
-IMPORTANT:
-- Use exact versions above
-- Write complete file contents (not placeholders)
-- Use proper TypeScript types
-- Include all necessary imports
-- Stay consistent with the architectural plan
-
-Now, implement the application based on the plan and user requirements.`;
+${getPlanFirstImplementationGuidelines()}`;
   }
 
   async generateApp(
