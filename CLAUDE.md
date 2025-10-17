@@ -108,6 +108,48 @@ Docker-based secure execution of generated apps:
   - Network isolation via Docker
   - Read-only root filesystem
 
+### 7. Storybook Component Development
+Storybook 9.1+ for isolated component development and testing:
+
+**Configuration**:
+- Uses `@storybook/react-vite` (Storybook 9.0+ with React + Vite)
+- Story files: `*.stories.tsx` in component directories
+- Runs independently from main app
+
+**TypeScript Configuration**:
+```typescript
+// IMPORTANT: In Storybook 9.0+, import from @storybook/react-vite, not @storybook/react
+import type { Meta, StoryObj } from '@storybook/react-vite';
+
+const meta = {
+  title: 'Components/MyComponent',
+  component: MyComponent,
+} satisfies Meta<typeof MyComponent>;
+
+export default meta;
+type Story = StoryObj<typeof meta>;
+
+export const Default: Story = {
+  args: {
+    // component props
+  },
+};
+```
+
+**Key Components with Stories**:
+- `EmptyState` - Reusable empty state with icon, title, description
+- `FilterButton` - Filter buttons with color variants
+- `AppControls`, `AppPreview`, `LogViewer` - App execution UI
+- `Timeline`, `FileViewer`, `PromptInput` - Generation UI
+- `ErrorBoundary`, `ToastProvider` - Error handling
+
+**Best Practices**:
+- All new UI components should have Storybook stories
+- Use design tokens for consistent styling
+- Include multiple variants showing different states
+- Document props with JSDoc comments
+- Use `satisfies` operator for type safety
+
 ## Recent Changes
 
 ### Phase 4: Docker-Based App Execution (Latest - Production Ready ✅)
@@ -174,6 +216,30 @@ Docker-based secure execution of generated apps:
 - Added timestamp display (HH:MM:SS.mmm format) in top-right corner
 - Improved tool call modal with better parameter/result formatting
 
+### Client Refactoring Phase 1 (Latest - Component Extraction) ✅
+**New Reusable Components**:
+- `EmptyState` - Centralized empty state component with icon, title, description, action
+  - Replaced 5 duplicated empty state patterns
+  - Full Storybook stories with 6 variants
+  - ~50+ lines of duplication eliminated
+
+- `FilterButton` - Reusable filter button with color variants
+  - Replaced 6 repeated button patterns in LogViewer
+  - Supports 6 color variants (gray, purple, yellow, blue, amber, red)
+  - ~36 lines saved with better maintainability
+
+**Code Duplication Fixed**:
+- `ToolCallDisplay` - Removed 70+ lines of duplicated `renderToolParameters`
+  - Now imports shared utility from `lib/tool-utils.tsx`
+  - Consistent tool rendering across Timeline and ToolCallDisplay
+
+**Storybook Configuration Fixed**:
+- Updated to use `@storybook/react-vite` (Storybook 9.0+ requirement)
+- Previously incorrect imports from `@storybook/react` (not installed)
+- All typechecks now pass with correct framework-specific imports
+
+**Impact**: 150+ lines saved, 12 DRY violations fixed, improved maintainability
+
 ## Development Commands
 
 ```bash
@@ -188,6 +254,9 @@ pnpm dev:client
 
 # Run server only
 pnpm dev:server
+
+# Run Storybook (component development)
+cd client && pnpm storybook
 
 # Type check
 pnpm typecheck
