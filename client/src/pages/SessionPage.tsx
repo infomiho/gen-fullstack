@@ -1,11 +1,11 @@
 import { useEffect, useRef } from 'react';
-import { Link, type LoaderFunctionArgs, useLoaderData, useNavigate, useParams } from 'react-router';
-import { AppControls } from '../components/AppControls';
+import { type LoaderFunctionArgs, useLoaderData, useNavigate, useParams } from 'react-router';
 import { AppPreview } from '../components/AppPreview';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { FileWorkspace } from '../components/FileWorkspace';
 import { LogViewer } from '../components/LogViewer';
-import { StrategySelector } from '../components/StrategySelector';
+import { SessionHeader } from '../components/SessionHeader';
+import { SessionSidebar } from '../components/SessionSidebar';
 import { Timeline } from '../components/Timeline';
 import { useSessionData } from '../hooks/useSessionData';
 import { useWebSocket } from '../hooks/useWebSocket';
@@ -80,167 +80,6 @@ export async function clientLoader({ params }: LoaderFunctionArgs) {
 
   const data: SessionData = await response.json();
   return data;
-}
-
-/**
- * Helper: SessionHeader component
- */
-function SessionHeader({
-  sessionId,
-  status,
-  isConnected,
-  isOwnSession,
-}: {
-  sessionId: string | undefined;
-  status: 'generating' | 'completed' | 'failed';
-  isConnected: boolean;
-  isOwnSession: boolean;
-}) {
-  const showLiveBadge = status === 'generating' && isConnected && isOwnSession;
-
-  return (
-    <header className={`border-b ${padding.page}`}>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link
-            to="/"
-            className={`${typography.label} text-lg text-gray-900 hover:text-gray-700 ${transitions.colors}`}
-          >
-            Gen Fullstack
-          </Link>
-          <span className={typography.caption}>Session: {sessionId}</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <div
-            className={`px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1.5 ${
-              status === 'completed'
-                ? 'bg-gray-100 text-gray-700'
-                : status === 'generating'
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'bg-red-100 text-red-700'
-            }`}
-          >
-            {showLiveBadge && (
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
-              </span>
-            )}
-            {showLiveBadge ? 'Live' : status}
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div
-              className={`h-1.5 w-1.5 rounded-full ${isConnected ? 'bg-gray-900' : 'bg-gray-300'}`}
-            />
-            <span className={typography.caption}>{isConnected ? 'connected' : 'disconnected'}</span>
-          </div>
-        </div>
-      </div>
-    </header>
-  );
-}
-
-/**
- * Helper: SessionSidebar component
- */
-function SessionSidebar({
-  sessionData,
-  sessionId,
-  appStatus,
-  isGenerating,
-  isConnected,
-  startApp,
-  stopApp,
-  onStartClick,
-}: {
-  sessionData: SessionData;
-  sessionId: string | undefined;
-  appStatus: ReturnType<typeof useWebSocket>['appStatus'];
-  isGenerating: boolean;
-  isConnected: boolean;
-  startApp: () => void;
-  stopApp: () => void;
-  onStartClick?: () => void;
-}) {
-  return (
-    <div className={`border-r ${padding.panel} overflow-y-auto`}>
-      <div className={spacing.controls}>
-        <div>
-          <h2 className={`mb-3 ${typography.header}`}>Strategy</h2>
-          <StrategySelector
-            value={sessionData.session.strategy}
-            onChange={() => {}}
-            disabled={true}
-          />
-        </div>
-
-        <div>
-          <h3 className={`mb-3 ${typography.header}`}>Prompt</h3>
-          <div className="p-3 bg-gray-50 border rounded-md">
-            <p className={`${typography.body} text-gray-700 whitespace-pre-wrap`}>
-              {sessionData.session.prompt}
-            </p>
-          </div>
-        </div>
-
-        {sessionData.session.status === 'generating' && !isConnected && (
-          <div className="p-3 bg-amber-50 border border-amber-200 rounded-md">
-            <p className={`${typography.caption} text-amber-700`}>
-              This session is currently generating. You are disconnected - reconnect to see live
-              updates, or refresh the page to see the latest persisted data.
-            </p>
-          </div>
-        )}
-
-        {sessionData.session.status === 'completed' && sessionData.session.totalTokens && (
-          <div>
-            <h3 className={`mb-2 ${typography.header}`}>Metrics</h3>
-            <div className={`${typography.caption} space-y-1`}>
-              <div className="flex justify-between">
-                <span>Tokens:</span>
-                <span className="font-mono">{sessionData.session.totalTokens}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Cost:</span>
-                <span className="font-mono">
-                  ${Number.parseFloat(sessionData.session.cost || '0').toFixed(4)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Duration:</span>
-                <span className="font-mono">
-                  {((sessionData.session.durationMs || 0) / 1000).toFixed(1)}s
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Steps:</span>
-                <span className="font-mono">{sessionData.session.stepCount}</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {sessionData.session.errorMessage && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-            <p className={`${typography.caption} text-red-700`}>
-              {sessionData.session.errorMessage}
-            </p>
-          </div>
-        )}
-
-        <div className="pt-4 border-t">
-          <AppControls
-            currentSessionId={sessionId || null}
-            appStatus={appStatus}
-            isGenerating={isGenerating}
-            onStart={startApp}
-            onStop={stopApp}
-            onStartClick={onStartClick}
-          />
-        </div>
-      </div>
-    </div>
-  );
 }
 
 /**
