@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Bot, FileText, FolderOpen, PackageOpen } from 'lucide-react';
 import { EmptyState } from './EmptyState';
 
@@ -94,8 +94,7 @@ export const CustomStyling: Story = {
     className: 'bg-gray-50 rounded-lg p-8',
   },
   decorators: [
-    // biome-ignore lint/suspicious/noExplicitAny: Storybook decorator type
-    (Story: any) => (
+    (Story) => (
       <div style={{ width: '400px', height: '300px' }}>
         <Story />
       </div>
