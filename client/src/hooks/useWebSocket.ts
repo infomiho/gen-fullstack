@@ -77,6 +77,22 @@ export function useWebSocket(): UseWebSocketReturn {
     }
   }, []);
 
+  // Debouncing for connection error notifications (max once per 30 seconds)
+  const lastConnectionErrorToast = useRef<number>(0);
+  const notifyConnectionError = useCallback(() => {
+    const now = Date.now();
+    const lastShown = lastConnectionErrorToast.current;
+    // Only show connection error toast once per 30 seconds to avoid spam
+    if (now - lastShown > 30000) {
+      showToastRef.current(
+        'Connection Error',
+        'Failed to connect to server. Will retry automatically.',
+        'error',
+      );
+      lastConnectionErrorToast.current = now;
+    }
+  }, []);
+
   useEffect(() => {
     // Check if socket already exists in store (persists across navigation)
     let newSocket = useConnectionStore.getState().socket;
@@ -92,13 +108,9 @@ export function useWebSocket(): UseWebSocketReturn {
         });
         shouldSetSocket = true;
 
-        // Handle connection errors
+        // Handle connection errors (debounced to prevent spam)
         newSocket.on('connect_error', (_error) => {
-          showToastRef.current(
-            'Connection Error',
-            'Failed to connect to server. Retrying...',
-            'error',
-          );
+          notifyConnectionError();
         });
       } catch (_error) {
         showToastRef.current(
@@ -264,7 +276,7 @@ export function useWebSocket(): UseWebSocketReturn {
       newSocket.off('app_log', handleAppLog);
       newSocket.off('build_event', handleBuildEvent);
     };
-  }, [setSocket, setConnected, notifyTruncation]);
+  }, [setSocket, setConnected, notifyTruncation, notifyConnectionError]);
 
   const startGeneration = useCallback(
     (prompt: string, strategy: string) => {

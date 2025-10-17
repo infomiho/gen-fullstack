@@ -1,7 +1,16 @@
 import { useEffect, useRef } from 'react';
-import { type LoaderFunctionArgs, useLoaderData, useNavigate, useParams } from 'react-router';
+import {
+  data,
+  isRouteErrorResponse,
+  type LoaderFunctionArgs,
+  useLoaderData,
+  useNavigate,
+  useParams,
+  useRouteError,
+  Link,
+} from 'react-router';
 import { AppPreview } from '../components/AppPreview';
-import { ErrorBoundary } from '../components/ErrorBoundary';
+import { ErrorBoundary as ErrorBoundaryComponent } from '../components/ErrorBoundary';
 import { FileWorkspace } from '../components/FileWorkspace';
 import { LogViewer } from '../components/LogViewer';
 import { SessionHeader } from '../components/SessionHeader';
@@ -69,17 +78,27 @@ interface SessionData {
  */
 export async function clientLoader({ params }: LoaderFunctionArgs) {
   const sessionId = params.sessionId as string;
-  const response = await fetch(`${SERVER_URL}/api/sessions/${sessionId}`);
 
-  if (!response.ok) {
-    if (response.status === 404) {
-      throw new Error('Session not found');
+  try {
+    const response = await fetch(`${SERVER_URL}/api/sessions/${sessionId}`);
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw data('Session not found', { status: 404 });
+      }
+      throw data('Failed to load session', { status: response.status });
     }
-    throw new Error('Failed to load session');
-  }
 
-  const data: SessionData = await response.json();
-  return data;
+    const sessionData: SessionData = await response.json();
+    return sessionData;
+  } catch (error) {
+    // Handle network errors
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error('Unable to connect to the server. Please check your internet connection.');
+    }
+    // Re-throw data() errors
+    throw error;
+  }
 }
 
 /**
@@ -225,9 +244,9 @@ function SessionPage() {
           <div className="overflow-hidden">
             {activeTab === 'timeline' ? (
               <div className={`h-full overflow-y-auto ${padding.panel}`}>
-                <ErrorBoundary>
+                <ErrorBoundaryComponent>
                   <Timeline messages={messages} toolCalls={toolCalls} toolResults={toolResults} />
-                </ErrorBoundary>
+                </ErrorBoundaryComponent>
               </div>
             ) : activeTab === 'files' ? (
               <div className="h-full">
@@ -251,6 +270,84 @@ function SessionPage() {
           </div>
         </div>
       </main>
+    </div>
+  );
+}
+
+/**
+ * ErrorBoundary for SessionPage
+ *
+ * Handles errors from the clientLoader (network errors, 404s, etc.)
+ * and displays user-friendly error messages.
+ */
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  // Handle HTTP Response errors (404, 500, etc.)
+  if (isRouteErrorResponse(error)) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <h1 className="mb-4 text-4xl font-bold text-gray-900">
+            {error.status} {error.statusText}
+          </h1>
+          <p className="mb-8 text-gray-600">{error.data || 'An error occurred'}</p>
+          <Link
+            to="/"
+            className="rounded bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
+          >
+            Go Home
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Handle JavaScript Error instances (network errors, etc.)
+  if (error instanceof Error) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50">
+        <div className="max-w-2xl text-center">
+          <h1 className="mb-4 text-4xl font-bold text-gray-900">Oops! Something went wrong</h1>
+          <p className="mb-2 text-lg text-gray-700">{error.message}</p>
+          <p className="mb-8 text-sm text-gray-500">
+            {error.message.includes('fetch') || error.message.includes('Network')
+              ? 'Unable to connect to the server. Please check your internet connection or try again later.'
+              : 'An unexpected error occurred. Please try again.'}
+          </p>
+          <div className="flex justify-center gap-4">
+            <Link
+              to="/"
+              className="rounded bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
+            >
+              Go Home
+            </Link>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="rounded border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Handle unknown errors
+  return (
+    <div className="flex h-screen items-center justify-center bg-gray-50">
+      <div className="text-center">
+        <h1 className="mb-4 text-4xl font-bold text-gray-900">Unknown Error</h1>
+        <p className="mb-8 text-gray-600">An unexpected error occurred</p>
+        <Link
+          to="/"
+          className="rounded bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
+        >
+          Go Home
+        </Link>
+      </div>
     </div>
   );
 }

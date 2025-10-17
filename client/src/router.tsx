@@ -1,6 +1,9 @@
 import { createBrowserRouter } from 'react-router';
 import HomePage from './pages/HomePage';
-import SessionPage, { clientLoader as sessionLoader } from './pages/SessionPage';
+import SessionPage, {
+  clientLoader as sessionLoader,
+  ErrorBoundary as SessionErrorBoundary,
+} from './pages/SessionPage';
 
 /**
  * Application Router Configuration
@@ -18,5 +21,6 @@ export const router = createBrowserRouter([
     path: '/:sessionId/:tab?',
     Component: SessionPage,
     loader: sessionLoader,
+    ErrorBoundary: SessionErrorBoundary,
   },
 ]);
