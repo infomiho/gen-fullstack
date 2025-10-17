@@ -292,16 +292,16 @@ function SessionPage() {
   const isOwnSession = socket !== null && isActiveSession;
 
   // Use custom hook to handle data merging
-  const { messages, toolCalls, toolResults, files } = useSessionData(
-    sessionData.timeline,
-    sessionData.files,
+  const { messages, toolCalls, toolResults, files } = useSessionData({
+    timeline: sessionData.timeline,
+    persistedFiles: sessionData.files,
     liveMessages,
     liveToolCalls,
     liveToolResults,
     liveFiles,
     isActiveSession,
     isOwnSession,
-  );
+  });
 
   // Subscribe to session room and request app status when page loads
   useEffect(() => {

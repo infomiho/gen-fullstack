@@ -27,7 +27,16 @@ describe('useSessionData - Live Updates', () => {
     // Initial render with no live data
     const { result, rerender } = renderHook(
       ({ liveMessages }) =>
-        useSessionData(persistedTimeline, [], liveMessages, [], [], [], true, true),
+        useSessionData({
+          timeline: persistedTimeline,
+          persistedFiles: [],
+          liveMessages: liveMessages,
+          liveToolCalls: [],
+          liveToolResults: [],
+          liveFiles: [],
+          isActiveSession: true,
+          isOwnSession: true,
+        }),
       {
         initialProps: { liveMessages: [] as LLMMessage[] },
       },
@@ -72,7 +81,17 @@ describe('useSessionData - Live Updates', () => {
 
     // Initial render with no live files
     const { result, rerender } = renderHook(
-      ({ liveFiles }) => useSessionData([], persistedFiles, [], [], [], liveFiles, true, true),
+      ({ liveFiles }) =>
+        useSessionData({
+          timeline: [],
+          persistedFiles: persistedFiles,
+          liveMessages: [],
+          liveToolCalls: [],
+          liveToolResults: [],
+          liveFiles: liveFiles,
+          isActiveSession: true,
+          isOwnSession: true,
+        }),
       {
         initialProps: { liveFiles: [] as FileUpdate[] },
       },
@@ -129,7 +148,16 @@ describe('useSessionData - Live Updates', () => {
 
     // Render the hook with explicit parameters
     const { result } = renderHook(() =>
-      useSessionData(persistedTimeline, [], liveMessages, [], [], [], true, true),
+      useSessionData({
+        timeline: persistedTimeline,
+        persistedFiles: [],
+        liveMessages: liveMessages,
+        liveToolCalls: [],
+        liveToolResults: [],
+        liveFiles: [],
+        isActiveSession: true,
+        isOwnSession: true,
+      }),
     );
 
     // Should merge both persisted and live data

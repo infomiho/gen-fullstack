@@ -26,7 +26,16 @@ describe('useSessionData', () => {
       ];
 
       const { result } = renderHook(() =>
-        useSessionData(persistedTimeline, [], [], [], [], [], false, false),
+        useSessionData({
+          timeline: persistedTimeline,
+          persistedFiles: [],
+          liveMessages: [],
+          liveToolCalls: [],
+          liveToolResults: [],
+          liveFiles: [],
+          isActiveSession: false,
+          isOwnSession: false,
+        }),
       );
 
       expect(result.current.messages).toHaveLength(1);
@@ -53,7 +62,16 @@ describe('useSessionData', () => {
       ];
 
       const { result } = renderHook(() =>
-        useSessionData(persistedTimeline, [], [], [], [], [], false, false),
+        useSessionData({
+          timeline: persistedTimeline,
+          persistedFiles: [],
+          liveMessages: [],
+          liveToolCalls: [],
+          liveToolResults: [],
+          liveFiles: [],
+          isActiveSession: false,
+          isOwnSession: false,
+        }),
       );
 
       expect(result.current.toolCalls).toHaveLength(1);
@@ -81,7 +99,16 @@ describe('useSessionData', () => {
       ];
 
       const { result } = renderHook(() =>
-        useSessionData(persistedTimeline, [], [], [], [], [], false, false),
+        useSessionData({
+          timeline: persistedTimeline,
+          persistedFiles: [],
+          liveMessages: [],
+          liveToolCalls: [],
+          liveToolResults: [],
+          liveFiles: [],
+          isActiveSession: false,
+          isOwnSession: false,
+        }),
       );
 
       expect(result.current.toolResults).toHaveLength(1);
@@ -106,7 +133,16 @@ describe('useSessionData', () => {
       ];
 
       const { result } = renderHook(() =>
-        useSessionData([], persistedFiles, [], [], [], [], false, false),
+        useSessionData({
+          timeline: [],
+          persistedFiles: persistedFiles,
+          liveMessages: [],
+          liveToolCalls: [],
+          liveToolResults: [],
+          liveFiles: [],
+          isActiveSession: false,
+          isOwnSession: false,
+        }),
       );
 
       expect(result.current.files).toHaveLength(1);
@@ -142,7 +178,16 @@ describe('useSessionData', () => {
       ];
 
       const { result } = renderHook(() =>
-        useSessionData(persistedTimeline, [], liveMessages, [], [], [], true, true),
+        useSessionData({
+          timeline: persistedTimeline,
+          persistedFiles: [],
+          liveMessages: liveMessages,
+          liveToolCalls: [],
+          liveToolResults: [],
+          liveFiles: [],
+          isActiveSession: true,
+          isOwnSession: true,
+        }),
       );
 
       expect(result.current.messages).toHaveLength(2);
@@ -174,7 +219,16 @@ describe('useSessionData', () => {
       ];
 
       const { result } = renderHook(() =>
-        useSessionData(persistedTimeline, [], liveMessages, [], [], [], false, false),
+        useSessionData({
+          timeline: persistedTimeline,
+          persistedFiles: [],
+          liveMessages: liveMessages,
+          liveToolCalls: [],
+          liveToolResults: [],
+          liveFiles: [],
+          isActiveSession: false,
+          isOwnSession: false,
+        }),
       );
 
       // Should only show persisted data
@@ -206,7 +260,16 @@ describe('useSessionData', () => {
       ];
 
       const { result } = renderHook(() =>
-        useSessionData(persistedTimeline, [], liveMessages, [], [], [], true, false),
+        useSessionData({
+          timeline: persistedTimeline,
+          persistedFiles: [],
+          liveMessages: liveMessages,
+          liveToolCalls: [],
+          liveToolResults: [],
+          liveFiles: [],
+          isActiveSession: true,
+          isOwnSession: false,
+        }),
       );
 
       // Should only show persisted data (not our session)
@@ -246,7 +309,16 @@ describe('useSessionData', () => {
       ];
 
       const { result } = renderHook(() =>
-        useSessionData(persistedTimeline, [], liveMessages, [], [], [], true, true),
+        useSessionData({
+          timeline: persistedTimeline,
+          persistedFiles: [],
+          liveMessages: liveMessages,
+          liveToolCalls: [],
+          liveToolResults: [],
+          liveFiles: [],
+          isActiveSession: true,
+          isOwnSession: true,
+        }),
       );
 
       // Should deduplicate - only 2 unique messages
@@ -280,7 +352,16 @@ describe('useSessionData', () => {
       ];
 
       const { result } = renderHook(() =>
-        useSessionData([], persistedFiles, [], [], [], liveFiles, true, true),
+        useSessionData({
+          timeline: [],
+          persistedFiles: persistedFiles,
+          liveMessages: [],
+          liveToolCalls: [],
+          liveToolResults: [],
+          liveFiles: liveFiles,
+          isActiveSession: true,
+          isOwnSession: true,
+        }),
       );
 
       // Should have 2 files (deduplicated by path)
@@ -322,7 +403,16 @@ describe('useSessionData', () => {
       ];
 
       const { result } = renderHook(() =>
-        useSessionData(persistedTimeline, [], liveMessages, [], [], [], true, true),
+        useSessionData({
+          timeline: persistedTimeline,
+          persistedFiles: [],
+          liveMessages: liveMessages,
+          liveToolCalls: [],
+          liveToolResults: [],
+          liveFiles: [],
+          isActiveSession: true,
+          isOwnSession: true,
+        }),
       );
 
       expect(result.current.messages).toHaveLength(3);
@@ -334,7 +424,18 @@ describe('useSessionData', () => {
 
   describe('Edge Cases', () => {
     it('should handle empty persisted data', () => {
-      const { result } = renderHook(() => useSessionData([], [], [], [], [], [], false, false));
+      const { result } = renderHook(() =>
+        useSessionData({
+          timeline: [],
+          persistedFiles: [],
+          liveMessages: [],
+          liveToolCalls: [],
+          liveToolResults: [],
+          liveFiles: [],
+          isActiveSession: false,
+          isOwnSession: false,
+        }),
+      );
 
       expect(result.current.messages).toHaveLength(0);
       expect(result.current.toolCalls).toHaveLength(0);
@@ -357,7 +458,16 @@ describe('useSessionData', () => {
       ];
 
       const { result } = renderHook(() =>
-        useSessionData(persistedTimeline, [], [], [], [], [], false, false),
+        useSessionData({
+          timeline: persistedTimeline,
+          persistedFiles: [],
+          liveMessages: [],
+          liveToolCalls: [],
+          liveToolResults: [],
+          liveFiles: [],
+          isActiveSession: false,
+          isOwnSession: false,
+        }),
       );
 
       expect(result.current.toolCalls).toHaveLength(1);
@@ -379,7 +489,16 @@ describe('useSessionData', () => {
       ];
 
       const { result } = renderHook(() =>
-        useSessionData(persistedTimeline, [], [], [], [], [], false, false),
+        useSessionData({
+          timeline: persistedTimeline,
+          persistedFiles: [],
+          liveMessages: [],
+          liveToolCalls: [],
+          liveToolResults: [],
+          liveFiles: [],
+          isActiveSession: false,
+          isOwnSession: false,
+        }),
       );
 
       expect(result.current.toolCalls).toHaveLength(1);
@@ -402,7 +521,16 @@ describe('useSessionData', () => {
       ];
 
       const { result } = renderHook(() =>
-        useSessionData(persistedTimeline, [], [], [], [], [], false, false),
+        useSessionData({
+          timeline: persistedTimeline,
+          persistedFiles: [],
+          liveMessages: [],
+          liveToolCalls: [],
+          liveToolResults: [],
+          liveFiles: [],
+          isActiveSession: false,
+          isOwnSession: false,
+        }),
       );
 
       expect(result.current.toolResults).toHaveLength(1);
@@ -425,7 +553,16 @@ describe('useSessionData', () => {
       ];
 
       const { result } = renderHook(() =>
-        useSessionData(persistedTimeline, [], [], [], [], [], false, false),
+        useSessionData({
+          timeline: persistedTimeline,
+          persistedFiles: [],
+          liveMessages: [],
+          liveToolCalls: [],
+          liveToolResults: [],
+          liveFiles: [],
+          isActiveSession: false,
+          isOwnSession: false,
+        }),
       );
 
       expect(result.current.toolResults).toHaveLength(1);
@@ -466,7 +603,16 @@ describe('useSessionData', () => {
       ];
 
       const { result } = renderHook(() =>
-        useSessionData(persistedTimeline, [], [], [], [], [], false, false),
+        useSessionData({
+          timeline: persistedTimeline,
+          persistedFiles: [],
+          liveMessages: [],
+          liveToolCalls: [],
+          liveToolResults: [],
+          liveFiles: [],
+          isActiveSession: false,
+          isOwnSession: false,
+        }),
       );
 
       // Should only have 2 valid messages

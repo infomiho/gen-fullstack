@@ -118,31 +118,47 @@ function mergeByPath(persisted: FileUpdate[], live: FileUpdate[]): FileUpdate[] 
 }
 
 /**
+ * Parameters for useSessionData hook
+ */
+export interface UseSessionDataParams {
+  /** Persisted timeline items from database */
+  timeline: SessionTimeline[];
+  /** Persisted files from database */
+  persistedFiles: SessionFile[];
+  /** Live messages from WebSocket */
+  liveMessages: LLMMessage[];
+  /** Live tool calls from WebSocket */
+  liveToolCalls: ToolCall[];
+  /** Live tool results from WebSocket */
+  liveToolResults: ToolResult[];
+  /** Live files from WebSocket */
+  liveFiles: FileUpdate[];
+  /** Whether the session is still generating */
+  isActiveSession: boolean;
+  /** Whether we're connected and viewing our own active session */
+  isOwnSession: boolean;
+}
+
+/**
  * Custom hook to manage session data merging
  *
  * Handles conversion of persisted data and merging with live WebSocket data
  * when viewing an active session.
  *
- * @param timeline - Persisted timeline items from database
- * @param persistedFilesData - Persisted files from database
- * @param liveMessages - Live messages from WebSocket
- * @param liveToolCalls - Live tool calls from WebSocket
- * @param liveToolResults - Live tool results from WebSocket
- * @param liveFiles - Live files from WebSocket
- * @param isActiveSession - Whether the session is still generating
- * @param isOwnSession - Whether we're connected and viewing our own active session
+ * @param params - Object containing all session data and flags
  * @returns Merged messages, tool calls, tool results, and files
  */
-export function useSessionData(
-  timeline: SessionTimeline[],
-  persistedFilesData: SessionFile[],
-  liveMessages: LLMMessage[],
-  liveToolCalls: ToolCall[],
-  liveToolResults: ToolResult[],
-  liveFiles: FileUpdate[],
-  isActiveSession: boolean,
-  isOwnSession: boolean,
-) {
+export function useSessionData(params: UseSessionDataParams) {
+  const {
+    timeline,
+    persistedFiles: persistedFilesData,
+    liveMessages,
+    liveToolCalls,
+    liveToolResults,
+    liveFiles,
+    isActiveSession,
+    isOwnSession,
+  } = params;
   // Convert persisted timeline items to client types (memoized)
   const persistedMessages = useMemo(() => convertPersistedMessages(timeline), [timeline]);
   const persistedToolCalls = useMemo(() => convertPersistedToolCalls(timeline), [timeline]);
