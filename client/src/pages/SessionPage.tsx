@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Link, useLoaderData, useNavigate, useParams, type LoaderFunctionArgs } from 'react-router';
+import { Link, type LoaderFunctionArgs, useLoaderData, useNavigate, useParams } from 'react-router';
 import { AppControls } from '../components/AppControls';
 import { AppPreview } from '../components/AppPreview';
 import { ErrorBoundary } from '../components/ErrorBoundary';
@@ -253,7 +253,19 @@ function SessionPage() {
   const { sessionId, tab } = useParams<{ sessionId: string; tab?: string }>();
   const navigate = useNavigate();
   const sessionData = useLoaderData() as SessionData;
-  const { socket, isConnected, appStatus, appLogs, startApp, stopApp, saveFile } = useWebSocket();
+  const {
+    socket,
+    isConnected,
+    messages: liveMessages,
+    toolCalls: liveToolCalls,
+    toolResults: liveToolResults,
+    files: liveFiles,
+    appStatus,
+    appLogs,
+    startApp,
+    stopApp,
+    saveFile,
+  } = useWebSocket();
 
   const previewContainerRef = useRef<HTMLDivElement>(null);
 
@@ -283,6 +295,10 @@ function SessionPage() {
   const { messages, toolCalls, toolResults, files } = useSessionData(
     sessionData.timeline,
     sessionData.files,
+    liveMessages,
+    liveToolCalls,
+    liveToolResults,
+    liveFiles,
     isActiveSession,
     isOwnSession,
   );

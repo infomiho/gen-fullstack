@@ -1,8 +1,8 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import * as commandService from '../services/command.service.js';
-import * as filesystemService from '../services/filesystem.service.js';
 import { databaseService } from '../services/database.service.js';
+import * as filesystemService from '../services/filesystem.service.js';
 
 /**
  * Tool definitions for LLM-powered app generation

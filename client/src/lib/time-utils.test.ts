@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { formatTimestamp, formatTime, getRelativeTime } from './time-utils';
+import { describe, expect, it } from 'vitest';
+import { formatTime, formatTimestamp, getRelativeTime } from './time-utils';
 
 describe('time-utils', () => {
   describe('formatTimestamp', () => {

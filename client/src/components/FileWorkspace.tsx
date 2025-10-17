@@ -5,12 +5,12 @@
  * Provides Bolt.new-style file editing experience
  */
 
+import type { FileUpdate } from '@gen-fullstack/shared';
 import { useEffect, useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { ErrorBoundary } from './ErrorBoundary';
-import { FileTree } from './FileTree';
 import { FileEditorTabs } from './FileEditorTabs';
-import type { FileUpdate } from '@gen-fullstack/shared';
+import { FileTree } from './FileTree';
 
 interface FileWorkspaceProps {
   files: FileUpdate[];

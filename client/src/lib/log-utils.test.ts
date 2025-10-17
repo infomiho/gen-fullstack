@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { getLevelColor, getLevelLabel, filterLogs } from './log-utils';
 import type { AppLog } from '@gen-fullstack/shared';
+import { describe, expect, it } from 'vitest';
+import { filterLogs, getLevelColor, getLevelLabel } from './log-utils';
 
 describe('log-utils', () => {
   describe('getLevelColor', () => {

@@ -5,14 +5,14 @@
  * Provides secure execution with resource limits and automatic cleanup.
  */
 
-import Docker from 'dockerode';
-import type { Container, ContainerCreateOptions } from 'dockerode';
 import { EventEmitter } from 'node:events';
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import os from 'node:os';
-import fs from 'node:fs';
 import type { AppInfo, AppLog, AppStatus, BuildEvent } from '@gen-fullstack/shared';
+import type { Container, ContainerCreateOptions } from 'dockerode';
+import Docker from 'dockerode';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

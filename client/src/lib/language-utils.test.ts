@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { getLanguage, isLanguageSupported, getFileExtension, LANGUAGE_MAP } from './language-utils';
+import { describe, expect, it } from 'vitest';
+import { getFileExtension, getLanguage, isLanguageSupported, LANGUAGE_MAP } from './language-utils';
 
 describe('language-utils', () => {
   describe('LANGUAGE_MAP', () => {

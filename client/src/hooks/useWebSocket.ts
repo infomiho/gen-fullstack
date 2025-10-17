@@ -8,7 +8,7 @@ import type {
   ToolCall,
   ToolResult,
 } from '@gen-fullstack/shared';
-import { MAX_MESSAGES, MAX_LOGS, TIMEOUTS } from '@gen-fullstack/shared';
+import { MAX_LOGS, MAX_MESSAGES, TIMEOUTS } from '@gen-fullstack/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
 

@@ -7,7 +7,7 @@
 
 import { EventEmitter } from 'node:events';
 import type { AppInfo, AppLog, BuildEvent } from '@gen-fullstack/shared';
-import { dockerService, type DockerService } from './docker.service';
+import { type DockerService, dockerService } from './docker.service';
 
 export interface ProcessInfo extends AppInfo {
   workingDir: string;

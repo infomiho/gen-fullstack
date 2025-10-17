@@ -5,16 +5,16 @@
  * Follows Bolt.new's code editing approach
  */
 
-import { useEffect, useRef, useState } from 'react';
-import { EditorView, basicSetup } from 'codemirror';
-import { EditorState } from '@codemirror/state';
-import type { ViewUpdate } from '@codemirror/view';
-import { javascript } from '@codemirror/lang-javascript';
 import { css } from '@codemirror/lang-css';
 import { html } from '@codemirror/lang-html';
+import { javascript } from '@codemirror/lang-javascript';
 import { json } from '@codemirror/lang-json';
-import { vscodeLight } from '@uiw/codemirror-theme-vscode';
+import { EditorState } from '@codemirror/state';
+import type { ViewUpdate } from '@codemirror/view';
 import { MAX_EDITOR_FILE_SIZE } from '@gen-fullstack/shared';
+import { vscodeLight } from '@uiw/codemirror-theme-vscode';
+import { basicSetup, EditorView } from 'codemirror';
+import { useEffect, useRef, useState } from 'react';
 
 interface CodeEditorProps {
   value: string;

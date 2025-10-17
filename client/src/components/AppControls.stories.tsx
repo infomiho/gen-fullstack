@@ -1,6 +1,6 @@
+import type { AppInfo } from '@gen-fullstack/shared';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { AppControls } from './AppControls';
-import type { AppInfo } from '@gen-fullstack/shared';
 
 /**
  * AppControls provides a single button to manage app lifecycle (start/stop/restart).

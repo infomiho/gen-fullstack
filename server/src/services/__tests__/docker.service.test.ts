@@ -4,8 +4,8 @@
  * Tests Docker container management with mocked dockerode.
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { EventEmitter } from 'node:events';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DockerService } from '../docker.service';
 
 // Mock fs for socket path detection

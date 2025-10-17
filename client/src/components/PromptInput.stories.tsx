@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { PromptInput } from './PromptInput';
-import { useState } from 'react';
 import { expect, userEvent, within } from '@storybook/test';
+import { useState } from 'react';
+import { PromptInput } from './PromptInput';
 
 /**
  * PromptInput allows users to enter their app description and submit it for generation.

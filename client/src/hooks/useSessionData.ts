@@ -1,5 +1,5 @@
 import type { FileUpdate, LLMMessage, ToolCall, ToolResult } from '@gen-fullstack/shared';
-import { useWebSocket } from './useWebSocket';
+import { useMemo } from 'react';
 
 /**
  * Safely parse JSON with fallback
@@ -125,6 +125,10 @@ function mergeByPath(persisted: FileUpdate[], live: FileUpdate[]): FileUpdate[] 
  *
  * @param timeline - Persisted timeline items from database
  * @param persistedFilesData - Persisted files from database
+ * @param liveMessages - Live messages from WebSocket
+ * @param liveToolCalls - Live tool calls from WebSocket
+ * @param liveToolResults - Live tool results from WebSocket
+ * @param liveFiles - Live files from WebSocket
  * @param isActiveSession - Whether the session is still generating
  * @param isOwnSession - Whether we're connected and viewing our own active session
  * @returns Merged messages, tool calls, tool results, and files
@@ -132,41 +136,54 @@ function mergeByPath(persisted: FileUpdate[], live: FileUpdate[]): FileUpdate[] 
 export function useSessionData(
   timeline: SessionTimeline[],
   persistedFilesData: SessionFile[],
+  liveMessages: LLMMessage[],
+  liveToolCalls: ToolCall[],
+  liveToolResults: ToolResult[],
+  liveFiles: FileUpdate[],
   isActiveSession: boolean,
   isOwnSession: boolean,
 ) {
-  const {
-    messages: liveMessages,
-    toolCalls: liveToolCalls,
-    toolResults: liveToolResults,
-    files: liveFiles,
-  } = useWebSocket();
-
-  // Convert persisted timeline items to client types
-  const persistedMessages = convertPersistedMessages(timeline);
-  const persistedToolCalls = convertPersistedToolCalls(timeline);
-  const persistedToolResults = convertPersistedToolResults(timeline);
-  const persistedFiles = convertPersistedFiles(persistedFilesData);
+  // Convert persisted timeline items to client types (memoized)
+  const persistedMessages = useMemo(() => convertPersistedMessages(timeline), [timeline]);
+  const persistedToolCalls = useMemo(() => convertPersistedToolCalls(timeline), [timeline]);
+  const persistedToolResults = useMemo(() => convertPersistedToolResults(timeline), [timeline]);
+  const persistedFiles = useMemo(
+    () => convertPersistedFiles(persistedFilesData),
+    [persistedFilesData],
+  );
 
   // Only merge live data if this is our own active session
   // Otherwise, live updates won't work due to session/socket ID mismatch
-  const messages =
-    isActiveSession && isOwnSession
-      ? mergeByIdAndSort(persistedMessages, liveMessages)
-      : persistedMessages;
+  // Memoize the merged results to prevent unnecessary re-renders
+  const messages = useMemo(
+    () =>
+      isActiveSession && isOwnSession
+        ? mergeByIdAndSort(persistedMessages, liveMessages)
+        : persistedMessages,
+    [isActiveSession, isOwnSession, persistedMessages, liveMessages],
+  );
 
-  const toolCalls =
-    isActiveSession && isOwnSession
-      ? mergeByIdAndSort(persistedToolCalls, liveToolCalls)
-      : persistedToolCalls;
+  const toolCalls = useMemo(
+    () =>
+      isActiveSession && isOwnSession
+        ? mergeByIdAndSort(persistedToolCalls, liveToolCalls)
+        : persistedToolCalls,
+    [isActiveSession, isOwnSession, persistedToolCalls, liveToolCalls],
+  );
 
-  const toolResults =
-    isActiveSession && isOwnSession
-      ? mergeByIdAndSort(persistedToolResults, liveToolResults)
-      : persistedToolResults;
+  const toolResults = useMemo(
+    () =>
+      isActiveSession && isOwnSession
+        ? mergeByIdAndSort(persistedToolResults, liveToolResults)
+        : persistedToolResults,
+    [isActiveSession, isOwnSession, persistedToolResults, liveToolResults],
+  );
 
-  const files =
-    isActiveSession && isOwnSession ? mergeByPath(persistedFiles, liveFiles) : persistedFiles;
+  const files = useMemo(
+    () =>
+      isActiveSession && isOwnSession ? mergeByPath(persistedFiles, liveFiles) : persistedFiles,
+    [isActiveSession, isOwnSession, persistedFiles, liveFiles],
+  );
 
   return { messages, toolCalls, toolResults, files };
 }

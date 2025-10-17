@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { CodeEditor } from './CodeEditor';
 import { useState } from 'react';
+import { CodeEditor } from './CodeEditor';
 
 /**
  * CodeEditor provides a CodeMirror 6-based code editor with syntax highlighting.

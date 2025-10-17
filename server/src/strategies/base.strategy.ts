@@ -1,10 +1,13 @@
 import type { LanguageModel } from 'ai';
 import type { Server as SocketIOServer } from 'socket.io';
+import { databaseService } from '../services/database.service.js';
 import { initializeSandbox } from '../services/filesystem.service.js';
 import { calculateCost, getModel, type ModelName } from '../services/llm.service.js';
-import { databaseService } from '../services/database.service.js';
-import type { GenerationMetrics } from '../types/index.js';
-import type { ClientToServerEvents, ServerToClientEvents } from '../types/index.js';
+import type {
+  ClientToServerEvents,
+  GenerationMetrics,
+  ServerToClientEvents,
+} from '../types/index.js';
 
 export type { GenerationMetrics };
 
@@ -131,6 +134,10 @@ export abstract class BaseStrategy {
     args: Record<string, unknown>,
   ): void {
     const timestamp = Date.now();
+
+    // Reset message accumulation - tool calls break message continuity
+    this.currentMessageId = null;
+    this.currentMessageRole = null;
 
     // Broadcast to all clients in the session room
     if (this.sessionId) {

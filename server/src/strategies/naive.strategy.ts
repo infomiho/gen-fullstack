@@ -1,8 +1,8 @@
 import { stepCountIs, streamText } from 'ai';
 import type { Server as SocketIOServer } from 'socket.io';
 import { tools } from '../tools/index.js';
-import { BaseStrategy, type GenerationMetrics } from './base.strategy.js';
 import type { ClientToServerEvents, ServerToClientEvents } from '../types/index.js';
+import { BaseStrategy, type GenerationMetrics } from './base.strategy.js';
 
 // Maximum number of tool calls allowed in a single generation
 const MAX_TOOL_CALLS = 20;
@@ -56,11 +56,26 @@ GUIDELINES:
 
 6. If you encounter errors, read the files and fix the issues
 
+REQUIRED VERSIONS (use exactly):
+{
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@vitejs/plugin-react": "^5.0.4",
+    "typescript": "~5.9.3",
+    "vite": "^7.1.9"
+  }
+}
+
 IMPORTANT:
+- Use exact versions above
 - Write complete file contents (not placeholders)
 - Use proper TypeScript types
 - Include all necessary imports
-- Test your work by running commands to verify it builds
 
 Now, generate the application based on the user's requirements.`;
   }
@@ -94,8 +109,6 @@ Now, generate the application based on the user's requirements.`;
         onStepFinish: this.createOnStepFinishHandler(io),
       });
 
-      const stepCount = 0;
-
       // Process the full stream for text deltas
       for await (const part of result.fullStream) {
         switch (part.type) {
@@ -121,7 +134,7 @@ Now, generate the application based on the user's requirements.`;
         usage.inputTokens || 0,
         usage.outputTokens || 0,
         duration,
-        steps?.length || stepCount,
+        steps?.length || 0,
       );
 
       // Log completion

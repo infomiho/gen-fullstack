@@ -8,8 +8,8 @@
 import * as Tabs from '@radix-ui/react-tabs';
 import { Save, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
-import { CodeEditor } from './CodeEditor';
 import { focus, radius, transitions, typography } from '../lib/design-tokens';
+import { CodeEditor } from './CodeEditor';
 import { useToast } from './ToastProvider';
 
 interface FileTab {

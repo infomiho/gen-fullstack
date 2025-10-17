@@ -1,6 +1,6 @@
+import type { LLMMessage, ToolCall, ToolResult } from '@gen-fullstack/shared';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Timeline } from './Timeline';
-import type { LLMMessage, ToolCall, ToolResult } from '@gen-fullstack/shared';
 
 /**
  * Timeline displays a unified chronological view of LLM messages and tool calls.

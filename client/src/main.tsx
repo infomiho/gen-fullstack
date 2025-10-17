@@ -1,8 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { RouterProvider } from 'react-router';
-import { router } from './router';
 import { ToastProvider } from './components/ToastProvider';
+import { router } from './router';
 import './index.css';
 
 const rootElement = document.getElementById('root');

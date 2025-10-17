@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { expect, fn, userEvent, within } from '@storybook/test';
 import { StrategySelector } from './StrategySelector';
-import { expect, userEvent, within, fn } from '@storybook/test';
 
 /**
  * StrategySelector allows users to choose different code generation strategies.

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { ToastProvider, useToast } from './ToastProvider';
 import { useState } from 'react';
+import { ToastProvider, useToast } from './ToastProvider';
 
 /**
  * ToastProvider enables toast notifications throughout the app using Radix UI.

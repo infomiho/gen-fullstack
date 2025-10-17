@@ -5,22 +5,22 @@
  * Provides methods for session persistence, timeline management, and file storage.
  */
 
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
-import { eq, desc, and } from 'drizzle-orm';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import fs from 'node:fs';
+import Database from 'better-sqlite3';
+import { and, desc, eq } from 'drizzle-orm';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
 import {
-  sessions,
-  timelineItems,
+  type File,
   files,
+  type NewFile,
   type NewSession,
   type NewTimelineItem,
-  type NewFile,
   type Session,
+  sessions,
   type TimelineItem,
-  type File,
+  timelineItems,
 } from '../db/schema.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -97,6 +97,22 @@ class DatabaseService {
         }
       }
 
+      // Check if unique message_id index exists (migration 0002)
+      const indexCheck = this.sqlite
+        .prepare(
+          "SELECT COUNT(*) as count FROM sqlite_master WHERE type='index' AND name='timeline_items_session_message_idx'",
+        )
+        .get() as { count: number };
+
+      if (indexCheck.count === 0) {
+        const migration0002Path = path.join(__dirname, '../../drizzle/0002_unique_message_id.sql');
+        if (fs.existsSync(migration0002Path)) {
+          const migrationSQL = fs.readFileSync(migration0002Path, 'utf8');
+          this.sqlite.exec(migrationSQL);
+          console.log('[Database] Migration 0002 (unique message_id) applied successfully');
+        }
+      }
+
       this.initialized = true;
     } catch (error) {
       console.error('[Database] Failed to initialize:', error);
@@ -161,6 +177,9 @@ class DatabaseService {
   /**
    * Upsert message by messageId (for streaming message accumulation)
    * If messageId exists, updates content and timestamp. Otherwise inserts new message.
+   *
+   * Uses SQLite's INSERT ... ON CONFLICT DO UPDATE (UPSERT) for atomic operation.
+   * This prevents race conditions during concurrent streaming updates.
    */
   async upsertMessage(
     sessionId: string,
@@ -169,38 +188,37 @@ class DatabaseService {
     content: string,
     timestamp: Date,
   ): Promise<TimelineItem> {
-    // Check if message exists
-    const [existing] = await this.db
-      .select()
-      .from(timelineItems)
-      .where(and(eq(timelineItems.sessionId, sessionId), eq(timelineItems.messageId, messageId)));
+    try {
+      // Use raw SQL for proper UPSERT with content concatenation
+      // Must include WHERE clause to match the partial index definition
+      const result = this.sqlite
+        .prepare(
+          `
+        INSERT INTO timeline_items (session_id, timestamp, type, message_id, role, content)
+        VALUES (?, ?, 'message', ?, ?, ?)
+        ON CONFLICT (session_id, message_id) WHERE message_id IS NOT NULL
+        DO UPDATE SET
+          content = timeline_items.content || excluded.content,
+          timestamp = excluded.timestamp
+        RETURNING *
+      `,
+        )
+        .get(sessionId, timestamp.getTime(), messageId, role, content) as TimelineItem;
 
-    if (existing) {
-      // Update existing message (accumulate content)
-      const [updated] = await this.db
-        .update(timelineItems)
-        .set({
-          content: existing.content + content,
-          timestamp, // Update timestamp to latest chunk
-        })
-        .where(eq(timelineItems.id, existing.id))
-        .returning();
-      return updated;
-    }
+      if (!result) {
+        throw new Error('Failed to upsert message: no result returned');
+      }
 
-    // Insert new message
-    const [created] = await this.db
-      .insert(timelineItems)
-      .values({
+      return result;
+    } catch (error) {
+      console.error('[Database] Failed to upsert message:', {
         sessionId,
-        timestamp,
-        type: 'message',
         messageId,
         role,
-        content,
-      })
-      .returning();
-    return created;
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
   }
 
   /**

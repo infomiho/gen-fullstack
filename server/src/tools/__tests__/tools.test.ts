@@ -1,8 +1,8 @@
 import { writeFile as fsWriteFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import * as filesystemService from '../../services/filesystem.service.js';
 import * as databaseService from '../../services/database.service.js';
+import * as filesystemService from '../../services/filesystem.service.js';
 import { executeCommand, listFiles, readFile, writeFile } from '../index.js';
 
 describe('Tools', () => {

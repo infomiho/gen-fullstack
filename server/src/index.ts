@@ -4,10 +4,10 @@ import dotenv from 'dotenv';
 import express from 'express';
 import httpProxy from 'http-proxy';
 import { validateEnv } from './config/env.js';
-import { setupWebSocket } from './websocket.js';
-import { processService } from './services/process.service.js';
-import { databaseService } from './services/database.service.js';
 import sessionRoutes from './routes/sessions.js';
+import { databaseService } from './services/database.service.js';
+import { processService } from './services/process.service.js';
+import { setupWebSocket } from './websocket.js';
 
 dotenv.config();
 

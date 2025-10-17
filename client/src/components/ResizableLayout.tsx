@@ -5,8 +5,8 @@
  * Follows Bolt.new's split-pane architecture
  */
 
-import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import type { ReactNode } from 'react';
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 
 interface ResizableLayoutProps {
   sidebar: ReactNode;

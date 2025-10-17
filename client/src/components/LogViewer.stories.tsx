@@ -1,7 +1,7 @@
-import type { Meta, StoryObj } from '@storybook/react-vite';
-import { LogViewer } from './LogViewer';
 import type { AppLog } from '@gen-fullstack/shared';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, within } from '@storybook/test';
+import { LogViewer } from './LogViewer';
 
 /**
  * LogViewer displays container logs with filtering by level and auto-scroll functionality.

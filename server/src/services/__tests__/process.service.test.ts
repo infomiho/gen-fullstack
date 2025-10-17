@@ -4,11 +4,11 @@
  * Tests app lifecycle management with mocked Docker service.
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { EventEmitter } from 'node:events';
-import { ProcessService } from '../process.service';
-import type { DockerService } from '../docker.service';
 import type { AppLog, BuildEvent } from '@gen-fullstack/shared';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { DockerService } from '../docker.service';
+import { ProcessService } from '../process.service';
 
 // Create a mock Docker service
 function createMockDockerService(): DockerService {
