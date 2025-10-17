@@ -255,6 +255,20 @@ export class DockerService extends EventEmitter {
   }
 
   /**
+   * Emit a system log entry (lifecycle events)
+   */
+  private emitSystemLog(sessionId: string, message: string): void {
+    const log: AppLog = {
+      sessionId,
+      timestamp: Date.now(),
+      type: 'stdout',
+      level: 'system',
+      message,
+    };
+    this.storeLogEntry(sessionId, log);
+  }
+
+  /**
    * Build the runner image if it doesn't exist
    */
   async buildRunnerImage(): Promise<void> {
@@ -409,6 +423,7 @@ export class DockerService extends EventEmitter {
    */
   async createContainer(sessionId: string, workingDir: string): Promise<AppInfo> {
     try {
+      this.emitSystemLog(sessionId, 'Creating container...');
       await this.buildRunnerImage();
       await this.cleanupExistingContainer(sessionId);
 
@@ -460,6 +475,8 @@ export class DockerService extends EventEmitter {
 
       this.setupLogStream(sessionId, container);
       this.setupAutoCleanup(sessionId);
+
+      this.emitSystemLog(sessionId, 'Container created successfully');
 
       return {
         sessionId,
@@ -732,6 +749,7 @@ export class DockerService extends EventEmitter {
       containerInfo.status = 'installing';
       this.emit('status_change', { sessionId, status: 'installing' });
 
+      this.emitSystemLog(sessionId, 'Installing dependencies...');
       this.emitCommandLog(sessionId, '$ npm install');
 
       const exec = await containerInfo.container.exec({
@@ -756,6 +774,7 @@ export class DockerService extends EventEmitter {
       ]);
 
       console.log(`[Docker] Dependencies installed for ${sessionId}`);
+      this.emitSystemLog(sessionId, 'Dependencies installed successfully');
 
       if (cleanupStream) {
         cleanupStream();
@@ -788,6 +807,7 @@ export class DockerService extends EventEmitter {
       containerInfo.status = 'starting';
       this.emit('status_change', { sessionId, status: 'starting' });
 
+      this.emitSystemLog(sessionId, 'Starting development server...');
       this.emitCommandLog(sessionId, '$ npm run dev -- --host 0.0.0.0 --port 5173');
 
       const exec = await containerInfo.container.exec({
@@ -916,6 +936,8 @@ export class DockerService extends EventEmitter {
       return;
     }
 
+    this.emitSystemLog(sessionId, 'Stopping container...');
+
     try {
       if (containerInfo.cleanupTimer) {
         clearTimeout(containerInfo.cleanupTimer);
@@ -957,6 +979,7 @@ export class DockerService extends EventEmitter {
       this.containers.delete(sessionId);
 
       console.log(`[Docker] Container destroyed: ${sessionId}`);
+      this.emitSystemLog(sessionId, 'Container stopped and cleaned up');
     } catch (error) {
       console.error('[Docker] Failed to destroy container:', error);
       try {
