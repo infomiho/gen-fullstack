@@ -13,6 +13,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import { useToast } from '../components/ToastProvider';
 import { useAppStore, useConnectionStore, useGenerationStore } from '../stores';
+import { useDebouncedNotification } from './useDebouncedNotification';
 
 interface UseWebSocketReturn {
   socket: Socket | null;
@@ -39,6 +40,12 @@ interface UseWebSocketReturn {
 }
 
 const SERVER_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
+// Debounce windows for notification throttling
+const DEBOUNCE_WINDOWS = {
+  CONNECTION_ERROR: 30_000, // 30 seconds - prevent spam during connection retries
+  TRUNCATION_WARNING: 10_000, // 10 seconds - limit truncation notifications per type
+} as const;
 
 export function useWebSocket(): UseWebSocketReturn {
   const { showToast } = useToast();
@@ -71,27 +78,23 @@ export function useWebSocket(): UseWebSocketReturn {
   const notifyTruncation = useCallback((title: string, message: string, type: string) => {
     const now = Date.now();
     const lastShown = lastTruncationToast.current[type] || 0;
-    if (now - lastShown > 10000) {
+    if (now - lastShown > DEBOUNCE_WINDOWS.TRUNCATION_WARNING) {
       showToastRef.current(title, message, 'info');
       lastTruncationToast.current[type] = now;
     }
   }, []);
 
-  // Debouncing for connection error notifications (max once per 30 seconds)
-  const lastConnectionErrorToast = useRef<number>(0);
-  const notifyConnectionError = useCallback(() => {
-    const now = Date.now();
-    const lastShown = lastConnectionErrorToast.current;
-    // Only show connection error toast once per 30 seconds to avoid spam
-    if (now - lastShown > 30000) {
+  // Debounced connection error notification (max once per 30 seconds)
+  const notifyConnectionError = useDebouncedNotification(
+    useCallback(() => {
       showToastRef.current(
         'Connection Error',
         'Failed to connect to server. Will retry automatically.',
         'error',
       );
-      lastConnectionErrorToast.current = now;
-    }
-  }, []);
+    }, []),
+    DEBOUNCE_WINDOWS.CONNECTION_ERROR,
+  );
 
   useEffect(() => {
     // Check if socket already exists in store (persists across navigation)
@@ -120,7 +123,6 @@ export function useWebSocket(): UseWebSocketReturn {
         );
         return;
       }
-    } else {
     }
 
     // Define all handlers as named functions for proper cleanup
