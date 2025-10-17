@@ -9,7 +9,7 @@ interface LogViewerProps {
 
 export function LogViewer({ logs }: LogViewerProps) {
   const [autoScroll, setAutoScroll] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'info' | 'warn' | 'error'>('all');
+  const [filter, setFilter] = useState<'all' | 'command' | 'info' | 'warn' | 'error'>('all');
   const logContainerRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when new logs arrive
@@ -46,6 +46,13 @@ export function LogViewer({ logs }: LogViewerProps) {
               className={`px-2 py-1 text-xs rounded ${filter === 'all' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700'}`}
             >
               All
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilter('command')}
+              className={`px-2 py-1 text-xs rounded ${filter === 'command' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+            >
+              Commands
             </button>
             <button
               type="button"

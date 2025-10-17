@@ -276,6 +276,27 @@ describe('DockerService', () => {
       );
     });
 
+    it('should emit command log before executing npm install', async () => {
+      const sessionId = 'install-cmd-test';
+      await dockerService.createContainer(sessionId, '/tmp/test-app');
+
+      const logHandler = vi.fn();
+      dockerService.on('log', logHandler);
+
+      await dockerService.installDependencies(sessionId);
+
+      // Verify command log was emitted
+      expect(logHandler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sessionId,
+          level: 'command',
+          message: '$ npm install',
+          type: 'stdout',
+          timestamp: expect.any(Number),
+        }),
+      );
+    });
+
     it('should throw error if container not found', async () => {
       await expect(dockerService.installDependencies('non-existent')).rejects.toThrow(
         'Container not found',
@@ -335,6 +356,30 @@ describe('DockerService', () => {
         expect.objectContaining({
           Cmd: ['npm', 'run', 'dev', '--', '--host', '0.0.0.0', '--port', '5173'],
           WorkingDir: '/app',
+        }),
+      );
+    });
+
+    it('should emit command log before starting dev server', async () => {
+      const sessionId = 'dev-cmd-test';
+      await dockerService.createContainer(sessionId, '/tmp/test-app');
+
+      const logHandler = vi.fn();
+      dockerService.on('log', logHandler);
+
+      // Mock waiting for ready (to avoid actual timeout)
+      vi.spyOn(dockerService as any, 'waitForReady').mockResolvedValueOnce(undefined);
+
+      await dockerService.startDevServer(sessionId);
+
+      // Verify command log was emitted
+      expect(logHandler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sessionId,
+          level: 'command',
+          message: '$ npm run dev -- --host 0.0.0.0 --port 5173',
+          type: 'stdout',
+          timestamp: expect.any(Number),
         }),
       );
     });

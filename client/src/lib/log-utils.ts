@@ -9,11 +9,12 @@ import type { AppLog } from '@gen-fullstack/shared';
 /**
  * Get Tailwind color classes for a log level
  *
- * @param level - Log level (info, warn, error)
+ * @param level - Log level (info, warn, error, command)
  * @returns Tailwind color class string
  *
  * @example
  * getLevelColor('error') // "text-red-600"
+ * getLevelColor('command') // "text-purple-400"
  * getLevelColor('info') // "text-blue-600"
  */
 export function getLevelColor(level: AppLog['level']): string {
@@ -22,6 +23,8 @@ export function getLevelColor(level: AppLog['level']): string {
       return 'text-red-600';
     case 'warn':
       return 'text-yellow-600';
+    case 'command':
+      return 'text-purple-400';
     default:
       return 'text-blue-600';
   }
@@ -35,6 +38,7 @@ export function getLevelColor(level: AppLog['level']): string {
  *
  * @example
  * getLevelLabel('error') // "ERROR"
+ * getLevelLabel('command') // "CMD"
  * getLevelLabel('info') // "INFO"
  */
 export function getLevelLabel(level: AppLog['level']): string {
@@ -43,6 +47,8 @@ export function getLevelLabel(level: AppLog['level']): string {
       return 'ERROR';
     case 'warn':
       return 'WARN';
+    case 'command':
+      return 'CMD';
     default:
       return 'INFO';
   }

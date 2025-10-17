@@ -105,7 +105,7 @@ export interface AppLog {
   sessionId: string;
   timestamp: number;
   type: 'stdout' | 'stderr';
-  level: 'info' | 'warn' | 'error';
+  level: 'info' | 'warn' | 'error' | 'command';
   message: string;
 }
 

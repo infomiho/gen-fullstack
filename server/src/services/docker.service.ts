@@ -233,8 +233,24 @@ export class DockerService extends EventEmitter {
     // Emit log event
     this.emit('log', log);
 
-    // Check for build events
-    this.parseBuildEvents(sessionId, log.message);
+    // Check for build events (skip for command logs)
+    if (log.level !== 'command') {
+      this.parseBuildEvents(sessionId, log.message);
+    }
+  }
+
+  /**
+   * Emit a command log entry (shown before command execution)
+   */
+  private emitCommandLog(sessionId: string, command: string): void {
+    const log: AppLog = {
+      sessionId,
+      timestamp: Date.now(),
+      type: 'stdout',
+      level: 'command',
+      message: command,
+    };
+    this.storeLogEntry(sessionId, log);
   }
 
   /**
@@ -667,6 +683,9 @@ export class DockerService extends EventEmitter {
       containerInfo.status = 'installing';
       this.emit('status_change', { sessionId, status: 'installing' });
 
+      // Emit command log before execution
+      this.emitCommandLog(sessionId, '$ npm install');
+
       const exec = await containerInfo.container.exec({
         Cmd: ['npm', 'install'],
         AttachStdout: true,
@@ -724,6 +743,9 @@ export class DockerService extends EventEmitter {
     try {
       containerInfo.status = 'starting';
       this.emit('status_change', { sessionId, status: 'starting' });
+
+      // Emit command log before execution
+      this.emitCommandLog(sessionId, '$ npm run dev -- --host 0.0.0.0 --port 5173');
 
       const exec = await containerInfo.container.exec({
         Cmd: ['npm', 'run', 'dev', '--', '--host', '0.0.0.0', '--port', '5173'],

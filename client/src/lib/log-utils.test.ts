@@ -14,6 +14,11 @@ describe('log-utils', () => {
       expect(result).toBe('text-yellow-600');
     });
 
+    it('returns purple for command level', () => {
+      const result = getLevelColor('command');
+      expect(result).toBe('text-purple-400');
+    });
+
     it('returns blue for info level', () => {
       const result = getLevelColor('info');
       expect(result).toBe('text-blue-600');
@@ -31,6 +36,11 @@ describe('log-utils', () => {
       expect(result).toBe('WARN');
     });
 
+    it('returns "CMD" for command level', () => {
+      const result = getLevelLabel('command');
+      expect(result).toBe('CMD');
+    });
+
     it('returns "INFO" for info level', () => {
       const result = getLevelLabel('info');
       expect(result).toBe('INFO');
@@ -42,6 +52,13 @@ describe('log-utils', () => {
       {
         sessionId: 'test-123',
         timestamp: 1000,
+        type: 'stdout',
+        level: 'command',
+        message: '$ npm install',
+      },
+      {
+        sessionId: 'test-123',
+        timestamp: 1500,
         type: 'stdout',
         level: 'info',
         message: 'Starting server',
@@ -71,8 +88,15 @@ describe('log-utils', () => {
 
     it('returns all logs when level filter is null and search is empty', () => {
       const result = filterLogs(sampleLogs, null, '');
-      expect(result).toHaveLength(4);
+      expect(result).toHaveLength(5);
       expect(result).toEqual(sampleLogs);
+    });
+
+    it('filters by command level', () => {
+      const result = filterLogs(sampleLogs, 'command', '');
+      expect(result).toHaveLength(1);
+      expect(result[0].level).toBe('command');
+      expect(result[0].message).toBe('$ npm install');
     });
 
     it('filters by error level', () => {
@@ -124,7 +148,7 @@ describe('log-utils', () => {
 
     it('returns all logs when level is null', () => {
       const result = filterLogs(sampleLogs, null, '');
-      expect(result).toHaveLength(4);
+      expect(result).toHaveLength(5);
     });
 
     it('filters partial text matches', () => {
