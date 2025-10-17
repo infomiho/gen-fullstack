@@ -48,7 +48,6 @@ function isValidSocketPath(socketPath: string): boolean {
 
     return true;
   } catch (_error) {
-    // Path doesn't exist or can't be accessed
     return false;
   }
 }
@@ -147,7 +146,6 @@ async function retryOnConflict<T>(operation: () => Promise<T>, operationName: st
     } catch (error) {
       lastError = error as Error;
 
-      // Check if it's a 409 conflict error
       const is409 =
         error &&
         typeof error === 'object' &&
@@ -155,11 +153,9 @@ async function retryOnConflict<T>(operation: () => Promise<T>, operationName: st
         (error as { statusCode: number }).statusCode === 409;
 
       if (!is409 || attempt === RETRY_CONFIG.maxAttempts) {
-        // Not a conflict or last attempt - throw immediately
         throw error;
       }
 
-      // Wait before retrying with exponential backoff
       const delay = RETRY_CONFIG.delayMs * RETRY_CONFIG.backoffMultiplier ** (attempt - 1);
       console.log(
         `[Docker] ${operationName} failed with 409 conflict, retrying in ${delay}ms (attempt ${attempt}/${RETRY_CONFIG.maxAttempts})`,
@@ -168,7 +164,6 @@ async function retryOnConflict<T>(operation: () => Promise<T>, operationName: st
     }
   }
 
-  // Should never reach here, but TypeScript needs it
   throw (
     lastError || new Error(`${operationName} failed after ${RETRY_CONFIG.maxAttempts} attempts`)
   );
@@ -230,10 +225,8 @@ export class DockerService extends EventEmitter {
       }
     }
 
-    // Emit log event
     this.emit('log', log);
 
-    // Check for build events (skip for command logs)
     if (log.level !== 'command') {
       this.parseBuildEvents(sessionId, log.message);
     }
@@ -262,7 +255,6 @@ export class DockerService extends EventEmitter {
     }
 
     try {
-      // Check if image already exists
       const images = await docker.listImages();
       const imageExists = images.some((img) => img.RepoTags?.includes(`${RUNNER_IMAGE}:latest`));
 
@@ -274,7 +266,6 @@ export class DockerService extends EventEmitter {
 
       console.log(`[Docker] Building runner image ${RUNNER_IMAGE}...`);
 
-      // Build image from Dockerfile
       const stream = await docker.buildImage(
         {
           context: path.dirname(DOCKERFILE_PATH),
@@ -286,7 +277,6 @@ export class DockerService extends EventEmitter {
         },
       );
 
-      // Wait for build to complete
       await new Promise((resolve, reject) => {
         docker.modem.followProgress(
           stream,
@@ -327,7 +317,6 @@ export class DockerService extends EventEmitter {
     try {
       console.log('[Docker] Cleaning up orphaned containers...');
 
-      // List all containers with gen- prefix
       const containers = await docker.listContainers({ all: true });
       const orphanedContainers = containers.filter((c) =>
         c.Names.some((name) => name.startsWith('/gen-')),
@@ -340,15 +329,12 @@ export class DockerService extends EventEmitter {
 
       console.log(`[Docker] Found ${orphanedContainers.length} orphaned containers, removing...`);
 
-      // Remove all orphaned containers
       const promises = orphanedContainers.map(async (c) => {
         const container = docker.getContainer(c.Id);
         try {
-          // Stop if running
           if (c.State === 'running') {
             await container.stop({ t: 5 });
           }
-          // Remove
           await container.remove({ force: true });
           console.log(`[Docker] Removed orphaned container: ${c.Names[0]}`);
         } catch (error) {
@@ -360,7 +346,6 @@ export class DockerService extends EventEmitter {
       console.log('[Docker] Orphaned container cleanup complete');
     } catch (error) {
       console.error('[Docker] Failed to cleanup orphaned containers:', error);
-      // Don't throw - this is not critical for startup
     }
   }
 
@@ -384,7 +369,6 @@ export class DockerService extends EventEmitter {
     try {
       const containerName = `gen-${sessionId}`;
 
-      // Check if container exists in Docker
       const containers = await docker.listContainers({ all: true });
       const existingContainer = containers.find((c) => c.Names.includes(`/${containerName}`));
 
@@ -392,19 +376,15 @@ export class DockerService extends EventEmitter {
         console.log(`[Docker] Found existing container ${containerName}, removing...`);
         const container = docker.getContainer(existingContainer.Id);
 
-        // Stop if running (with retry for 409 conflicts)
         if (existingContainer.State === 'running') {
           try {
             await retryOnConflict(
               () => container.stop({ t: 5 }),
               `Stop container ${containerName}`,
             );
-          } catch (_error) {
-            // Ignore stop errors, we'll force remove anyway
-          }
+          } catch (_error) {}
         }
 
-        // Remove container (with retry for 409 conflicts)
         await retryOnConflict(
           () => container.remove({ force: true }),
           `Remove container ${containerName}`,
@@ -413,7 +393,6 @@ export class DockerService extends EventEmitter {
       }
     } catch (error) {
       console.error('[Docker] Failed to cleanup existing container:', error);
-      // Don't throw - let createContainer fail if there's still a conflict
     }
   }
 
@@ -422,16 +401,11 @@ export class DockerService extends EventEmitter {
    */
   async createContainer(sessionId: string, workingDir: string): Promise<AppInfo> {
     try {
-      // Ensure runner image is built
       await this.buildRunnerImage();
-
-      // Clean up any existing container with this name
       await this.cleanupExistingContainer(sessionId);
 
-      // Find available port (start at 5001 to avoid macOS AirPlay on 5000)
       const hostPort = await this.findAvailablePort(5001, 5100);
 
-      // Container configuration
       const containerOpts: ContainerCreateOptions = {
         Image: RUNNER_IMAGE,
         name: `gen-${sessionId}`,
@@ -459,14 +433,11 @@ export class DockerService extends EventEmitter {
         Env: ['NODE_ENV=development', 'PORT=5173'],
       };
 
-      // Create container
       const container = await docker.createContainer(containerOpts);
       const containerId = container.id;
 
-      // Start container
       await container.start();
 
-      // Store container info
       const containerInfo: ContainerInfo = {
         sessionId,
         containerId,
@@ -479,10 +450,7 @@ export class DockerService extends EventEmitter {
 
       this.containers.set(sessionId, containerInfo);
 
-      // Set up log streaming
       this.setupLogStream(sessionId, container);
-
-      // Set up auto-cleanup timeout
       this.setupAutoCleanup(sessionId);
 
       return {
@@ -521,26 +489,21 @@ export class DockerService extends EventEmitter {
       const dataHandler = (chunk: Buffer) => {
         buffer = Buffer.concat([buffer, chunk]);
 
-        // Process complete frames
         while (buffer.length >= 8) {
           const messageSize = buffer.readUInt32BE(4);
 
-          // Check if we have the complete message
           if (buffer.length < 8 + messageSize) {
-            break; // Wait for more data
+            break;
           }
 
-          // Extract and process message
           const streamType = buffer[0]; // 1=stdout, 2=stderr
           const messageBuffer = buffer.slice(8, 8 + messageSize);
           const message = messageBuffer.toString('utf8').trim();
 
-          // Advance buffer
           buffer = buffer.slice(8 + messageSize);
 
           if (!message) continue;
 
-          // Create and store log entry
           const log: AppLog = {
             sessionId,
             timestamp: Date.now(),
@@ -560,7 +523,6 @@ export class DockerService extends EventEmitter {
       stream.on('data', dataHandler);
       stream.on('error', errorHandler);
 
-      // Store cleanup function
       const containerInfo = this.containers.get(sessionId);
       if (containerInfo) {
         containerInfo.streamCleanup = () => {
@@ -622,26 +584,21 @@ export class DockerService extends EventEmitter {
     const dataHandler = (chunk: Buffer) => {
       buffer = Buffer.concat([buffer, chunk]);
 
-      // Process complete frames
       while (buffer.length >= 8) {
         const messageSize = buffer.readUInt32BE(4);
 
-        // Check if we have the complete message
         if (buffer.length < 8 + messageSize) {
-          break; // Wait for more data
+          break;
         }
 
-        // Extract and process message
         const streamType = buffer[0]; // 1=stdout, 2=stderr
         const messageBuffer = buffer.slice(8, 8 + messageSize);
         const message = messageBuffer.toString('utf8').trim();
 
-        // Advance buffer
         buffer = buffer.slice(8 + messageSize);
 
         if (!message) continue;
 
-        // Create and store log entry
         const log: AppLog = {
           sessionId,
           timestamp: Date.now(),
@@ -651,15 +608,12 @@ export class DockerService extends EventEmitter {
         };
 
         this.storeLogEntry(sessionId, log);
-
-        // Also log to console for debugging
         console.log(`[Docker:${sessionId}] ${message}`);
       }
     };
 
     stream.on('data', dataHandler);
 
-    // Return cleanup function
     return () => {
       stream.off('data', dataHandler);
       if (hasDestroyMethod(stream)) {
@@ -683,7 +637,6 @@ export class DockerService extends EventEmitter {
       containerInfo.status = 'installing';
       this.emit('status_change', { sessionId, status: 'installing' });
 
-      // Emit command log before execution
       this.emitCommandLog(sessionId, '$ npm install');
 
       const exec = await containerInfo.container.exec({
@@ -695,10 +648,8 @@ export class DockerService extends EventEmitter {
 
       const stream = await exec.start({ Detach: false, Tty: false });
 
-      // Process stream output and get cleanup function
       cleanupStream = this.processExecStream(sessionId, stream);
 
-      // Wait for installation to complete (with timeout)
       await Promise.race([
         new Promise((resolve, reject) => {
           stream.on('end', resolve);
@@ -711,12 +662,10 @@ export class DockerService extends EventEmitter {
 
       console.log(`[Docker] Dependencies installed for ${sessionId}`);
 
-      // Clean up stream after completion
       if (cleanupStream) {
         cleanupStream();
       }
     } catch (error) {
-      // Clean up stream on error
       if (cleanupStream) {
         cleanupStream();
       }
@@ -744,7 +693,6 @@ export class DockerService extends EventEmitter {
       containerInfo.status = 'starting';
       this.emit('status_change', { sessionId, status: 'starting' });
 
-      // Emit command log before execution
       this.emitCommandLog(sessionId, '$ npm run dev -- --host 0.0.0.0 --port 5173');
 
       const exec = await containerInfo.container.exec({
@@ -757,16 +705,12 @@ export class DockerService extends EventEmitter {
       // Start the dev server - DON'T detach so we can capture output
       const stream = await exec.start({ Detach: false, Tty: false });
 
-      // Process stream output continuously and store cleanup function
-      // This prevents memory leaks on restart by properly cleaning up event listeners
       containerInfo.devServerStreamCleanup = this.processExecStream(sessionId, stream);
 
       console.log(`[Docker] Dev server starting for ${sessionId}`);
 
-      // Wait for server to be ready (check logs for "ready" message)
       await this.waitForReady(sessionId, TIMEOUTS.start);
     } catch (error) {
-      // Cancel ready check interval if it exists
       if (containerInfo.readyCheckInterval) {
         clearInterval(containerInfo.readyCheckInterval);
         containerInfo.readyCheckInterval = undefined;
@@ -797,7 +741,6 @@ export class DockerService extends EventEmitter {
           return;
         }
 
-        // Check if "ready" message in logs
         const hasReadyMessage = containerInfo.logs.some(
           (log) => log.message.includes('ready') || log.message.includes('VITE'),
         );
@@ -809,7 +752,6 @@ export class DockerService extends EventEmitter {
           return;
         }
 
-        // Check timeout
         if (Date.now() - startTime > timeout) {
           clearInterval(checkInterval);
           containerInfo.readyCheckInterval = undefined;
@@ -817,7 +759,6 @@ export class DockerService extends EventEmitter {
         }
       }, 500);
 
-      // Store interval for cleanup
       const containerInfo = this.containers.get(sessionId);
       if (containerInfo) {
         containerInfo.readyCheckInterval = checkInterval;
@@ -839,7 +780,6 @@ export class DockerService extends EventEmitter {
       }
     }, TIMEOUTS.maxRuntime);
 
-    // Store timer for cancellation
     const containerInfo = this.containers.get(sessionId);
     if (containerInfo) {
       containerInfo.cleanupTimer = timer;
@@ -882,25 +822,21 @@ export class DockerService extends EventEmitter {
     }
 
     try {
-      // Cancel auto-cleanup timer
       if (containerInfo.cleanupTimer) {
         clearTimeout(containerInfo.cleanupTimer);
         containerInfo.cleanupTimer = undefined;
       }
 
-      // Cancel ready check interval
       if (containerInfo.readyCheckInterval) {
         clearInterval(containerInfo.readyCheckInterval);
         containerInfo.readyCheckInterval = undefined;
       }
 
-      // Clean up stream listeners
       if (containerInfo.streamCleanup) {
         containerInfo.streamCleanup();
         containerInfo.streamCleanup = undefined;
       }
 
-      // Clean up dev server stream listeners
       if (containerInfo.devServerStreamCleanup) {
         containerInfo.devServerStreamCleanup();
         containerInfo.devServerStreamCleanup = undefined;
@@ -909,7 +845,6 @@ export class DockerService extends EventEmitter {
       containerInfo.status = 'stopped';
       this.emit('status_change', { sessionId, status: 'stopped' });
 
-      // Stop container (with timeout and retry)
       await retryOnConflict(
         () =>
           Promise.race([
@@ -919,28 +854,23 @@ export class DockerService extends EventEmitter {
         `Stop container ${sessionId}`,
       );
 
-      // Remove container (with retry)
       await retryOnConflict(
         () => containerInfo.container.remove({ force: true }),
         `Remove container ${sessionId}`,
       );
 
-      // Remove from map
       this.containers.delete(sessionId);
 
       console.log(`[Docker] Container destroyed: ${sessionId}`);
     } catch (error) {
       console.error('[Docker] Failed to destroy container:', error);
-      // Force remove if stop failed
       try {
         await retryOnConflict(
           () => containerInfo.container.remove({ force: true }),
           `Force remove container ${sessionId}`,
         );
         this.containers.delete(sessionId);
-      } catch {
-        // Ignore errors on force remove
-      }
+      } catch {}
     }
   }
 
@@ -962,5 +892,4 @@ export class DockerService extends EventEmitter {
   }
 }
 
-// Export singleton instance
 export const dockerService = new DockerService();

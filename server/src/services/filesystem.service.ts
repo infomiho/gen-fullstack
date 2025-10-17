@@ -63,10 +63,8 @@ function validatePath(filePath: string, sessionId: string): void {
 export async function initializeSandbox(sessionId: string): Promise<string> {
   const sandboxPath = getSandboxPath(sessionId);
 
-  // Ensure base directory exists
   await fs.mkdir(GENERATED_BASE_DIR, { recursive: true });
 
-  // Create session sandbox directory
   await fs.mkdir(sandboxPath, { recursive: true });
 
   console.log(`[Filesystem] Initialized sandbox: ${sandboxPath}`);
@@ -91,11 +89,9 @@ export async function writeFile(
   const sandboxPath = getSandboxPath(sessionId);
   const fullPath = path.resolve(sandboxPath, filePath);
 
-  // Create directory if it doesn't exist
   const dir = path.dirname(fullPath);
   await fs.mkdir(dir, { recursive: true });
 
-  // Write file
   await fs.writeFile(fullPath, content, 'utf-8');
 
   const relativePath = path.relative(sandboxPath, fullPath);
@@ -178,7 +174,6 @@ export async function cleanupSandbox(sessionId: string): Promise<void> {
     console.log(`[Filesystem] Cleaned up sandbox: ${sandboxPath}`);
   } catch (error) {
     console.error(`[Filesystem] Failed to cleanup sandbox: ${error}`);
-    // Don't throw - cleanup failures shouldn't break the application
   }
 }
 

@@ -55,16 +55,13 @@ export interface CommandResult {
  * @throws Error if command is not whitelisted
  */
 function validateCommand(command: string): void {
-  // Check for empty or whitespace-only command
   const trimmed = command.trim();
   if (!trimmed) {
     throw new Error('Command cannot be empty');
   }
 
-  // Extract the base command (first word)
   const baseCommand = trimmed.split(/\s+/)[0];
 
-  // Check if base command is in whitelist
   const isWhitelisted = COMMAND_WHITELIST.some(
     (allowed) => baseCommand === allowed || baseCommand.startsWith(`${allowed}`),
   );
@@ -76,12 +73,10 @@ function validateCommand(command: string): void {
     );
   }
 
-  // Additional security checks
   if (command.includes('&&') || command.includes('||') || command.includes(';')) {
     throw new Error('Command chaining with &&, ||, or ; is not allowed for security reasons');
   }
 
-  // Check for command substitution and variable expansion
   if (command.includes('`') || command.includes('$(') || /\$[A-Za-z_]/.test(command)) {
     throw new Error(
       'Command substitution with `, $(), or $VAR is not allowed for security reasons',
@@ -123,10 +118,8 @@ export async function executeCommand(
 ): Promise<CommandResult> {
   const startTime = Date.now();
 
-  // Validate command
   validateCommand(command);
 
-  // Get sandbox directory
   const sandboxPath = getSandboxPath(sessionId);
 
   console.log(`[Command] Executing in ${sandboxPath}: ${command}`);
@@ -170,7 +163,6 @@ export async function executeCommand(
       message?: string;
     };
 
-    // Handle timeout
     if (err.killed && err.signal === 'SIGTERM') {
       console.error(`[Command] Timeout after ${timeoutMs}ms: ${command}`);
       return {
@@ -182,7 +174,6 @@ export async function executeCommand(
       };
     }
 
-    // Handle execution error
     console.error(`[Command] Failed (${executionTime}ms): ${command}`, err.message);
 
     return {

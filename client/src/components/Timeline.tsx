@@ -44,7 +44,6 @@ export function Timeline({ messages, toolCalls, toolResults }: TimelineProps) {
   // This state is lifted to Timeline to persist across re-renders
   const [openToolId, setOpenToolId] = useState<string | null>(null);
 
-  // Merge tool calls with their results
   const toolExecutions = useMemo(() => {
     const resultsMap = new Map<string, ToolResult>();
     toolResults.forEach((result) => {
@@ -65,7 +64,6 @@ export function Timeline({ messages, toolCalls, toolResults }: TimelineProps) {
     });
   }, [toolCalls, toolResults]);
 
-  // Create unified timeline
   const timeline = useMemo(() => {
     const items: TimelineItem[] = [];
 
@@ -207,7 +205,6 @@ function ToolItem({
           </Dialog.Description>
 
           <div className={spacing.controls}>
-            {/* Status */}
             <div className={`flex items-center gap-2 ${typography.body}`}>
               <span className="text-gray-500">Status:</span>
               <span
@@ -217,13 +214,11 @@ function ToolItem({
               </span>
             </div>
 
-            {/* Parameters */}
             <div>
               <h3 className={`${typography.label} mb-2`}>Parameters</h3>
               {renderToolParameters(tool.name, tool.args)}
             </div>
 
-            {/* Result */}
             {tool.isComplete && tool.result && (
               <div>
                 <h3 className={`${typography.label} mb-2`}>Result</h3>

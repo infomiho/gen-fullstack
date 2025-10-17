@@ -56,10 +56,8 @@ function sanitizeError(error: unknown): string {
     return 'Invalid input provided';
   }
 
-  // Log full error server-side for debugging
   console.error('[Error Details]:', error);
 
-  // Return generic message to client
   return 'An error occurred. Please try again.';
 }
 
@@ -71,7 +69,6 @@ export function setupWebSocket(httpServer: HTTPServer) {
     },
   });
 
-  // Rate limiter - allows BURST_SIZE requests per second per socket
   const rateLimiter = new RateLimiterMemory({
     points: RATE_LIMITS.BURST_SIZE, // Number of points
     duration: 1, // Per second
@@ -112,7 +109,6 @@ export function setupWebSocket(httpServer: HTTPServer) {
   io.on('connection', (socket) => {
     console.log('Client connected:', socket.id);
 
-    // Allow clients to subscribe to an existing session's updates
     socket.on('subscribe_to_session', (payload) => {
       try {
         const { sessionId } = SubscribeSessionSchema.parse(payload);
@@ -125,18 +121,14 @@ export function setupWebSocket(httpServer: HTTPServer) {
 
     socket.on('start_generation', async (payload) => {
       try {
-        // Validate payload with Zod
         const validated = StartGenerationSchema.parse(payload);
         console.log('Starting generation with strategy:', validated.strategy);
 
-        // Generate a unique session ID (independent of socket ID)
         const sessionId = uuidv4();
 
-        // Have this socket join the room for this session
         socket.join(sessionId);
         console.log(`Socket ${socket.id} joined session room: ${sessionId}`);
 
-        // Create session in database
         await databaseService.createSession({
           id: sessionId,
           prompt: validated.prompt,
@@ -144,10 +136,8 @@ export function setupWebSocket(httpServer: HTTPServer) {
           status: 'generating',
         });
 
-        // Emit session started event so client can track the session ID
         socket.emit('session_started', { sessionId });
 
-        // Instantiate strategy based on user selection
         let strategy: NaiveStrategy | PlanFirstStrategy;
         switch (validated.strategy) {
           case 'naive':
@@ -167,7 +157,6 @@ export function setupWebSocket(httpServer: HTTPServer) {
             throw new Error(`Unknown strategy: ${validated.strategy}`);
         }
 
-        // Generate app using the selected strategy, passing io for room-based broadcasting
         await strategy.generateApp(validated.prompt, io, sessionId);
       } catch (error) {
         console.error('Generation error:', error);
@@ -180,13 +169,11 @@ export function setupWebSocket(httpServer: HTTPServer) {
       // TODO: Implement stop logic
     });
 
-    // App execution handlers
     socket.on('start_app', async (payload) => {
       try {
         const { sessionId } = AppActionSchema.parse(payload);
         console.log(`[WebSocket] Starting app for session: ${sessionId}`);
 
-        // Check Docker availability first
         const dockerAvailable = await processService.checkDockerAvailability();
         if (!dockerAvailable) {
           socket.emit('error', 'Docker is not available. Cannot start app.');
@@ -198,7 +185,6 @@ export function setupWebSocket(httpServer: HTTPServer) {
           return;
         }
 
-        // Use filesystem service to get safe sandbox path
         const workingDir = getSandboxPath(sessionId);
 
         await processService.startApp(sessionId, workingDir);
@@ -230,7 +216,6 @@ export function setupWebSocket(httpServer: HTTPServer) {
       }
     });
 
-    // Get current app status for a session
     socket.on('get_app_status', (payload) => {
       try {
         const { sessionId } = AppActionSchema.parse(payload);
@@ -257,9 +242,7 @@ export function setupWebSocket(httpServer: HTTPServer) {
       }
     });
 
-    // Save file handler
     socket.on('save_file', async (payload) => {
-      // Check rate limit
       if (!(await checkRateLimit(socket.id))) {
         socket.emit('error', 'Too many requests. Please slow down.');
         return;
@@ -269,17 +252,14 @@ export function setupWebSocket(httpServer: HTTPServer) {
         const { sessionId, path: filePath, content } = SaveFileSchema.parse(payload);
         console.log(`[WebSocket] Saving file ${filePath} for session: ${sessionId}`);
 
-        // Write file to disk using filesystem service (already sanitizes paths)
         await writeFile(sessionId, filePath, content);
 
-        // Update file in database
         await databaseService.saveFile({
           sessionId,
           path: filePath,
           content,
         });
 
-        // Emit file_updated event to all clients in the session room
         io.to(sessionId).emit('file_updated', { path: filePath, content });
 
         console.log(`[WebSocket] File ${filePath} saved successfully`);

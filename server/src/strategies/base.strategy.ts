@@ -100,7 +100,6 @@ export abstract class BaseStrategy {
       this.currentMessageRole = role;
     }
 
-    // Broadcast to all clients in the session room
     if (this.sessionId && this.currentMessageId) {
       io.to(this.sessionId).emit('llm_message', {
         id: this.currentMessageId,
@@ -110,8 +109,6 @@ export abstract class BaseStrategy {
       });
     }
 
-    // Persist to database using upsert (async, don't await to not block)
-    // This accumulates streaming chunks with the same messageId
     if (this.sessionId && this.currentMessageId) {
       databaseService
         .upsertMessage(this.sessionId, this.currentMessageId, role, content, new Date(timestamp))
@@ -135,11 +132,9 @@ export abstract class BaseStrategy {
   ): void {
     const timestamp = Date.now();
 
-    // Reset message accumulation - tool calls break message continuity
     this.currentMessageId = null;
     this.currentMessageRole = null;
 
-    // Broadcast to all clients in the session room
     if (this.sessionId) {
       io.to(this.sessionId).emit('tool_call', {
         id: toolCallId,
@@ -181,7 +176,6 @@ export abstract class BaseStrategy {
     const timestamp = Date.now();
     const resultId = `result-${toolCallId}`;
 
-    // Broadcast to all clients in the session room
     if (this.sessionId) {
       io.to(this.sessionId).emit('tool_result', {
         id: resultId,
@@ -218,7 +212,6 @@ export abstract class BaseStrategy {
     io: SocketIOServer<ClientToServerEvents, ServerToClientEvents>,
     metrics: GenerationMetrics,
   ): void {
-    // Broadcast to all clients in the session room
     if (this.sessionId) {
       io.to(this.sessionId).emit('generation_complete', {
         strategy: this.getName(),
@@ -227,7 +220,6 @@ export abstract class BaseStrategy {
       });
     }
 
-    // Update session in database with final metrics
     if (this.sessionId) {
       databaseService
         .updateSession(this.sessionId, {
@@ -256,14 +248,12 @@ export abstract class BaseStrategy {
   ): void {
     const message = error instanceof Error ? error.message : error;
 
-    // Broadcast to all clients in the session room
     if (this.sessionId) {
       io.to(this.sessionId).emit('error', message);
     }
 
     console.error(`[${this.getName()}] Error:`, error);
 
-    // Update session as failed in database
     if (this.sessionId) {
       databaseService
         .updateSession(this.sessionId, {
@@ -347,7 +337,6 @@ export abstract class BaseStrategy {
         this.emitToolCall(io, toolCall.toolCallId, toolCall.toolName, toolInput);
       }
 
-      // Emit tool results
       for (const toolResult of toolResults) {
         const result =
           typeof toolResult.output === 'string'
