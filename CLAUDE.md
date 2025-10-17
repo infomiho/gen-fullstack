@@ -327,7 +327,58 @@ pnpm format
 
 # Build for production
 pnpm build
+
+# Clean up old generations (disk + database)
+cd server && pnpm exec tsx ../scripts/cleanup-generations.ts
 ```
+
+## Maintenance
+
+### Cleanup Script
+
+The project includes a cleanup script to remove old generated applications and reset the database:
+
+**Location**: `scripts/cleanup-generations.ts`
+
+**Usage**:
+```bash
+cd server && pnpm exec tsx ../scripts/cleanup-generations.ts
+```
+
+**What it does**:
+1. **Database Cleanup**:
+   - Deletes all sessions from the database
+   - Cascade deletes all related timeline items and files
+   - Shows progress for each deleted session
+
+2. **Disk Cleanup**:
+   - Removes all generated application directories from `generated/`
+   - Preserves `.gitkeep` file for Git tracking
+   - Reports freed disk space (typically ~50-100MB per app)
+
+**Example Output**:
+```
+🧹 Starting cleanup...
+
+📊 Cleaning up database...
+   Found 7 sessions in database
+   ✓ Deleted session: 00cfa079... (Drawing game - one person draws, another guesses...)
+   ✅ Database cleaned (7 sessions removed)
+
+💾 Cleaning up disk...
+   ✓ Removed: 00cfa079-5818-400c-b1a5-40c0d4524fc0 (80.94 MB)
+   ✅ Disk cleaned (16 directories removed, 988.59 MB freed)
+
+✨ Cleanup complete!
+```
+
+**When to use**:
+- Before long development sessions to free up disk space
+- After testing multiple app generations
+- When the `generated/` directory becomes too large (>1GB)
+- To reset the database for fresh testing
+
+**Note**: The database will be automatically re-initialized with the proper schema when the server starts next time.
 
 ## Environment Variables
 
@@ -379,7 +430,7 @@ Client hook (`useWebSocket.ts`) manages:
 
 ## Known Limitations
 
-1. No persistence - all data lost on page refresh
+1. Limited persistence - database stores sessions/timeline/files but UI state is lost on page refresh (no session restoration UI yet)
 2. Single active generation at a time
 3. File viewer uses client-side syntax highlighting (limited language support)
 4. No authentication or multi-user support
@@ -389,10 +440,12 @@ Client hook (`useWebSocket.ts`) manages:
    - No WebContainer fallback for browser-based execution (future consideration)
 6. Generated apps use SQLite (simple but not production-ready for concurrent access)
 7. No automatic code formatting/linting in generated apps
+8. Manual cleanup required - use cleanup script to free disk space (no automatic retention policy)
 
 ## Future Considerations
 
-- Add generation history/persistence
+- Complete session persistence (UI for browsing/restoring previous sessions)
+- Automatic cleanup with configurable retention policies (e.g., delete generations older than 7 days)
 - Implement streaming for large file outputs
 - Add diff view for file changes
 - Support for multiple concurrent generations
