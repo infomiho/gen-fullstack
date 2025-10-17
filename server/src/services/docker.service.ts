@@ -539,6 +539,28 @@ export class DockerService extends EventEmitter {
   }
 
   /**
+   * Check if HTTP server is actually ready to accept connections
+   */
+  private async checkHttpReady(port: number, maxAttempts = 10): Promise<boolean> {
+    for (let i = 0; i < maxAttempts; i++) {
+      try {
+        const response = await fetch(`http://localhost:${port}`, {
+          method: 'HEAD',
+          signal: AbortSignal.timeout(1000),
+        });
+        // Any response (even 404) means the server is listening
+        if (response) {
+          return true;
+        }
+      } catch (_error) {
+        // Server not ready yet, wait and retry
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+    }
+    return false;
+  }
+
+  /**
    * Parse build events from logs
    */
   private parseBuildEvents(sessionId: string, message: string): void {
@@ -551,13 +573,31 @@ export class DockerService extends EventEmitter {
       };
       this.emit('build_event', event);
 
-      // Update container status
+      // Update container status to running after HTTP readiness check
       const containerInfo = this.containers.get(sessionId);
-      if (containerInfo) {
-        containerInfo.status = 'running';
-        this.emit('status_change', {
-          sessionId,
-          status: 'running',
+      if (containerInfo && containerInfo.status !== 'running') {
+        // Run readiness check in background to avoid blocking log processing
+        this.checkHttpReady(containerInfo.port).then((ready) => {
+          if (ready && containerInfo.status !== 'running') {
+            containerInfo.status = 'running';
+            this.emit('status_change', {
+              sessionId,
+              status: 'running',
+            });
+            console.log(
+              `[Docker] HTTP server ready for ${sessionId} on port ${containerInfo.port}`,
+            );
+          } else if (!ready) {
+            console.warn(
+              `[Docker] HTTP readiness check failed for ${sessionId}, but VITE reported ready`,
+            );
+            // Still mark as running since VITE said it's ready
+            containerInfo.status = 'running';
+            this.emit('status_change', {
+              sessionId,
+              status: 'running',
+            });
+          }
         });
       }
     }
