@@ -1,7 +1,10 @@
 import type { AppLog } from '@gen-fullstack/shared';
+import { PackageOpen } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { radius, spacing, typography } from '../lib/design-tokens';
 import { getLevelColor, getLevelLabel } from '../lib/log-utils';
+import { EmptyState } from './EmptyState';
+import { FilterButton } from './FilterButton';
 
 interface LogViewerProps {
   logs: AppLog[];
@@ -42,48 +45,41 @@ export function LogViewer({ logs }: LogViewerProps) {
         <div className="flex items-center gap-2">
           {/* Filter Buttons */}
           <div className="flex gap-1">
-            <button
-              type="button"
+            <FilterButton
+              label="All"
+              isActive={filter === 'all'}
               onClick={() => setFilter('all')}
-              className={`px-2 py-1 text-xs rounded ${filter === 'all' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700'}`}
-            >
-              All
-            </button>
-            <button
-              type="button"
+            />
+            <FilterButton
+              label="Commands"
+              isActive={filter === 'command'}
               onClick={() => setFilter('command')}
-              className={`px-2 py-1 text-xs rounded ${filter === 'command' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700'}`}
-            >
-              Commands
-            </button>
-            <button
-              type="button"
+              variant="purple"
+            />
+            <FilterButton
+              label="System"
+              isActive={filter === 'system'}
               onClick={() => setFilter('system')}
-              className={`px-2 py-1 text-xs rounded ${filter === 'system' ? 'bg-yellow-600 text-white' : 'bg-gray-100 text-gray-700'}`}
-            >
-              System
-            </button>
-            <button
-              type="button"
+              variant="yellow"
+            />
+            <FilterButton
+              label="Info"
+              isActive={filter === 'info'}
               onClick={() => setFilter('info')}
-              className={`px-2 py-1 text-xs rounded ${filter === 'info' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
-            >
-              Info
-            </button>
-            <button
-              type="button"
+              variant="blue"
+            />
+            <FilterButton
+              label="Warn"
+              isActive={filter === 'warn'}
               onClick={() => setFilter('warn')}
-              className={`px-2 py-1 text-xs rounded ${filter === 'warn' ? 'bg-amber-600 text-white' : 'bg-gray-100 text-gray-700'}`}
-            >
-              Warn
-            </button>
-            <button
-              type="button"
+              variant="amber"
+            />
+            <FilterButton
+              label="Error"
+              isActive={filter === 'error'}
               onClick={() => setFilter('error')}
-              className={`px-2 py-1 text-xs rounded ${filter === 'error' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-700'}`}
-            >
-              Error
-            </button>
+              variant="red"
+            />
           </div>
 
           {/* Auto-scroll Toggle */}
@@ -106,9 +102,13 @@ export function LogViewer({ logs }: LogViewerProps) {
         style={{ height: '400px' }}
       >
         {filteredLogs.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-gray-400">
-            {logs.length === 0 ? 'No logs yet' : 'No logs match the selected filter'}
-          </div>
+          <EmptyState
+            icon={logs.length === 0 ? <PackageOpen size={48} /> : undefined}
+            title={logs.length === 0 ? 'No logs yet' : 'No logs match the selected filter'}
+            description={
+              logs.length === 0 ? 'Container logs will appear here when the app starts' : undefined
+            }
+          />
         ) : (
           <div className="p-3 space-y-1">
             {filteredLogs.map((log, index) => (

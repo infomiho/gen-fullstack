@@ -13,6 +13,7 @@ import {
 } from '../lib/design-tokens';
 import { formatTimestamp } from '../lib/time-utils';
 import { getToolSummary, renderToolParameters } from '../lib/tool-utils';
+import { EmptyState } from './EmptyState';
 
 interface TimelineProps {
   messages: LLMMessage[];
@@ -91,12 +92,11 @@ export function Timeline({ messages, toolCalls, toolResults }: TimelineProps) {
 
   if (timeline.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center text-gray-400">
-        <div className="text-center">
-          <Bot size={48} className="mx-auto mb-4 opacity-50" />
-          <p>No activity yet. Start generating to see LLM interactions...</p>
-        </div>
-      </div>
+      <EmptyState
+        icon={<Bot size={48} />}
+        title="No activity yet"
+        description="Start generating to see LLM interactions..."
+      />
     );
   }
 

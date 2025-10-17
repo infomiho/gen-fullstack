@@ -1,5 +1,8 @@
 import type { ToolCall, ToolResult } from '@gen-fullstack/shared';
 import { useMemo } from 'react';
+import { EmptyState } from './EmptyState';
+import { renderToolParameters } from '../lib/tool-utils';
+import { Wrench } from 'lucide-react';
 
 interface ToolCallDisplayProps {
   toolCalls: ToolCall[];
@@ -49,7 +52,13 @@ export function ToolCallDisplay({ toolCalls, toolResults }: ToolCallDisplayProps
   }, [toolCalls, toolResults]);
 
   if (mergedExecutions.length === 0) {
-    return <div className="text-center py-12 text-gray-400 text-sm">No tool calls yet</div>;
+    return (
+      <EmptyState
+        icon={<Wrench size={48} />}
+        title="No tool calls yet"
+        description="Tool executions will appear here during generation"
+      />
+    );
   }
 
   return (
@@ -84,7 +93,7 @@ export function ToolCallDisplay({ toolCalls, toolResults }: ToolCallDisplayProps
               <div className="mt-2 pt-2 border-t border-gray-100">
                 <div className="text-xs text-gray-500 mb-1">Result:</div>
                 <pre className="bg-gray-50 p-2 rounded border border-gray-200 overflow-x-auto text-xs max-h-48 overflow-y-auto font-mono">
-                  {truncate(execution.result, 800)}
+                  {truncateResult(execution.result, 800)}
                 </pre>
               </div>
             )}
@@ -96,86 +105,10 @@ export function ToolCallDisplay({ toolCalls, toolResults }: ToolCallDisplayProps
 }
 
 /**
- * Render tool parameters with custom formatting based on tool type
- */
-function renderToolParameters(toolName: string, args: Record<string, unknown> | undefined) {
-  // Handle undefined args
-  if (!args) {
-    return <div className="text-xs text-gray-400">Loading...</div>;
-  }
-
-  // Custom formatting for writeFile
-  if (toolName === 'writeFile') {
-    const { path, content } = args as { path?: string; content?: string };
-    return (
-      <div className="text-xs space-y-1.5">
-        {path && (
-          <div className="flex gap-2">
-            <span className="text-gray-500 min-w-[40px]">path:</span>
-            <span className="font-mono text-gray-700 flex-1">{path}</span>
-          </div>
-        )}
-        {content && (
-          <div>
-            <div className="text-gray-500 mb-1">content:</div>
-            <pre className="bg-gray-50 p-2 rounded border border-gray-200 overflow-x-auto text-xs max-h-32 overflow-y-auto font-mono text-gray-700">
-              {truncate(content, 500)}
-            </pre>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // Custom formatting for readFile
-  if (toolName === 'readFile') {
-    const { path } = args as { path?: string };
-    return (
-      <div className="text-xs flex gap-2">
-        <span className="text-gray-500 min-w-[40px]">path:</span>
-        <span className="font-mono text-gray-700">{path || 'unknown'}</span>
-      </div>
-    );
-  }
-
-  // Custom formatting for listFiles
-  if (toolName === 'listFiles') {
-    const { directory } = args as { directory?: string };
-    return (
-      <div className="text-xs flex gap-2">
-        <span className="text-gray-500 min-w-[40px]">dir:</span>
-        <span className="font-mono text-gray-700">{directory || '.'}</span>
-      </div>
-    );
-  }
-
-  // Custom formatting for executeCommand
-  if (toolName === 'executeCommand') {
-    const { command } = args as { command?: string };
-    return (
-      <div className="text-xs">
-        <div className="text-gray-500 mb-1">command:</div>
-        <pre className="bg-gray-50 p-2 rounded border border-gray-200 overflow-x-auto text-xs font-mono text-gray-700">
-          {command || 'unknown'}
-        </pre>
-      </div>
-    );
-  }
-
-  // Default: show raw JSON for unknown tools
-  return (
-    <div className="text-xs">
-      <pre className="bg-gray-50 p-2 rounded border border-gray-200 overflow-x-auto font-mono text-gray-700">
-        {JSON.stringify(args, null, 2)}
-      </pre>
-    </div>
-  );
-}
-
-/**
  * Truncate long strings for display
+ * Tries to truncate at line boundaries for cleaner display
  */
-function truncate(str: string, maxLength: number): string {
+function truncateResult(str: string, maxLength: number): string {
   if (str.length <= maxLength) {
     return str;
   }

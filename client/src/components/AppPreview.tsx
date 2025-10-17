@@ -1,6 +1,8 @@
 import type { AppInfo } from '@gen-fullstack/shared';
+import { Monitor } from 'lucide-react';
 import { useState } from 'react';
 import { dimensions, radius, typography } from '../lib/design-tokens';
+import { EmptyState } from './EmptyState';
 
 interface AppPreviewProps {
   appStatus: AppInfo | null;
@@ -182,34 +184,18 @@ export function AppPreview({ appStatus }: AppPreviewProps) {
           </>
         ) : (
           <div
-            className={`flex items-center justify-center border-2 border-dashed border-gray-300 bg-gray-50 ${radius.md}`}
+            className={`border-2 border-dashed border-gray-300 bg-gray-50 ${radius.md}`}
             style={{ height: isFullscreen ? '100%' : dimensions.previewHeight }}
           >
-            <div className="text-center">
-              <svg
-                className="mx-auto h-12 w-12 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                role="img"
-                aria-label="Computer monitor icon"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                />
-              </svg>
-              <p className="mt-4 text-sm text-gray-500">
-                {appStatus?.status === 'starting' || appStatus?.status === 'installing'
+            <EmptyState
+              icon={<Monitor size={48} />}
+              title={
+                appStatus?.status === 'starting' || appStatus?.status === 'installing'
                   ? 'Starting app...'
-                  : 'No app running'}
-              </p>
-              <p className="mt-1 text-xs text-gray-400">
-                Click "Start App" to preview your generated application
-              </p>
-            </div>
+                  : 'No app running'
+              }
+              description="Click Start App to preview your generated application"
+            />
           </div>
         )}
       </div>

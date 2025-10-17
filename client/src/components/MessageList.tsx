@@ -1,5 +1,6 @@
 import { Bot, Terminal, User } from 'lucide-react';
 import { useEffect, useRef } from 'react';
+import { EmptyState } from './EmptyState';
 
 interface Message {
   id: string;
@@ -21,12 +22,11 @@ export function MessageList({ messages }: MessageListProps) {
 
   if (messages.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center text-gray-400">
-        <div className="text-center">
-          <Bot size={48} className="mx-auto mb-4 opacity-50" />
-          <p>No messages yet. Start generating to see LLM interactions...</p>
-        </div>
-      </div>
+      <EmptyState
+        icon={<Bot size={48} />}
+        title="No messages yet"
+        description="Start generating to see LLM interactions..."
+      />
     );
   }
 
