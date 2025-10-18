@@ -28,7 +28,7 @@ export abstract class BaseStrategy {
   private currentMessageRole: 'user' | 'assistant' | 'system' | null = null;
   private sessionId: string | null = null;
 
-  constructor(modelName: ModelName = 'gpt-5-mini') {
+  constructor(modelName: ModelName = 'gpt-5-nano') {
     this.modelName = modelName;
     this.model = getModel(modelName);
   }

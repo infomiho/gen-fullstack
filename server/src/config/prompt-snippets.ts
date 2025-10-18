@@ -345,7 +345,10 @@ ${CLIENT_APP_EXAMPLE}
 
 ${IMPORTANT_GUIDELINES}
 
-Now, generate the complete full-stack application based on the user's requirements. Create ALL required files in the correct structure.`;
+Now, generate the complete full-stack application based on the user's requirements. Create ALL required files in the correct structure.
+
+COMPLETION MESSAGE:
+When you're done, respond with a BRIEF 1-2 sentence message confirming completion. DO NOT list all files or contents. Just say it's ready.`;
 }
 
 /**
@@ -412,5 +415,8 @@ ${VITE_CONFIG}
 
 ${IMPORTANT_GUIDELINES}
 
-Now, implement the complete full-stack application following the architectural plan. Create ALL required files in the correct structure.`;
+Now, implement the complete full-stack application following the architectural plan. Create ALL required files in the correct structure.
+
+COMPLETION MESSAGE:
+When you're done, respond with a BRIEF 1-2 sentence message confirming completion. DO NOT list all files or contents. Just say it's ready.`;
 }

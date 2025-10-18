@@ -21,7 +21,7 @@ export const MODEL_CONFIG = {
   budget: 'gpt-5-nano', // $0.05/$0.40 per 1M tokens, ultra-fast
 } as const;
 
-export type ModelName = (typeof MODEL_CONFIG)[keyof typeof MODEL_CONFIG] | string;
+export type ModelName = (typeof MODEL_CONFIG)[keyof typeof MODEL_CONFIG];
 
 /**
  * Get a configured language model
