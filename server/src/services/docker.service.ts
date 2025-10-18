@@ -190,6 +190,7 @@ export interface ContainerInfo {
   devServerStreamCleanup?: () => void;
   readyCheckInterval?: NodeJS.Timeout;
   readyCheckPromise?: Promise<void>;
+  readyCheckAbort?: AbortController; // For canceling HTTP ready checks
 }
 
 /**
@@ -596,6 +597,7 @@ export class DockerService extends EventEmitter {
    * handle requests, avoiding "Unable to connect" errors.
    *
    * @param port - The host port to check
+   * @param signal - Optional AbortSignal to cancel the check
    * @returns Promise<boolean> - true if server responds within timeout, false otherwise
    *
    * @remarks
@@ -604,20 +606,31 @@ export class DockerService extends EventEmitter {
    * - Retries up to 10 times with 500ms delays (~5 seconds total)
    * - Each request has a 1 second timeout
    * - Logs first and last failures for debugging
+   * - Can be canceled via AbortSignal
    */
-  private async checkHttpReady(port: number): Promise<boolean> {
+  private async checkHttpReady(port: number, signal?: AbortSignal): Promise<boolean> {
     const shouldLog = (attempt: number) =>
       attempt === 0 || attempt === HTTP_READY_CHECK.maxAttempts - 1;
 
     for (let i = 0; i < HTTP_READY_CHECK.maxAttempts; i++) {
+      // Check if canceled
+      if (signal?.aborted) {
+        return false;
+      }
+
       try {
         await fetch(`http://localhost:${port}`, {
           method: 'HEAD',
-          signal: AbortSignal.timeout(HTTP_READY_CHECK.requestTimeoutMs),
+          signal: signal || AbortSignal.timeout(HTTP_READY_CHECK.requestTimeoutMs),
         });
         // Any response (even 404) means the server is listening
         return true;
       } catch (error) {
+        // If aborted, return immediately
+        if (signal?.aborted) {
+          return false;
+        }
+
         // Log first and last failures for debugging
         if (shouldLog(i)) {
           console.log(
@@ -656,9 +669,21 @@ export class DockerService extends EventEmitter {
           return; // Already checking, skip duplicate
         }
 
+        // Create AbortController for cancellation
+        const abortController = new AbortController();
+        containerInfo.readyCheckAbort = abortController;
+
         // Run readiness check in background to avoid blocking log processing
-        containerInfo.readyCheckPromise = this.checkHttpReady(containerInfo.clientPort)
+        containerInfo.readyCheckPromise = this.checkHttpReady(
+          containerInfo.clientPort,
+          abortController.signal,
+        )
           .then((ready) => {
+            // Check if aborted
+            if (abortController.signal.aborted) {
+              return;
+            }
+
             // Guard against race: only update if still not running
             if (containerInfo.status !== 'running') {
               if (ready) {
@@ -696,6 +721,7 @@ export class DockerService extends EventEmitter {
           })
           .finally(() => {
             containerInfo.readyCheckPromise = undefined;
+            containerInfo.readyCheckAbort = undefined;
           });
       }
     }
@@ -1101,6 +1127,12 @@ export class DockerService extends EventEmitter {
     this.emitSystemLog(sessionId, 'Stopping container...');
 
     try {
+      // Abort any pending HTTP ready checks
+      if (containerInfo.readyCheckAbort) {
+        containerInfo.readyCheckAbort.abort();
+        containerInfo.readyCheckAbort = undefined;
+      }
+
       if (containerInfo.cleanupTimer) {
         clearTimeout(containerInfo.cleanupTimer);
         containerInfo.cleanupTimer = undefined;

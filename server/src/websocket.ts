@@ -120,11 +120,13 @@ export function setupWebSocket(httpServer: HTTPServer) {
     });
 
     socket.on('start_generation', async (payload) => {
+      let sessionId: string | null = null;
+
       try {
         const validated = StartGenerationSchema.parse(payload);
         console.log('Starting generation with strategy:', validated.strategy);
 
-        const sessionId = uuidv4();
+        sessionId = uuidv4();
 
         socket.join(sessionId);
         console.log(`Socket ${socket.id} joined session room: ${sessionId}`);
@@ -160,6 +162,19 @@ export function setupWebSocket(httpServer: HTTPServer) {
         await strategy.generateApp(validated.prompt, io, sessionId);
       } catch (error) {
         console.error('Generation error:', error);
+
+        // Update session status to failed if we created it
+        if (sessionId) {
+          try {
+            await databaseService.updateSession(sessionId, {
+              status: 'failed',
+              errorMessage: error instanceof Error ? error.message : String(error),
+            });
+          } catch (dbError) {
+            console.error('Failed to update session status:', dbError);
+          }
+        }
+
         socket.emit('error', sanitizeError(error));
       }
     });

@@ -127,6 +127,7 @@ function SessionPage() {
   } = useWebSocket();
 
   const previewContainerRef = useRef<HTMLDivElement>(null);
+  const hasSubscribedRef = useRef(false);
 
   // Derive active tab from URL, default to 'timeline'
   const validTabs = ['timeline', 'files', 'preview'] as const;
@@ -162,14 +163,46 @@ function SessionPage() {
     isOwnSession,
   });
 
-  // Subscribe to session room and request app status when page loads
+  // Subscribe to session room and request app status when page loads or socket reconnects
+  // Use ref to prevent duplicate subscriptions in React Strict Mode (development)
   useEffect(() => {
-    if (socket && sessionId) {
-      // Subscribe to this session's room for real-time updates
-      socket.emit('subscribe_to_session', { sessionId });
-      // Request current app status
-      socket.emit('get_app_status', { sessionId });
+    if (!socket || !sessionId) return;
+
+    const subscribeToSession = () => {
+      if (!hasSubscribedRef.current) {
+        hasSubscribedRef.current = true;
+        // Subscribe to this session's room for real-time updates
+        socket.emit('subscribe_to_session', { sessionId });
+        // Request current app status
+        socket.emit('get_app_status', { sessionId });
+      }
+    };
+
+    // Subscribe on mount if socket is already connected
+    if (socket.connected) {
+      subscribeToSession();
     }
+
+    // Resubscribe on reconnection
+    const handleReconnect = () => {
+      hasSubscribedRef.current = false; // Reset flag to allow resubscription
+      subscribeToSession();
+    };
+
+    // Handle disconnection (reset ref so we can resubscribe on reconnect)
+    const handleDisconnect = () => {
+      hasSubscribedRef.current = false;
+    };
+
+    socket.on('connect', handleReconnect);
+    socket.on('disconnect', handleDisconnect);
+
+    // Reset subscription flag when sessionId changes or component unmounts
+    return () => {
+      socket.off('connect', handleReconnect);
+      socket.off('disconnect', handleDisconnect);
+      hasSubscribedRef.current = false;
+    };
   }, [socket, sessionId]);
 
   return (

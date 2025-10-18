@@ -214,15 +214,8 @@ export function useWebSocket(): UseWebSocketReturn {
     const handleAppLog = (log: AppLog) => {
       useAppStore.getState().addAppLog(log);
 
-      // Check for log truncation
-      const { truncated, count } = useAppStore.getState().checkAndTruncateLogs();
-      if (truncated) {
-        notifyTruncation(
-          'Log Limit Reached',
-          `${count} oldest logs removed to maintain performance.`,
-          'logs',
-        );
-      }
+      // Silently truncate logs when limit is reached (expected behavior, no need to notify)
+      useAppStore.getState().checkAndTruncateLogs();
     };
 
     const handleBuildEvent = (event: BuildEvent) => {

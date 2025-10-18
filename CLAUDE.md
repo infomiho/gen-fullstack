@@ -183,6 +183,7 @@ Complete upgrade from single-app generator to full-stack application generator:
 - Updated runner.Dockerfile with Prisma CLI support
 - Dual-port mapping: container ports 5173 (Vite) and 3000 (Express) → host ports 5001-5200
 - Vite runs with `--host 0.0.0.0 --port 5173` flags (passed via root package.json dev:client script)
+- **NPM Cache Optimization**: Pre-populated npm cache with common dependencies (React, Express, Prisma, Vite, TypeScript, etc.) reduces install time from ~60s to ~10-15s
 
 **Process Execution**:
 - 3-step dependency installation:
