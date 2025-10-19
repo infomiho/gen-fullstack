@@ -51,12 +51,16 @@ export function CodeEditor({ value, filePath, onChange, readOnly = false }: Code
   // Use ref to always have latest onChange callback
   const onChangeRef = useRef(onChange);
   const [fileTooLarge, setFileTooLarge] = useState(false);
+  // Track if change came from user typing (prevents recreation loop)
+  const isUserChangeRef = useRef(false);
 
   // Update ref when onChange changes
   useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
 
+  // Main editor creation effect - only recreate when file or readOnly changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: We intentionally exclude 'value' from dependencies to prevent recreation on every value change. Value updates are handled by a separate effect that uses transactions to preserve cursor position.
   useEffect(() => {
     if (!editorRef.current) return;
 
@@ -78,6 +82,8 @@ export function CodeEditor({ value, filePath, onChange, readOnly = false }: Code
         EditorView.updateListener.of((update: ViewUpdate) => {
           // Use ref to get latest onChange callback
           if (update.docChanged && onChangeRef.current) {
+            // Mark this as a user-initiated change
+            isUserChangeRef.current = true;
             onChangeRef.current(update.state.doc.toString());
           }
         }),
@@ -108,7 +114,29 @@ export function CodeEditor({ value, filePath, onChange, readOnly = false }: Code
       view.destroy();
       viewRef.current = null;
     };
-  }, [filePath, readOnly, value]); // Re-create editor when file, readOnly, or value changes
+  }, [filePath, readOnly]); // Only recreate when file or readOnly changes
+
+  // Separate effect for handling external value updates (not from user typing)
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+
+    // Skip update if this was a user-initiated change (avoid loop)
+    if (isUserChangeRef.current) {
+      isUserChangeRef.current = false;
+      return;
+    }
+
+    // Only update if the value actually differs from editor content
+    const currentContent = view.state.doc.toString();
+    if (value !== currentContent) {
+      // Update document without recreating the editor, preserving cursor position when possible
+      const transaction = view.state.update({
+        changes: { from: 0, to: currentContent.length, insert: value },
+      });
+      view.dispatch(transaction);
+    }
+  }, [value]);
 
   // Show error if file is too large
   if (fileTooLarge) {
