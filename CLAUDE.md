@@ -423,8 +423,10 @@ gh issue list --label "phase-6"    # Demo Scenarios
 gh issue list --label "phase-7"    # Polish & UX
 gh issue list --label "refactoring" # Code refactoring tasks
 
-# View a specific issue
+# View a specific issue (if you get a Projects deprecation error, use --json)
 gh issue view <issue-number>
+# Alternative: Use JSON format to avoid deprecation warnings
+gh issue view <issue-number> --json title,body,labels,state | cat
 
 # Work on an issue (creates a branch and checks it out)
 gh issue develop <issue-number>

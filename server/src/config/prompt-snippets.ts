@@ -232,12 +232,12 @@ export default defineConfig({
 \`\`\``;
 
 /**
- * Client App.tsx example
+ * Client App.tsx and CSS example
  */
-export const CLIENT_APP_EXAMPLE = `8. **client/src/App.tsx** - Make API calls with styled UI:
+export const CLIENT_APP_EXAMPLE = `8. **client/src/App.tsx** - Make API calls with CSS styling:
 \`\`\`typescript
 import { useEffect, useState } from 'react';
-import './App.css'; // Import CSS file
+import './App.css';
 
 export default function App() {
   const [data, setData] = useState([]);
@@ -257,13 +257,9 @@ export default function App() {
 }
 \`\`\`
 
-9. **client/src/App.css** - Professional styling with CSS:
+9. **client/src/App.css** - Professional styling:
 \`\`\`css
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
   font-family: system-ui, -apple-system, sans-serif;
@@ -272,62 +268,35 @@ body {
   background: #f9fafb;
 }
 
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
-}
-
-.title {
-  font-size: 2rem;
-  font-weight: 700;
-  margin-bottom: 1.5rem;
-  color: #111827;
-}
-
+.container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+.title { font-size: 2rem; font-weight: 700; margin-bottom: 1.5rem; color: #111827; }
 /* Add more classes for buttons, cards, forms, etc. */
 \`\`\`
 
-**STYLING REQUIREMENTS:**
-- **Create a CSS file** (e.g., App.css) and import it in your component
-- Use CSS classes, NOT inline styles
-- Include proper spacing (padding, margins), colors, typography
-- Add visual hierarchy with font sizes, weights, and colors
-- Use borders, shadows, or backgrounds to separate sections
-- Style interactive elements (buttons, links, inputs) with hover states
-- Ensure good contrast and readability
-- Add a CSS reset or normalize at the top of the file`;
+**STYLING**: Use CSS classes (not inline styles), include proper spacing/colors/typography, style interactive elements with hover states.`;
 
 /**
  * Important guidelines shared across strategies
  */
 export const IMPORTANT_GUIDELINES = `IMPORTANT GUIDELINES:
-- DO NOT run npm install - dependencies install automatically
-- DO NOT run prisma migrate - migrations run automatically
+- DO NOT run npm install or prisma migrate (run automatically)
 - Write complete file contents (no placeholders or "..." in code)
 - Use proper TypeScript types everywhere
 - All API calls from client go to /api/* (proxied to Express)
-- Keep database models simple but functional
-- **The app MUST be styled** - Use modern CSS, proper spacing, colors, and layout
-- Make the UI visually appealing with professional design
+- **The app MUST be styled** - Use modern CSS with proper spacing, colors, and layout
 
 ERROR HANDLING:
-Express 5 automatically catches async errors, but you MUST handle specific cases:
+Express 5 auto-catches async errors, but handle specific cases:
 - Validate input: return 400 for missing/invalid data
-- Prisma errors: catch P2002 (unique constraint) and return 409
-- Not found: return 404 for missing resources
+- Prisma errors: catch P2002 (unique constraint) → 409, P2003 (foreign key) → 404
 - Let Express 5 handle unexpected errors as 500
-Example: See server/src/index.ts POST /api/users above
 
 ${formatVersionsForPrompt()}`;
 
 /**
- * Full implementation guide for naive strategy
+ * Shared implementation steps for naive and plan-first strategies
  */
-export function getNaiveImplementationSteps(): string {
-  return `STEP-BY-STEP IMPLEMENTATION:
-
-${ROOT_PACKAGE_JSON}
+const IMPLEMENTATION_STEPS = `${ROOT_PACKAGE_JSON}
 
 ${ENV_FILE}
 
@@ -343,82 +312,40 @@ ${VITE_CONFIG}
 
 ${CLIENT_APP_EXAMPLE}
 
-${IMPORTANT_GUIDELINES}
+${IMPORTANT_GUIDELINES}`;
+
+/**
+ * Shared completion message
+ */
+const COMPLETION_MESSAGE = `COMPLETION MESSAGE:
+When done, respond with a BRIEF 1-2 sentence confirmation. DO NOT list files or contents.`;
+
+/**
+ * Full implementation guide for naive strategy
+ */
+export function getNaiveImplementationSteps(): string {
+  return `STEP-BY-STEP IMPLEMENTATION:
+
+${IMPLEMENTATION_STEPS}
 
 Now, generate the complete full-stack application based on the user's requirements. Create ALL required files in the correct structure.
 
-COMPLETION MESSAGE:
-When you're done, respond with a BRIEF 1-2 sentence message confirming completion. DO NOT list all files or contents. Just say it's ready.`;
+${COMPLETION_MESSAGE}`;
 }
 
 /**
  * Implementation guidelines for plan-first strategy
  */
 export function getPlanFirstImplementationGuidelines(): string {
-  return `IMPLEMENTATION GUIDELINES:
+  return `**FOLLOW THE ARCHITECTURAL PLAN**: Use the plan's database schema, API endpoints, and component structure, but follow the concrete examples below for exact file structure and configuration.
 
-1. **Follow the architectural plan systematically**
-   - Implement in the order specified in the plan
-   - Use the database schema design from the plan
-   - Implement the API endpoints as planned
-   - Create components as outlined in the plan
+STEP-BY-STEP IMPLEMENTATION:
 
-${ROOT_PACKAGE_JSON}
+${IMPLEMENTATION_STEPS}
 
-${PRISMA_SCHEMA}
+Now, implement the full-stack application following the architectural plan. Create ALL required files using the exact versions and patterns above.
 
-4. **Express server** (server/src/index.ts) - implement routes from plan:
-\`\`\`typescript
-import express from 'express';
-import cors from 'cors';
-import { PrismaClient } from '@prisma/client';
-
-const app = express();
-const prisma = new PrismaClient();
-const PORT = 3000;
-
-app.use(cors());
-app.use(express.json());
-
-// Implement API endpoints as designed in the plan
-// Express 5 handles async errors, but handle specific cases:
-// - Validate input (400), handle unique constraints (409), not found (404)
-// Example:
-app.post('/api/example', async (req, res) => {
-  if (!req.body.required) {
-    return res.status(400).json({ error: 'Required field missing' });
-  }
-  try {
-    const result = await prisma.model.create({ data: req.body });
-    res.json(result);
-  } catch (error: any) {
-    if (error.code === 'P2002') {
-      return res.status(409).json({ error: 'Already exists' });
-    }
-    throw error;
-  }
-});
-
-app.listen(PORT, () => {
-  console.log(\`Server running on http://localhost:\${PORT}\`);
-});
-\`\`\`
-
-${VITE_CONFIG}
-
-6. **Client components** - implement as designed in plan:
-   - Use fetch('/api/...') for all API calls
-   - Implement state management as planned
-   - Create component hierarchy as outlined
-   - **Apply professional styling** - Use modern CSS with proper spacing, colors, typography
-   - Make the UI visually appealing with good layout and design hierarchy
-
-${IMPORTANT_GUIDELINES}
-
-Now, implement the complete full-stack application following the architectural plan. Create ALL required files in the correct structure.
-
-COMPLETION MESSAGE:
-When you're done, respond with a BRIEF 1-2 sentence message confirming completion. DO NOT list all files or contents. Just say it's ready.`;
+${COMPLETION_MESSAGE}`;
 }
 
 /**
@@ -427,36 +354,75 @@ When you're done, respond with a BRIEF 1-2 sentence message confirming completio
 export function getTemplateImplementationGuidelines(): string {
   return `TEMPLATE CUSTOMIZATION GUIDELINES:
 
-The full-stack template is already in place! Your task is to customize and extend it:
+The template is ready with User CRUD, Express routes, and styled React UI. Extend it based on requirements:
 
-1. **Understand the template structure**
-   - Use listFiles('.') to see what files exist
-   - Use readFile() to examine current template files
+1. **Prisma schema** - Add models, keep generator/datasource blocks:
+\`\`\`prisma
+model Post {
+  id        Int      @id @default(autoincrement())
+  title     String
+  content   String
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+\`\`\`
 
-2. **Customize the Prisma schema** (prisma/schema.prisma)
-   - Add models based on requirements
-   - Define relationships between models
-   - Keep existing generator and datasource blocks
+2. **Express routes** - Add endpoints, keep existing setup:
+\`\`\`typescript
+app.get('/api/posts', async (req, res) => {
+  const posts = await prisma.post.findMany({ include: { user: true } });
+  res.json(posts);
+});
 
-3. **Extend the Express server** (server/src/index.ts)
-   - Add new API endpoints for your models
-   - Keep existing server setup (cors, express.json, etc.)
-   - Follow error handling patterns already in template
+app.post('/api/posts', async (req, res) => {
+  const { title, content, userId } = req.body;
+  if (!title || !content || !userId) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+  try {
+    const post = await prisma.post.create({ data: { title, content, userId } });
+    res.json(post);
+  } catch (error: any) {
+    if (error.code === 'P2003') {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    throw error;
+  }
+});
+\`\`\`
 
-4. **Customize the React client** (client/src/*)
-   - Modify App.tsx for your use case
-   - Add new components as needed
-   - Update styling in App.css
-   - Keep existing Vite setup
+3. **React components** - Create components with CSS, keep Vite config:
+\`\`\`typescript
+// client/src/components/PostList.tsx
+import { useEffect, useState } from 'react';
+import './PostList.css';
+
+export default function PostList() {
+  const [posts, setPosts] = useState([]);
+
+  useEffect(() => {
+    fetch('/api/posts').then(res => res.json()).then(setPosts);
+  }, []);
+
+  return (
+    <div className="posts-section">
+      {posts.map(post => (
+        <div key={post.id} className="post-card">
+          <h3>{post.title}</h3>
+          <p>{post.content}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+\`\`\`
+
+4. **Adding packages** - Only if needed, add to correct package.json (server/client) with caret ranges (^).
 
 ${IMPORTANT_GUIDELINES}
 
-STRATEGY:
-- Read before modifying - check what's already in the template
-- Extend, don't replace - build on top of what exists
-- Focus on business logic, not boilerplate setup
-- The template handles all configuration - you handle the features
+STRATEGY: Extend template, don't replace. Focus on YOUR features, not boilerplate.
 
-COMPLETION MESSAGE:
-When you're done, respond with a BRIEF 1-2 sentence message confirming completion. DO NOT list all files or contents. Just say it's ready.`;
+${COMPLETION_MESSAGE}`;
 }

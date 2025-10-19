@@ -47,7 +47,10 @@ const DEBOUNCE_WINDOWS = {
   TRUNCATION_WARNING: 10_000, // 10 seconds - limit truncation notifications per type
 } as const;
 
-export function useWebSocket(): UseWebSocketReturn {
+// Type for navigate function from React Router
+type NavigateFunction = (to: string) => void;
+
+export function useWebSocket(navigate?: NavigateFunction): UseWebSocketReturn {
   const { showToast } = useToast();
 
   // Get stores
@@ -135,7 +138,13 @@ export function useWebSocket(): UseWebSocketReturn {
     };
 
     const handleSessionStarted = ({ sessionId }: { sessionId: string }) => {
+      // Set sessionId in store for components that need it (AppControls, etc.)
       useGenerationStore.getState().setSessionId(sessionId);
+
+      // If navigate function provided (from HomePage), navigate directly to session page
+      if (navigate) {
+        navigate(`/${sessionId}`);
+      }
     };
 
     const handleLLMMessage = (message: LLMMessage) => {
@@ -271,7 +280,7 @@ export function useWebSocket(): UseWebSocketReturn {
       newSocket.off('app_log', handleAppLog);
       newSocket.off('build_event', handleBuildEvent);
     };
-  }, [setSocket, setConnected, notifyTruncation, notifyConnectionError]);
+  }, [setSocket, setConnected, notifyTruncation, notifyConnectionError, navigate]);
 
   const startGeneration = useCallback(
     (prompt: string, strategy: string) => {

@@ -31,17 +31,10 @@ interface SessionListItem {
  */
 function HomePage() {
   const navigate = useNavigate();
-  const { isConnected, startGeneration, isGenerating, currentSessionId } = useWebSocket();
+  const { isConnected, startGeneration, isGenerating } = useWebSocket(navigate);
   const [strategy, setStrategy] = useState('naive');
   const [sessions, setSessions] = useState<SessionListItem[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(true);
-
-  // Navigate to session page when a session is created
-  useEffect(() => {
-    if (currentSessionId) {
-      navigate(`/${currentSessionId}`);
-    }
-  }, [currentSessionId, navigate]);
 
   // Fetch previous sessions
   useEffect(() => {
