@@ -64,6 +64,12 @@
           }
         }
       }
+    },
+    {
+      "includes": ["templates/**/*", "scripts/cleanup-generations.ts"],
+      "linter": {
+        "enabled": false
+      }
     }
   ]
 }

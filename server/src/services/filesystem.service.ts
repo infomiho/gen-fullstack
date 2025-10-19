@@ -1,4 +1,5 @@
 import * as fs from 'node:fs/promises';
+import type { Dirent } from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -250,7 +251,7 @@ export async function copyTemplateToSandbox(
   let fileCount = 0;
 
   async function copyRecursive(src: string, dest: string): Promise<void> {
-    let entries;
+    let entries: Dirent[];
     try {
       entries = await fs.readdir(src, { withFileTypes: true });
     } catch (error) {
