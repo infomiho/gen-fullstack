@@ -287,3 +287,62 @@ export async function copyTemplateToSandbox(
   console.log(`[Filesystem] Copied template '${templateName}' to sandbox: ${fileCount} files`);
   return fileCount;
 }
+
+/**
+ * Get all files recursively from sandbox
+ *
+ * Reads all files from the sandbox directory and returns their paths and contents.
+ * Used for persisting template files to database.
+ *
+ * @param sessionId - Session identifier
+ * @returns Array of files with relative paths and contents
+ * @throws {Error} If sandbox doesn't exist or reading fails
+ */
+export async function getAllFiles(
+  sessionId: string,
+): Promise<Array<{ relativePath: string; content: string }>> {
+  const sandboxPath = getSandboxPath(sessionId);
+  const allFiles: Array<{ relativePath: string; content: string }> = [];
+
+  async function readRecursive(dir: string): Promise<void> {
+    // Security: Validate that directory is within sandbox
+    const resolvedDir = path.resolve(dir);
+    if (!resolvedDir.startsWith(sandboxPath)) {
+      throw new Error(`Directory traversal detected: ${dir} is outside sandbox`);
+    }
+
+    let entries: Dirent[];
+    try {
+      entries = await fs.readdir(dir, { withFileTypes: true });
+    } catch (error) {
+      throw new Error(
+        `Failed to read directory ${dir}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      const relativePath = path.relative(sandboxPath, fullPath);
+
+      // Skip symlinks for security
+      if (entry.isSymbolicLink()) {
+        continue;
+      }
+
+      if (entry.isDirectory()) {
+        await readRecursive(fullPath);
+      } else if (entry.isFile()) {
+        try {
+          const content = await fs.readFile(fullPath, 'utf-8');
+          allFiles.push({ relativePath, content });
+        } catch (_error) {
+          // UTF-8 read failed - likely a binary file (images, fonts, etc.)
+          console.warn(`[Filesystem] Skipping non-text file ${relativePath}`);
+        }
+      }
+    }
+  }
+
+  await readRecursive(sandboxPath);
+  return allFiles;
+}

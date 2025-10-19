@@ -19,6 +19,7 @@ vi.mock('../../services/database.service.js', () => ({
     addToolResult: vi.fn(() => Promise.resolve()),
     updateSession: vi.fn(() => Promise.resolve()),
     getSession: vi.fn(() => Promise.resolve(null)),
+    saveFile: vi.fn(() => Promise.resolve()),
   },
 }));
 
@@ -30,6 +31,10 @@ vi.mock('../../services/filesystem.service.js', async () => {
   return {
     ...actual,
     copyTemplateToSandbox: vi.fn().mockResolvedValue(15), // Mock to return 15 files copied
+    getAllFiles: vi.fn().mockResolvedValue([
+      { relativePath: 'package.json', content: '{}' },
+      { relativePath: 'client/src/App.tsx', content: 'export default function App() {}' },
+    ]),
   };
 });
 
@@ -93,21 +98,25 @@ describe('TemplateStrategy', () => {
 
       // Should mention template
       expect(prompt).toContain('template');
-      expect(prompt).toContain('CUSTOMIZE and EXTEND');
+      expect(prompt).toContain('implement');
 
       // Should mention pre-existing structure
-      expect(prompt).toContain('complete full-stack template');
+      expect(prompt).toContain('TEMPLATE STRUCTURE');
       expect(prompt).toContain('client/');
       expect(prompt).toContain('server/');
       expect(prompt).toContain('prisma/');
 
-      // Should guide to read before modifying
+      // Should provide workflow guidance
+      expect(prompt).toContain('EFFICIENT WORKFLOW');
       expect(prompt).toContain('readFile');
       expect(prompt).toContain('listFiles');
 
-      // Should emphasize customization over creation
-      expect(prompt).toContain('Modify and extend');
-      expect(prompt).toContain('customize');
+      // Should include concrete example
+      expect(prompt).toContain('IMPLEMENTATION EXAMPLE');
+      expect(prompt).toContain('task tracker');
+
+      // Should emphasize building over exploration
+      expect(prompt).toContain('requirements');
     });
   });
 

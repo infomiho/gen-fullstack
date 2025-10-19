@@ -38,27 +38,38 @@ export class TemplateStrategy extends BaseStrategy {
   }
 
   getSystemPrompt(): string {
-    return `You are an expert full-stack web application generator. Your goal is to CUSTOMIZE and EXTEND a pre-built full-stack template based on user requirements.
+    return `You are an expert full-stack web application generator. A complete full-stack template has been pre-loaded into your workspace.
 
-IMPORTANT: A complete full-stack template has already been set up for you with:
-- Root package.json with npm workspaces
-- client/ directory with Vite + React 19 + TypeScript
-- server/ directory with Express 5 + TypeScript
-- prisma/ directory with database schema
-- All configuration files (vite.config.ts, tsconfig.json, etc.)
+YOUR TASK: Customize this template to implement the user's specific requirements.
 
-YOUR TASK:
-1. Read the existing template files using the readFile tool
-2. Modify and extend the template to match user requirements
-3. Add new features, components, and database models as needed
-4. Keep the existing structure but customize it
+TEMPLATE STRUCTURE:
+The following structure is already in place:
+- client/ directory: Vite + React 19 + TypeScript
+- server/ directory: Express 5 + TypeScript with example routes
+- prisma/ directory: Database schema with example User model
+- Root package.json with npm workspaces and configuration files
 
-CAPABILITIES:
-You have access to four tools to modify the template:
-1. writeFile - Update/create files
-2. readFile - Read existing template files
-3. listFiles - List template structure
-4. executeCommand - Run commands (npm install, etc.)
+EFFICIENT WORKFLOW:
+1. Analyze the user's requirements to understand what needs to be built
+2. Optional: Use listFiles once if you need to see the exact template structure
+3. Start implementing immediately:
+   a. Update prisma/schema.prisma with the required data models
+   b. Create API routes in server/src/ for CRUD operations
+   c. Build React components in client/src/components/ for the UI
+   d. Update client/src/App.tsx to integrate the new features
+
+IMPLEMENTATION EXAMPLE:
+For a "task tracker" app, you would:
+- Add Task model to prisma/schema.prisma (with fields like title, completed, userId)
+- Create GET/POST/PUT/DELETE /api/tasks endpoints in server/src/index.ts
+- Build TaskList and TaskForm React components in client/src/components/
+- Update App.tsx to render and manage tasks
+
+TOOLS AVAILABLE:
+1. writeFile - Create or update files (use extensively to implement features)
+2. readFile - Read existing files (use only when you need to check current content)
+3. listFiles - List directory contents (use sparingly, template structure is documented above)
+4. executeCommand - Run commands like npm install
 
 ${ARCHITECTURE_DESCRIPTION}
 
@@ -66,11 +77,7 @@ ${FILE_STRUCTURE}
 
 ${getTemplateImplementationGuidelines()}
 
-STRATEGY:
-1. First, use listFiles and readFile to understand the template structure
-2. Identify which files need customization
-3. Modify existing files or create new ones as needed
-4. Focus on business logic, not boilerplate (template handles that)`;
+FOCUS: Don't spend time exploring the template - it's documented above. Your goal is to write code that implements the user's requirements by extending the existing template structure.`;
   }
 
   async generateApp(
@@ -93,7 +100,10 @@ STRATEGY:
       // Copy template to sandbox
       this.emitMessage(io, 'system', 'Copying full-stack template to workspace...');
 
-      const { copyTemplateToSandbox } = await import('../services/filesystem.service.js');
+      const { copyTemplateToSandbox, getAllFiles } = await import(
+        '../services/filesystem.service.js'
+      );
+      const { databaseService } = await import('../services/database.service.js');
 
       let fileCount: number;
       try {
@@ -102,6 +112,35 @@ STRATEGY:
         throw new Error(
           `Failed to copy template 'vite-fullstack-base': ${error instanceof Error ? error.message : String(error)}`,
         );
+      }
+
+      // Persist all template files to database
+      this.emitMessage(io, 'system', 'Persisting template files to database...');
+      try {
+        const templateFiles = await getAllFiles(sessionId);
+
+        // Persist files in parallel for better performance
+        await Promise.all(
+          templateFiles.map((file) =>
+            databaseService.saveFile({
+              sessionId,
+              path: file.relativePath,
+              content: file.content,
+            }),
+          ),
+        );
+
+        console.log(
+          `[Template] Persisted ${templateFiles.length} template files to database for session ${sessionId}`,
+        );
+      } catch (error) {
+        console.error('[Template] Failed to persist template files to database:', error);
+        this.emitMessage(
+          io,
+          'system',
+          '⚠️ Warning: Template files may not persist to database. Session recovery may be incomplete.',
+        );
+        // Don't fail the whole generation, just warn the user
       }
 
       this.emitMessage(
