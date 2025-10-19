@@ -31,76 +31,45 @@ export class PlanFirstStrategy extends BaseStrategy {
   }
 
   getPlanningPrompt(): string {
-    return `You are an expert full-stack software architect. Your task is to create a detailed implementation plan for a full-stack web application with client, server, and database.
+    return `You are an expert full-stack software architect. Your task is to create a concise, high-level architectural plan for a full-stack web application.
 
 TASK:
-Analyze the user's requirements and create a comprehensive architectural plan for a FULL-STACK application that includes:
+Analyze the user's requirements and create a strategic architectural overview for a FULL-STACK application.
 
-1. **Architecture Overview**
-   - Full-stack monorepo structure (client + server + database)
-   - Technology decisions:
-     * Client: Vite + React 19 + TypeScript
-     * Server: Express 5 + TypeScript
-     * Database: Prisma ORM + SQLite
-     * Tooling: npm workspaces + concurrently
-   - API design (RESTful endpoints)
-   - Data flow: Client ↔ Express API ↔ Prisma ↔ SQLite
+ARCHITECTURE CONTEXT:
+- Tech Stack: Vite + React 19, Express 5, Prisma + SQLite, TypeScript
+- Structure: Monorepo with npm workspaces (client/, server/, prisma/)
 
-2. **Database Schema Design**
-   - Database models and relationships
-   - Field types and constraints
-   - Indexes and unique constraints
-   - Example Prisma schema structure
+PLAN SECTIONS (Keep each section concise):
 
-3. **API Endpoint Design**
-   - Required REST endpoints (GET, POST, PUT, DELETE)
-   - Request/response formats
-   - Error handling strategy
-   - Example Express routes
+1. **Data Model** (2-4 sentences)
+   - Core database entities and their relationships
+   - Key fields and constraints
+   - Why this model fits the requirements
 
-4. **File Structure**
-   - Complete file tree for monorepo
-   - Purpose of each major file
-   - Dependencies between client and server
+2. **API Architecture** (2-4 sentences)
+   - Main API endpoints needed (high-level grouping)
+   - Data flow between client and server
+   - Key architectural decisions
 
-5. **Component Design (Client)**
-   - Main React components needed
-   - State management approach
-   - API integration patterns
-   - Component hierarchy
-   - **UI/UX and Styling approach** - Modern, professional design with proper spacing and colors
+3. **UI Structure** (2-4 sentences)
+   - Main UI sections/pages
+   - Component organization approach
+   - Styling and design direction
 
-6. **Implementation Strategy**
-   - Step-by-step implementation order:
-     1. Root setup (package.json, .env)
-     2. Database schema (prisma/schema.prisma)
-     3. Server setup (Express + Prisma)
-     4. API routes implementation
-     5. Client setup (Vite + React)
-     6. Client-server integration
-   - Key considerations and potential pitfalls
-   - Testing approach
+4. **Key Implementation Notes** (2-3 bullet points)
+   - Critical technical considerations
+   - Potential challenges to watch for
 
 GUIDELINES:
-- Design for a monorepo with client/, server/, and prisma/ directories
-- Plan RESTful API endpoints that match the data requirements
-- Consider database relationships and foreign keys
-- Think about CORS and API proxying from client to server
-- Use Express 5's automatic async error handling
-- Keep database models simple but functional
-- **Plan for a visually appealing, well-styled UI** - Include design considerations
-- Focus on creating a working full-stack application
+- Keep it strategic and concise - aim for ~200-300 words total
+- Focus on "what" and "why", not "how"
+- Avoid step-by-step implementation details
+- No code examples or file listings
+- Think architecture, not implementation
 
 OUTPUT FORMAT:
-Provide a well-structured plan in markdown format with clear sections. Include:
-- Database schema outline
-- API endpoints list
-- File structure tree
-- Component breakdown
-- UI/UX styling approach (colors, spacing, layout strategy)
-- Implementation steps
-
-This plan will guide the implementation phase to create a complete full-stack app.`;
+Provide a brief markdown plan with the 4 sections above. Be direct and concise.`;
   }
 
   getSystemPrompt(): string {
