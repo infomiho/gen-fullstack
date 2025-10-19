@@ -112,8 +112,8 @@ describe('TemplateStrategy', () => {
       expect(prompt).toContain('listFiles');
 
       // Should include concrete example
-      expect(prompt).toContain('IMPLEMENTATION EXAMPLE');
-      expect(prompt).toContain('task tracker');
+      expect(prompt).toContain('EXAMPLE - Task Tracker App');
+      expect(prompt).toContain('Task model');
 
       // Should emphasize building over exploration
       expect(prompt).toContain('requirements');
@@ -185,6 +185,7 @@ describe('TemplateStrategy', () => {
       const metrics = await strategy.generateApp(prompt, mockIO, sessionId);
 
       expect(metrics).toEqual({
+        sessionId: 'test-session-metrics',
         inputTokens: 100,
         outputTokens: 50,
         totalTokens: 150,

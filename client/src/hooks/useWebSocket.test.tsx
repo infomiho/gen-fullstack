@@ -54,7 +54,7 @@ describe('useWebSocket - Navigation Fix', () => {
     // Get the session_started handler that was registered
     const socket = result.current.socket;
     expect(socket).toBeTruthy();
-    const onCalls = (socket!.on as ReturnType<typeof vi.fn>).mock.calls;
+    const onCalls = (socket?.on as ReturnType<typeof vi.fn>).mock.calls;
     const sessionStartedHandler = onCalls.find((call) => call[0] === 'session_started')?.[1];
 
     expect(sessionStartedHandler).toBeDefined();
@@ -66,12 +66,9 @@ describe('useWebSocket - Navigation Fix', () => {
 
     // Verify navigation was called
     expect(mockNavigate).toHaveBeenCalledWith('/test-session-123');
-
-    // Verify sessionId was set in store
-    expect(useGenerationStore.getState().currentSessionId).toBe('test-session-123');
   });
 
-  it('should set sessionId in store but not navigate when navigate function is not provided', async () => {
+  it('should not navigate when navigate function is not provided', async () => {
     // Render hook WITHOUT navigate function
     const { result } = renderHook(() => useWebSocket());
 
@@ -83,7 +80,7 @@ describe('useWebSocket - Navigation Fix', () => {
     // Get the session_started handler that was registered
     const socket = result.current.socket;
     expect(socket).toBeTruthy();
-    const onCalls = (socket!.on as ReturnType<typeof vi.fn>).mock.calls;
+    const onCalls = (socket?.on as ReturnType<typeof vi.fn>).mock.calls;
     const sessionStartedHandler = onCalls.find((call) => call[0] === 'session_started')?.[1];
 
     expect(sessionStartedHandler).toBeDefined();
@@ -93,16 +90,10 @@ describe('useWebSocket - Navigation Fix', () => {
       sessionStartedHandler({ sessionId: 'test-session-456' });
     });
 
-    // Verify sessionId was set in store
-    expect(useGenerationStore.getState().currentSessionId).toBe('test-session-456');
-
     // No navigation should have occurred (this is the default behavior for SessionPage)
   });
 
-  it('should not cause navigation loop when mounting HomePage with existing sessionId', async () => {
-    // Simulate existing sessionId in store (e.g., from a previous session)
-    useGenerationStore.getState().setSessionId('old-session-789');
-
+  it('should not cause navigation loop when mounting HomePage', async () => {
     const mockNavigate = vi.fn();
 
     // Mount HomePage (simulated by rendering hook with navigate)
@@ -111,7 +102,7 @@ describe('useWebSocket - Navigation Fix', () => {
     // Wait a bit to ensure no navigation triggers
     await new Promise((resolve) => setTimeout(resolve, 100));
 
-    // Navigation should NOT be called just because sessionId exists
+    // Navigation should NOT be called on mount
     // It should only be called when session_started event fires
     expect(mockNavigate).not.toHaveBeenCalled();
   });

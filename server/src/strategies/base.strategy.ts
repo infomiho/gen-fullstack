@@ -279,10 +279,15 @@ export abstract class BaseStrategy {
     duration: number,
     steps: number,
   ): GenerationMetrics {
+    if (!this.sessionId) {
+      throw new Error('Session ID not set - calculateMetrics called before initialization');
+    }
+
     const totalTokens = inputTokens + outputTokens;
     const cost = calculateCost(this.modelName, inputTokens, outputTokens);
 
     return {
+      sessionId: this.sessionId,
       totalTokens,
       inputTokens,
       outputTokens,
