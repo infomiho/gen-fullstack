@@ -347,4 +347,78 @@ export abstract class BaseStrategy {
       }
     };
   }
+
+  /**
+   * Process stream text generation results
+   *
+   * Handles the common pattern of:
+   * 1. Processing fullStream for text deltas
+   * 2. Waiting for usage stats and steps
+   * 3. Calculating and returning metrics
+   *
+   * This eliminates 170+ lines of duplication across strategies.
+   *
+   * @param io - Socket.io server instance
+   * @param result - StreamText result from AI SDK
+   * @param startTime - Start timestamp for duration calculation
+   * @returns Generation metrics
+   */
+  protected async processStreamResult(
+    io: SocketIOServer<ClientToServerEvents, ServerToClientEvents>,
+    // biome-ignore lint/suspicious/noExplicitAny: AI SDK types are complex and vary
+    result: any,
+    startTime: number,
+  ): Promise<GenerationMetrics> {
+    // Process the full stream for text deltas
+    for await (const part of result.fullStream) {
+      switch (part.type) {
+        case 'text-delta':
+          // Stream text deltas to client
+          if (part.text) {
+            this.emitMessage(io, 'assistant', part.text);
+          }
+          break;
+
+        case 'finish':
+          break;
+      }
+    }
+
+    // Wait for usage stats (must await after stream is consumed)
+    const [usage, steps] = await Promise.all([result.usage, result.steps]);
+
+    // Calculate metrics
+    const duration = Date.now() - startTime;
+    return this.calculateMetrics(
+      usage.inputTokens || 0,
+      usage.outputTokens || 0,
+      duration,
+      steps?.length || 0,
+    );
+  }
+
+  /**
+   * Handle generation errors consistently across all strategies
+   *
+   * Processes errors by:
+   * 1. Calculating duration from start time
+   * 2. Emitting error event to client
+   * 3. Returning partial metrics with zero tokens
+   *
+   * This eliminates duplication across strategy error handlers.
+   *
+   * @param io - Socket.io server instance
+   * @param startTime - Start timestamp for duration calculation
+   * @param error - Error to handle
+   * @returns Partial metrics with error information
+   */
+  protected handleGenerationError(
+    io: SocketIOServer<ClientToServerEvents, ServerToClientEvents>,
+    startTime: number,
+    error: unknown,
+  ): GenerationMetrics {
+    const duration = Date.now() - startTime;
+    this.emitError(io, error as Error);
+    return this.calculateMetrics(0, 0, duration, 0);
+  }
 }

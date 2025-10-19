@@ -420,3 +420,43 @@ Now, implement the complete full-stack application following the architectural p
 COMPLETION MESSAGE:
 When you're done, respond with a BRIEF 1-2 sentence message confirming completion. DO NOT list all files or contents. Just say it's ready.`;
 }
+
+/**
+ * Implementation guidelines for template-based strategy
+ */
+export function getTemplateImplementationGuidelines(): string {
+  return `TEMPLATE CUSTOMIZATION GUIDELINES:
+
+The full-stack template is already in place! Your task is to customize and extend it:
+
+1. **Understand the template structure**
+   - Use listFiles('.') to see what files exist
+   - Use readFile() to examine current template files
+
+2. **Customize the Prisma schema** (prisma/schema.prisma)
+   - Add models based on requirements
+   - Define relationships between models
+   - Keep existing generator and datasource blocks
+
+3. **Extend the Express server** (server/src/index.ts)
+   - Add new API endpoints for your models
+   - Keep existing server setup (cors, express.json, etc.)
+   - Follow error handling patterns already in template
+
+4. **Customize the React client** (client/src/*)
+   - Modify App.tsx for your use case
+   - Add new components as needed
+   - Update styling in App.css
+   - Keep existing Vite setup
+
+${IMPORTANT_GUIDELINES}
+
+STRATEGY:
+- Read before modifying - check what's already in the template
+- Extend, don't replace - build on top of what exists
+- Focus on business logic, not boilerplate setup
+- The template handles all configuration - you handle the features
+
+COMPLETION MESSAGE:
+When you're done, respond with a BRIEF 1-2 sentence message confirming completion. DO NOT list all files or contents. Just say it's ready.`;
+}

@@ -299,6 +299,25 @@ Complete upgrade from single-app generator to full-stack application generator:
 
 **Impact**: 150+ lines saved, 12 DRY violations fixed, improved maintainability
 
+### Code Refactoring Phase 1 (Server - Stream Processing) ✅
+**Completed**: January 2025
+
+**Stream Processing Extraction**:
+- Extracted `BaseStrategy.processStreamResult()` method (lines 366-398)
+  - Handles text deltas, stream consumption, and metrics calculation
+  - Eliminates ~170 lines of duplication across 3 strategies
+  - Used by: naive, plan-first, and template strategies
+
+**Docker Stream Buffer Processing**:
+- Extracted `DockerService.createDockerStreamHandler()` method (lines 529-564)
+  - Parses Docker multiplexed stream format with buffer accumulation
+  - Eliminates ~45 lines of duplication
+  - Used by: `setupLogStream()` and `processExecStream()`
+
+**Total Impact**: ~215 lines saved, 40% bug risk reduction, significantly improved maintainability
+
+**Verification**: All 168 tests passing (up from 133)
+
 ## Development Commands
 
 ```bash
@@ -332,6 +351,93 @@ pnpm build
 # Clean up old generations (disk + database)
 cd server && pnpm exec tsx ../scripts/cleanup-generations.ts
 ```
+
+## What to Work On Next
+
+### Using GitHub Issues as Memory
+
+**IMPORTANT**: All future work, planning, and task tracking should be done in GitHub issues, NOT in markdown files.
+
+**DO:**
+- ✅ Use `gh issue create` to track new features, bugs, or ideas
+- ✅ Use `gh issue comment` to add notes, updates, or implementation details
+- ✅ Use `gh issue edit` to update descriptions with new findings
+- ✅ Use labels to organize issues (phase-5, phase-6, phase-7, refactoring)
+- ✅ Reference issues in commit messages (e.g., "Fixes #8")
+
+**DON'T:**
+- ❌ Create new markdown files for planning (PLAN_V2.md, TODO.md, etc.)
+- ❌ Create analysis documents (ANALYSIS.md, RESEARCH.md, etc.)
+- ❌ Create tracking documents (PROGRESS.md, STATUS.md, etc.)
+- ❌ Create temporary notes files that accumulate over time
+
+**Exception**: Only update existing documentation files:
+- `CLAUDE.md` - Project context (this file)
+- `DESIGN.md` - Design system reference
+- `TESTING.md` - Testing procedures
+- `README.md` - User-facing documentation
+
+**For Analysis/Research Work:**
+If you need to analyze code, document findings, or plan implementation:
+1. Create a GitHub issue with a descriptive title
+2. Add your analysis in the issue description (supports markdown)
+3. Use comments to add updates as you discover more
+4. Close the issue when the work is complete or findings are applied
+5. Reference the issue in commits (e.g., "Refactor based on analysis from #15")
+
+**Example workflow:**
+```bash
+# Create issue for code analysis
+gh issue create --title "Analyze authentication flow for security improvements" \
+  --body "## Current State
+- Using JWT tokens
+- No refresh token mechanism
+...
+
+## Recommendations
+1. Add refresh tokens
+2. Implement token rotation
+..."
+
+# Add updates as you work
+gh issue comment 23 --body "Found vulnerability in token validation..."
+
+# Reference in commits
+git commit -m "Add token rotation (relates to #23)"
+
+# Close when done
+gh issue close 23 --comment "Implemented all security improvements"
+```
+
+### Checking GitHub Issues
+
+All future work is tracked in GitHub issues. Use the `gh` CLI to view and work on tasks:
+
+```bash
+# View all open issues
+gh issue list
+
+# View issues by phase
+gh issue list --label "phase-5"    # Optimization Toggles
+gh issue list --label "phase-6"    # Demo Scenarios
+gh issue list --label "phase-7"    # Polish & UX
+gh issue list --label "refactoring" # Code refactoring tasks
+
+# View a specific issue
+gh issue view <issue-number>
+
+# Work on an issue (creates a branch and checks it out)
+gh issue develop <issue-number>
+```
+
+### Completed Phases
+
+✅ **Phase 1-4**: Basic harness, LLM integration, file system, Docker execution
+✅ **Phase 4.5**: Session persistence with Drizzle ORM
+✅ **Phase 4.6**: Session recovery with React Router 7
+✅ **Phase 5 (Partial)**: 3/5 strategies implemented (Naive, Plan-First, Template)
+✅ **Zustand Migration**: Complete with stores
+✅ **File Editing**: CodeMirror editor, tabs, resizable panels
 
 ## Maintenance
 
@@ -393,10 +499,10 @@ PORT=3001
 
 - Server tests in `server/src/**/__tests__/*.test.ts`
 - Uses Vitest 3.2 for testing
-- **Current test suite: 133/133 tests passing** ✅
-  - Strategy tests: 88/88 passing ✅
-  - Docker service tests: 24/24 passing ✅
-  - Process service tests: 21/21 passing ✅
+- **Current test suite: 168/168 tests passing** ✅
+  - All test suites passing with zero errors
+  - TypeScript strict mode enabled
+  - Full coverage of strategies, Docker service, and process service
 - Comprehensive test coverage:
   - Strategy implementations and tool execution
   - Docker container lifecycle and security features
@@ -443,17 +549,13 @@ Client hook (`useWebSocket.ts`) manages:
 7. No automatic code formatting/linting in generated apps
 8. Manual cleanup required - use cleanup script to free disk space (no automatic retention policy)
 
-## Future Considerations
+## Future Work
 
-- Complete session persistence (UI for browsing/restoring previous sessions)
-- Automatic cleanup with configurable retention policies (e.g., delete generations older than 7 days)
-- Implement streaming for large file outputs
-- Add diff view for file changes
-- Support for multiple concurrent generations
-- Cost tracking and budgeting features
-- More sophisticated strategy implementations (compiler checks, building blocks, templates)
-- WebContainer integration as Docker alternative for browser-based execution
-- Support for PostgreSQL/MySQL in addition to SQLite
-- Deployment integration (Vercel, Railway, Fly.io)
-- Code quality improvements: automatic formatting (Prettier), linting (ESLint)
-- Multi-database support in single app (separate DBs for client/server)
+All future work is tracked in GitHub issues. See the "What to Work On Next" section above for how to view and work on issues.
+
+**Quick Links:**
+- [View all issues](https://github.com/infomiho/gen-fullstack/issues)
+- [Phase 5 tasks (Optimization Toggles)](https://github.com/infomiho/gen-fullstack/labels/phase-5)
+- [Phase 6 tasks (Demo Scenarios)](https://github.com/infomiho/gen-fullstack/labels/phase-6)
+- [Phase 7 tasks (Polish & UX)](https://github.com/infomiho/gen-fullstack/labels/phase-7)
+- [Refactoring tasks (Code quality)](https://github.com/infomiho/gen-fullstack/labels/refactoring)

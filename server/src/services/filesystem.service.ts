@@ -197,3 +197,92 @@ export async function fileExists(sessionId: string, filePath: string): Promise<b
     return false;
   }
 }
+
+/**
+ * Template directory location
+ */
+const TEMPLATE_BASE_DIR = path.resolve(__dirname, '../../../templates');
+
+/**
+ * Allowed template names (whitelist for security)
+ */
+const ALLOWED_TEMPLATES = ['vite-fullstack-base'] as const;
+
+/**
+ * Copy template directory to session sandbox
+ *
+ * Recursively copies all files from the specified template to the session sandbox.
+ * This provides a starting point for the LLM to customize.
+ *
+ * Security features:
+ * - Template name validation (no path traversal)
+ * - Whitelist of allowed templates
+ * - Symlinks are skipped (prevents reading arbitrary files)
+ * - Binary files handled correctly (uses copyFile, not UTF-8 read)
+ *
+ * @param sessionId - Session identifier
+ * @param templateName - Name of template directory (e.g., 'vite-fullstack-base')
+ * @returns Number of files copied
+ * @throws {Error} If template name is invalid, unknown, or not found
+ */
+export async function copyTemplateToSandbox(
+  sessionId: string,
+  templateName: string,
+): Promise<number> {
+  // Security: Validate template name (no path traversal)
+  if (templateName.includes('..') || templateName.includes('/') || templateName.includes('\\')) {
+    throw new Error(`Invalid template name: ${templateName}`);
+  }
+
+  // Security: Whitelist known templates
+  if (!ALLOWED_TEMPLATES.includes(templateName as (typeof ALLOWED_TEMPLATES)[number])) {
+    throw new Error(`Unknown template: ${templateName}`);
+  }
+
+  const templatePath = path.join(TEMPLATE_BASE_DIR, templateName);
+  const sandboxPath = getSandboxPath(sessionId);
+
+  // Security: Verify resolved path is within templates directory
+  if (!templatePath.startsWith(TEMPLATE_BASE_DIR)) {
+    throw new Error(`Path traversal detected in template: ${templateName}`);
+  }
+
+  let fileCount = 0;
+
+  async function copyRecursive(src: string, dest: string): Promise<void> {
+    let entries;
+    try {
+      entries = await fs.readdir(src, { withFileTypes: true });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        throw new Error(`Template not found: ${templateName}`);
+      }
+      throw error;
+    }
+
+    for (const entry of entries) {
+      const srcPath = path.join(src, entry.name);
+      const destPath = path.join(dest, entry.name);
+
+      // Security: Skip symlinks to prevent reading arbitrary files
+      if (entry.isSymbolicLink()) {
+        console.warn(`[Filesystem] Skipping symlink in template: ${entry.name}`);
+        continue;
+      }
+
+      if (entry.isDirectory()) {
+        await fs.mkdir(destPath, { recursive: true });
+        await copyRecursive(srcPath, destPath);
+      } else if (entry.isFile()) {
+        // Use copyFile to correctly handle both text and binary files
+        await fs.copyFile(srcPath, destPath);
+        fileCount++;
+      }
+    }
+  }
+
+  await copyRecursive(templatePath, sandboxPath);
+
+  console.log(`[Filesystem] Copied template '${templateName}' to sandbox: ${fileCount} files`);
+  return fileCount;
+}

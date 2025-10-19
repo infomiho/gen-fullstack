@@ -432,7 +432,7 @@ describe('DockerService', () => {
 
       const result = await installPromise;
       expect(result).toBeInstanceOf(Error);
-      expect(result.message).toContain('Installation timeout');
+      expect(result.message).toContain('npm install timeout');
 
       vi.useRealTimers();
     });

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import * as commandService from '../services/command.service.js';
 import { databaseService } from '../services/database.service.js';
 import * as filesystemService from '../services/filesystem.service.js';
+import { extractToolContext } from './tool-utils.js';
 
 /**
  * Tool definitions for LLM-powered app generation
@@ -25,16 +26,11 @@ export const writeFile = tool({
     content: z.string().describe('Full content to write to the file'),
   }),
   execute: async ({ path, content }, { experimental_context: context }) => {
-    interface ToolContext {
-      sessionId: string;
-      io?: { to: (room: string) => { emit: (event: string, data: unknown) => void } };
-    }
-    const ctx = context as ToolContext;
-    const sessionId = ctx.sessionId;
+    const { sessionId, io } = extractToolContext(context);
 
     // Emit file_updated event immediately (real-time streaming) to session room
-    if (ctx.io) {
-      ctx.io.to(sessionId).emit('file_updated', {
+    if (io) {
+      io.to(sessionId).emit('file_updated', {
         path,
         content,
       });
@@ -69,7 +65,7 @@ export const readFile = tool({
     path: z.string().describe('Relative path to the file to read (e.g., "src/App.tsx")'),
   }),
   execute: async ({ path }, { experimental_context: context }) => {
-    const sessionId = (context as { sessionId: string }).sessionId;
+    const { sessionId } = extractToolContext(context);
     return await filesystemService.readFile(sessionId, path);
   },
 });
@@ -87,7 +83,7 @@ export const listFiles = tool({
     directory: z.string().describe('Relative path to the directory (use "." for root directory)'),
   }),
   execute: async ({ directory }, { experimental_context: context }) => {
-    const sessionId = (context as { sessionId: string }).sessionId;
+    const { sessionId } = extractToolContext(context);
     // Default to root if empty or not provided
     const dir = directory || '.';
     const files = await filesystemService.listFiles(sessionId, dir);
@@ -116,7 +112,7 @@ Use this to install packages (npm install), run builds (npm build), or execute t
       .describe('Command to execute (e.g., "npm install", "npm dev", "npm build")'),
   }),
   execute: async ({ command }, { experimental_context: context }) => {
-    const sessionId = (context as { sessionId: string }).sessionId;
+    const { sessionId } = extractToolContext(context);
     const result = await commandService.executeCommand(sessionId, command);
     return commandService.formatCommandResult(result);
   },

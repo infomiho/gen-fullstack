@@ -9,6 +9,7 @@ import { getSandboxPath, writeFile } from './services/filesystem.service.js';
 import { processService } from './services/process.service.js';
 import { NaiveStrategy } from './strategies/naive.strategy.js';
 import { PlanFirstStrategy } from './strategies/plan-first.strategy.js';
+import { TemplateStrategy } from './strategies/template.strategy.js';
 import type { ClientToServerEvents, ServerToClientEvents } from './types/index.js';
 import {
   AppActionSchema,
@@ -140,7 +141,7 @@ export function setupWebSocket(httpServer: HTTPServer) {
 
         socket.emit('session_started', { sessionId });
 
-        let strategy: NaiveStrategy | PlanFirstStrategy;
+        let strategy: NaiveStrategy | PlanFirstStrategy | TemplateStrategy;
         switch (validated.strategy) {
           case 'naive':
             strategy = new NaiveStrategy();
@@ -149,10 +150,12 @@ export function setupWebSocket(httpServer: HTTPServer) {
             strategy = new PlanFirstStrategy();
             break;
           case 'template':
+            strategy = new TemplateStrategy();
+            break;
           case 'compiler-check':
           case 'building-blocks':
             // These strategies not yet implemented, use NaiveStrategy for now
-            // TODO: Implement other strategies in Phase 5
+            // TODO: Implement compiler-check and building-blocks strategies in Phase 5
             strategy = new NaiveStrategy();
             break;
           default:

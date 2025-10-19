@@ -1,0 +1,19 @@
+{
+  "name": "fullstack-app",
+  "private": true,
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm:dev:*\"",
+    "dev:server": "npm -w server run dev",
+    "dev:client": "npm -w client run dev -- --host 0.0.0.0 --port 5173",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "prisma": "^6.10.0"
+  }
+}

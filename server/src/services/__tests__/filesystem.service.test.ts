@@ -2,6 +2,7 @@ import { stat } from 'node:fs/promises';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   cleanupSandbox,
+  copyTemplateToSandbox,
   getSandboxPath,
   initializeSandbox,
   listFiles,
@@ -220,6 +221,153 @@ describe('Filesystem Service', () => {
 
       const sandboxPath = getSandboxPath(sessionId);
       await expect(stat(sandboxPath)).rejects.toThrow('ENOENT');
+    });
+  });
+
+  describe('copyTemplateToSandbox', () => {
+    beforeEach(async () => {
+      await initializeSandbox(sessionId);
+    });
+
+    it('should copy template files to sandbox', async () => {
+      const fileCount = await copyTemplateToSandbox(sessionId, 'vite-fullstack-base');
+
+      // Should have copied all 15 template files
+      expect(fileCount).toBe(15);
+
+      // Verify root files exist
+      const rootFiles = await listFiles(sessionId, '.');
+      const rootFileNames = rootFiles.map((f) => f.name);
+      expect(rootFileNames).toContain('package.json');
+      expect(rootFileNames).toContain('.env');
+
+      // Verify client directory exists
+      expect(rootFileNames).toContain('client');
+      const clientFiles = await listFiles(sessionId, 'client');
+      const clientFileNames = clientFiles.map((f) => f.name);
+      expect(clientFileNames).toContain('package.json');
+      expect(clientFileNames).toContain('vite.config.ts');
+      expect(clientFileNames).toContain('src');
+
+      // Verify server directory exists
+      expect(rootFileNames).toContain('server');
+      const serverFiles = await listFiles(sessionId, 'server');
+      const serverFileNames = serverFiles.map((f) => f.name);
+      expect(serverFileNames).toContain('package.json');
+      expect(serverFileNames).toContain('src');
+
+      // Verify prisma directory exists
+      expect(rootFileNames).toContain('prisma');
+      const prismaFiles = await listFiles(sessionId, 'prisma');
+      const prismaFileNames = prismaFiles.map((f) => f.name);
+      expect(prismaFileNames).toContain('schema.prisma');
+    });
+
+    it('should copy file contents correctly', async () => {
+      await copyTemplateToSandbox(sessionId, 'vite-fullstack-base');
+
+      // Verify root package.json has correct content
+      const rootPackageJson = await readFile(sessionId, 'package.json');
+      expect(rootPackageJson).toContain('"name": "fullstack-app"');
+      expect(rootPackageJson).toContain('"workspaces"');
+
+      // Verify .env has correct content
+      const envFile = await readFile(sessionId, '.env');
+      expect(envFile).toContain('DATABASE_URL');
+
+      // Verify Prisma schema has correct content
+      const prismaSchema = await readFile(sessionId, 'prisma/schema.prisma');
+      expect(prismaSchema).toContain('model User');
+      expect(prismaSchema).toContain('provider = "sqlite"');
+
+      // Verify server index.ts has correct content
+      const serverIndex = await readFile(sessionId, 'server/src/index.ts');
+      expect(serverIndex).toContain('express()');
+      expect(serverIndex).toContain('PrismaClient');
+
+      // Verify client App.tsx has correct content
+      const clientApp = await readFile(sessionId, 'client/src/App.tsx');
+      expect(clientApp).toContain('export default function App()');
+      expect(clientApp).toContain('useState');
+    });
+
+    it('should throw error for non-existent template', async () => {
+      await expect(copyTemplateToSandbox(sessionId, 'non-existent-template')).rejects.toThrow(
+        'Unknown template: non-existent-template',
+      );
+    });
+
+    it('should reject path traversal attempts with ..', async () => {
+      await expect(copyTemplateToSandbox(sessionId, '../../../etc')).rejects.toThrow(
+        'Invalid template name',
+      );
+
+      await expect(copyTemplateToSandbox(sessionId, '..\\..\\windows')).rejects.toThrow(
+        'Invalid template name',
+      );
+    });
+
+    it('should reject path traversal attempts with slashes', async () => {
+      await expect(copyTemplateToSandbox(sessionId, 'foo/bar')).rejects.toThrow(
+        'Invalid template name',
+      );
+
+      await expect(copyTemplateToSandbox(sessionId, 'foo\\bar')).rejects.toThrow(
+        'Invalid template name',
+      );
+    });
+
+    it('should only allow whitelisted templates', async () => {
+      await expect(copyTemplateToSandbox(sessionId, 'malicious-template')).rejects.toThrow(
+        'Unknown template',
+      );
+
+      // Even if directory exists, should reject if not whitelisted
+      await expect(copyTemplateToSandbox(sessionId, 'some-other-template')).rejects.toThrow(
+        'Unknown template',
+      );
+    });
+
+    it('should handle copying to clean sandbox', async () => {
+      // First copy
+      const count1 = await copyTemplateToSandbox(sessionId, 'vite-fullstack-base');
+      expect(count1).toBe(15);
+
+      // Cleanup and re-initialize
+      await cleanupSandbox(sessionId);
+      await initializeSandbox(sessionId);
+
+      // Second copy should also work
+      const count2 = await copyTemplateToSandbox(sessionId, 'vite-fullstack-base');
+      expect(count2).toBe(15);
+    });
+
+    it('should overwrite existing files when copying template', async () => {
+      // Write a file that will be overwritten
+      await writeFile(sessionId, 'package.json', '{"name": "old-content"}');
+
+      // Copy template
+      await copyTemplateToSandbox(sessionId, 'vite-fullstack-base');
+
+      // Verify file was overwritten with template content
+      const packageJson = await readFile(sessionId, 'package.json');
+      expect(packageJson).toContain('"name": "fullstack-app"');
+      expect(packageJson).not.toContain('"name": "old-content"');
+    });
+
+    it('should preserve directory structure when copying', async () => {
+      await copyTemplateToSandbox(sessionId, 'vite-fullstack-base');
+
+      // Verify nested structure is preserved
+      const clientSrcFiles = await listFiles(sessionId, 'client/src');
+      const clientSrcFileNames = clientSrcFiles.map((f) => f.name);
+      expect(clientSrcFileNames).toContain('App.tsx');
+      expect(clientSrcFileNames).toContain('App.css');
+      expect(clientSrcFileNames).toContain('main.tsx');
+
+      const serverSrcFiles = await listFiles(sessionId, 'server/src');
+      const serverSrcFileNames = serverSrcFiles.map((f) => f.name);
+      expect(serverSrcFileNames).toContain('index.ts');
     });
   });
 

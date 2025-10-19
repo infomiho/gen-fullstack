@@ -75,33 +75,8 @@ ${getNaiveImplementationSteps()}`;
         onStepFinish: this.createOnStepFinishHandler(io),
       });
 
-      // Process the full stream for text deltas
-      for await (const part of result.fullStream) {
-        switch (part.type) {
-          case 'text-delta':
-            // Stream text deltas to client
-            if (part.text) {
-              this.emitMessage(io, 'assistant', part.text);
-            }
-            break;
-
-          case 'finish':
-            break;
-        }
-      }
-
-      // Wait for usage stats (must await after stream is consumed)
-      const [usage, steps] = await Promise.all([result.usage, result.steps]);
-
-      // Calculate metrics
-      // Note: AI SDK uses inputTokens/outputTokens, not promptTokens/completionTokens
-      const duration = Date.now() - startTime;
-      const metrics = this.calculateMetrics(
-        usage.inputTokens || 0,
-        usage.outputTokens || 0,
-        duration,
-        steps?.length || 0,
-      );
+      // Process stream and calculate metrics
+      const metrics = await this.processStreamResult(io, result, startTime);
 
       // Log completion
       this.logComplete(sessionId, metrics);
@@ -111,12 +86,7 @@ ${getNaiveImplementationSteps()}`;
 
       return metrics;
     } catch (error) {
-      // Handle errors
-      const duration = Date.now() - startTime;
-      this.emitError(io, error as Error);
-
-      // Return partial metrics
-      return this.calculateMetrics(0, 0, duration, 0);
+      return this.handleGenerationError(io, startTime, error);
     }
   }
 }

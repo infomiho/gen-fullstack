@@ -1,0 +1,12 @@
+# Template Base Directory
+
+This directory will contain the base template for full-stack applications generated with the Template-Based Strategy.
+
+The template provides:
+- Root monorepo structure with npm workspaces
+- Minimal Vite + React 19 client
+- Minimal Express 5 server
+- Basic Prisma schema setup
+- Configuration files (tsconfig, vite.config, etc.)
+
+The LLM will customize and extend this template based on user requirements, significantly reducing token usage and improving consistency.

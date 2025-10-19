@@ -243,28 +243,24 @@ export class DockerService extends EventEmitter {
   }
 
   /**
-   * Emit a command log entry (shown before command execution)
+   * Emit a log entry with specified level
+   *
+   * @param sessionId - Session identifier
+   * @param level - Log level (command, system, info, warn, error)
+   * @param message - Log message
+   * @param type - Stream type (stdout or stderr), defaults to stdout
    */
-  private emitCommandLog(sessionId: string, command: string): void {
+  private emitLog(
+    sessionId: string,
+    level: AppLog['level'],
+    message: string,
+    type: AppLog['type'] = 'stdout',
+  ): void {
     const log: AppLog = {
       sessionId,
       timestamp: Date.now(),
-      type: 'stdout',
-      level: 'command',
-      message: command,
-    };
-    this.storeLogEntry(sessionId, log);
-  }
-
-  /**
-   * Emit a system log entry (lifecycle events)
-   */
-  private emitSystemLog(sessionId: string, message: string): void {
-    const log: AppLog = {
-      sessionId,
-      timestamp: Date.now(),
-      type: 'stdout',
-      level: 'system',
+      type,
+      level,
       message,
     };
     this.storeLogEntry(sessionId, log);
@@ -440,7 +436,7 @@ export class DockerService extends EventEmitter {
    */
   async createContainer(sessionId: string, workingDir: string): Promise<AppInfo> {
     try {
-      this.emitSystemLog(sessionId, 'Creating container...');
+      this.emitLog(sessionId, 'system', 'Creating container...');
       await this.buildRunnerImage();
       await this.cleanupExistingContainer(sessionId);
 
@@ -500,7 +496,7 @@ export class DockerService extends EventEmitter {
       this.setupLogStream(sessionId, container);
       this.setupAutoCleanup(sessionId);
 
-      this.emitSystemLog(sessionId, 'Container created successfully');
+      this.emitLog(sessionId, 'system', 'Container created successfully');
 
       return {
         sessionId,
@@ -518,13 +514,57 @@ export class DockerService extends EventEmitter {
   }
 
   /**
-   * Set up log streaming from container
+   * Create a handler for Docker multiplexed stream format
    *
-   * Docker logs use multiplexed stream format:
+   * Docker logs/exec streams use multiplexed format:
    * - Header (8 bytes): [stream_type, 0, 0, 0, size1, size2, size3, size4]
    * - stream_type: 1=stdout, 2=stderr
    * - size: big-endian uint32 of message length
    * - Followed by message bytes
+   *
+   * @param sessionId - Session identifier for log context
+   * @param onMessage - Callback invoked for each parsed log message
+   * @returns Handler function to attach to stream's 'data' event
+   */
+  private createDockerStreamHandler(
+    sessionId: string,
+    onMessage: (log: AppLog) => void,
+  ): (chunk: Buffer) => void {
+    let buffer = Buffer.alloc(0);
+
+    return (chunk: Buffer) => {
+      buffer = Buffer.concat([buffer, chunk]);
+
+      while (buffer.length >= 8) {
+        const messageSize = buffer.readUInt32BE(4);
+
+        if (buffer.length < 8 + messageSize) {
+          break;
+        }
+
+        const streamType = buffer[0]; // 1=stdout, 2=stderr
+        const messageBuffer = buffer.slice(8, 8 + messageSize);
+        const message = messageBuffer.toString('utf8').trim();
+
+        buffer = buffer.slice(8 + messageSize);
+
+        if (!message) continue;
+
+        const log: AppLog = {
+          sessionId,
+          timestamp: Date.now(),
+          type: streamType === 2 ? 'stderr' : 'stdout',
+          level: determineLogLevel(message),
+          message,
+        };
+
+        onMessage(log);
+      }
+    };
+  }
+
+  /**
+   * Set up log streaming from container
    */
   private async setupLogStream(sessionId: string, container: Container): Promise<void> {
     try {
@@ -535,37 +575,9 @@ export class DockerService extends EventEmitter {
         timestamps: true,
       });
 
-      let buffer = Buffer.alloc(0);
-
-      const dataHandler = (chunk: Buffer) => {
-        buffer = Buffer.concat([buffer, chunk]);
-
-        while (buffer.length >= 8) {
-          const messageSize = buffer.readUInt32BE(4);
-
-          if (buffer.length < 8 + messageSize) {
-            break;
-          }
-
-          const streamType = buffer[0]; // 1=stdout, 2=stderr
-          const messageBuffer = buffer.slice(8, 8 + messageSize);
-          const message = messageBuffer.toString('utf8').trim();
-
-          buffer = buffer.slice(8 + messageSize);
-
-          if (!message) continue;
-
-          const log: AppLog = {
-            sessionId,
-            timestamp: Date.now(),
-            type: streamType === 2 ? 'stderr' : 'stdout',
-            level: determineLogLevel(message),
-            message,
-          };
-
-          this.storeLogEntry(sessionId, log);
-        }
-      };
+      const dataHandler = this.createDockerStreamHandler(sessionId, (log) =>
+        this.storeLogEntry(sessionId, log),
+      );
 
       const errorHandler = (error: Error) => {
         console.error(`[Docker] Log stream error for ${sessionId}:`, error);
@@ -739,42 +751,12 @@ export class DockerService extends EventEmitter {
 
   /**
    * Process exec stream output and emit logs
-   *
-   * Docker exec streams use the same multiplexed format as container logs
    */
   private processExecStream(sessionId: string, stream: NodeJS.ReadableStream): () => void {
-    let buffer = Buffer.alloc(0);
-
-    const dataHandler = (chunk: Buffer) => {
-      buffer = Buffer.concat([buffer, chunk]);
-
-      while (buffer.length >= 8) {
-        const messageSize = buffer.readUInt32BE(4);
-
-        if (buffer.length < 8 + messageSize) {
-          break;
-        }
-
-        const streamType = buffer[0]; // 1=stdout, 2=stderr
-        const messageBuffer = buffer.slice(8, 8 + messageSize);
-        const message = messageBuffer.toString('utf8').trim();
-
-        buffer = buffer.slice(8 + messageSize);
-
-        if (!message) continue;
-
-        const log: AppLog = {
-          sessionId,
-          timestamp: Date.now(),
-          type: streamType === 2 ? 'stderr' : 'stdout',
-          level: determineLogLevel(message),
-          message,
-        };
-
-        this.storeLogEntry(sessionId, log);
-        console.log(`[Docker:${sessionId}] ${message}`);
-      }
-    };
+    const dataHandler = this.createDockerStreamHandler(sessionId, (log) => {
+      this.storeLogEntry(sessionId, log);
+      console.log(`[Docker:${sessionId}] ${log.message}`);
+    });
 
     stream.on('data', dataHandler);
 
@@ -784,6 +766,36 @@ export class DockerService extends EventEmitter {
         stream.destroy();
       }
     };
+  }
+
+  /**
+   * Execute a stream operation with timeout
+   *
+   * Races stream completion against a timeout, throwing an error if the timeout expires first.
+   * Properly handles stream cleanup to prevent memory leaks.
+   *
+   * @param stream - The readable stream to wait for completion
+   * @param timeoutMs - Timeout in milliseconds
+   * @param operationName - Human-readable operation name for error messages
+   * @throws Error if operation times out or stream errors
+   */
+  private async executeWithTimeout(
+    stream: NodeJS.ReadableStream,
+    timeoutMs: number,
+    operationName: string,
+  ): Promise<void> {
+    await Promise.race([
+      new Promise<void>((resolve, reject) => {
+        stream.on('end', () => resolve());
+        stream.on('error', reject);
+      }),
+      new Promise<void>((_, reject) =>
+        setTimeout(
+          () => reject(new Error(`${operationName} timeout after ${timeoutMs}ms`)),
+          timeoutMs,
+        ),
+      ),
+    ]);
   }
 
   /**
@@ -802,8 +814,8 @@ export class DockerService extends EventEmitter {
       this.emit('status_change', { sessionId, status: 'installing' });
 
       // Step 1: Install all dependencies (root + client + server workspaces)
-      this.emitSystemLog(sessionId, 'Installing dependencies...');
-      this.emitCommandLog(sessionId, '$ npm install --loglevel=info');
+      this.emitLog(sessionId, 'system', 'Installing dependencies...');
+      this.emitLog(sessionId, 'command', '$ npm install --loglevel=info');
 
       const installExec = await containerInfo.container.exec({
         Cmd: ['npm', 'install', '--loglevel=info'],
@@ -815,15 +827,7 @@ export class DockerService extends EventEmitter {
       const installStream = await installExec.start({ Detach: false, Tty: false });
       cleanupStream = this.processExecStream(sessionId, installStream);
 
-      await Promise.race([
-        new Promise((resolve, reject) => {
-          installStream.on('end', resolve);
-          installStream.on('error', reject);
-        }),
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Installation timeout')), TIMEOUTS.install),
-        ),
-      ]);
+      await this.executeWithTimeout(installStream, TIMEOUTS.install, 'npm install');
 
       if (cleanupStream) {
         cleanupStream();
@@ -831,11 +835,11 @@ export class DockerService extends EventEmitter {
       }
 
       console.log(`[Docker] Dependencies installed for ${sessionId}`);
-      this.emitSystemLog(sessionId, 'Dependencies installed successfully');
+      this.emitLog(sessionId, 'system', 'Dependencies installed successfully');
 
       // Step 2: Generate Prisma client
-      this.emitSystemLog(sessionId, 'Generating Prisma client...');
-      this.emitCommandLog(sessionId, '$ npx prisma generate');
+      this.emitLog(sessionId, 'system', 'Generating Prisma client...');
+      this.emitLog(sessionId, 'command', '$ npx prisma generate');
 
       const generateExec = await containerInfo.container.exec({
         Cmd: ['npx', 'prisma', 'generate'],
@@ -847,25 +851,17 @@ export class DockerService extends EventEmitter {
       const generateStream = await generateExec.start({ Detach: false, Tty: false });
       cleanupStream = this.processExecStream(sessionId, generateStream);
 
-      await Promise.race([
-        new Promise((resolve, reject) => {
-          generateStream.on('end', resolve);
-          generateStream.on('error', reject);
-        }),
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Prisma generate timeout')), 60000),
-        ),
-      ]);
+      await this.executeWithTimeout(generateStream, 60000, 'prisma generate');
 
       if (cleanupStream) {
         cleanupStream();
         cleanupStream = undefined;
       }
 
-      this.emitSystemLog(sessionId, 'Prisma client generated successfully');
+      this.emitLog(sessionId, 'system', 'Prisma client generated successfully');
 
       // Step 3: Check if migrations exist, then run database migrations
-      this.emitSystemLog(sessionId, 'Checking for existing migrations...');
+      this.emitLog(sessionId, 'system', 'Checking for existing migrations...');
 
       const checkMigrationsExec = await containerInfo.container.exec({
         Cmd: ['sh', '-c', 'test -d prisma/migrations && echo "exists" || echo "none"'],
@@ -900,11 +896,12 @@ export class DockerService extends EventEmitter {
       }
 
       if (migrationsExist) {
-        this.emitSystemLog(
+        this.emitLog(
           sessionId,
+          'system',
           'Migrations directory already exists, applying existing migrations...',
         );
-        this.emitCommandLog(sessionId, '$ npx prisma migrate deploy');
+        this.emitLog(sessionId, 'command', '$ npx prisma migrate deploy');
 
         const deployExec = await containerInfo.container.exec({
           Cmd: ['npx', 'prisma', 'migrate', 'deploy'],
@@ -917,25 +914,17 @@ export class DockerService extends EventEmitter {
         const deployStream = await deployExec.start({ Detach: false, Tty: false });
         cleanupStream = this.processExecStream(sessionId, deployStream);
 
-        await Promise.race([
-          new Promise((resolve, reject) => {
-            deployStream.on('end', resolve);
-            deployStream.on('error', reject);
-          }),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Prisma migrate deploy timeout')), 60000),
-          ),
-        ]);
+        await this.executeWithTimeout(deployStream, 60000, 'prisma migrate deploy');
 
         if (cleanupStream) {
           cleanupStream();
           cleanupStream = undefined;
         }
 
-        this.emitSystemLog(sessionId, 'Existing migrations applied successfully');
+        this.emitLog(sessionId, 'system', 'Existing migrations applied successfully');
       } else {
-        this.emitSystemLog(sessionId, 'Running initial database migration...');
-        this.emitCommandLog(sessionId, '$ npx prisma migrate dev --name init');
+        this.emitLog(sessionId, 'system', 'Running initial database migration...');
+        this.emitLog(sessionId, 'command', '$ npx prisma migrate dev --name init');
 
         const migrateExec = await containerInfo.container.exec({
           Cmd: ['npx', 'prisma', 'migrate', 'dev', '--name', 'init'],
@@ -948,22 +937,14 @@ export class DockerService extends EventEmitter {
         const migrateStream = await migrateExec.start({ Detach: false, Tty: false });
         cleanupStream = this.processExecStream(sessionId, migrateStream);
 
-        await Promise.race([
-          new Promise((resolve, reject) => {
-            migrateStream.on('end', resolve);
-            migrateStream.on('error', reject);
-          }),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Prisma migrate timeout')), 60000),
-          ),
-        ]);
+        await this.executeWithTimeout(migrateStream, 60000, 'prisma migrate dev');
 
         if (cleanupStream) {
           cleanupStream();
           cleanupStream = undefined;
         }
 
-        this.emitSystemLog(sessionId, 'Initial database migration completed successfully');
+        this.emitLog(sessionId, 'system', 'Initial database migration completed successfully');
       }
     } catch (error) {
       if (cleanupStream) {
@@ -993,8 +974,8 @@ export class DockerService extends EventEmitter {
       containerInfo.status = 'starting';
       this.emit('status_change', { sessionId, status: 'starting' });
 
-      this.emitSystemLog(sessionId, 'Starting development servers (client + server)...');
-      this.emitCommandLog(sessionId, '$ npm run dev');
+      this.emitLog(sessionId, 'system', 'Starting development servers (client + server)...');
+      this.emitLog(sessionId, 'command', '$ npm run dev');
 
       const exec = await containerInfo.container.exec({
         Cmd: ['npm', 'run', 'dev'],
@@ -1124,7 +1105,7 @@ export class DockerService extends EventEmitter {
       return;
     }
 
-    this.emitSystemLog(sessionId, 'Stopping container...');
+    this.emitLog(sessionId, 'system', 'Stopping container...');
 
     try {
       // Abort any pending HTTP ready checks
@@ -1173,7 +1154,7 @@ export class DockerService extends EventEmitter {
       this.containers.delete(sessionId);
 
       console.log(`[Docker] Container destroyed: ${sessionId}`);
-      this.emitSystemLog(sessionId, 'Container stopped and cleaned up');
+      this.emitLog(sessionId, 'system', 'Container stopped and cleaned up');
     } catch (error) {
       console.error('[Docker] Failed to destroy container:', error);
       try {

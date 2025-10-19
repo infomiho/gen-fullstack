@@ -175,37 +175,21 @@ Implement the application following this plan exactly. Create all files as speci
         onStepFinish: this.createOnStepFinishHandler(io),
       });
 
-      // Process the full stream for text deltas
-      for await (const part of result.fullStream) {
-        switch (part.type) {
-          case 'text-delta':
-            if (part.text) {
-              this.emitMessage(io, 'assistant', part.text);
-            }
-            break;
+      // Process stream and get implementation metrics
+      const implMetrics = await this.processStreamResult(io, result, startTime);
 
-          case 'finish':
-            break;
-        }
-      }
-
-      // Wait for usage stats
-      const [usage, steps, planUsage] = await Promise.all([
-        result.usage,
-        result.steps,
-        planResult.usage,
-      ]);
+      // Get planning usage stats
+      const planUsage = await planResult.usage;
 
       // Calculate combined metrics (planning + implementation)
-      const duration = Date.now() - startTime;
-      const totalInputTokens = (usage.inputTokens || 0) + (planUsage.inputTokens || 0);
-      const totalOutputTokens = (usage.outputTokens || 0) + (planUsage.outputTokens || 0);
-      // Add 1 for the planning step (generateText call) + implementation steps (streamText)
-      const totalSteps = 1 + (steps?.length || 0);
+      const totalInputTokens = implMetrics.inputTokens + (planUsage.inputTokens || 0);
+      const totalOutputTokens = implMetrics.outputTokens + (planUsage.outputTokens || 0);
+      // Add 1 for the planning step + implementation steps
+      const totalSteps = 1 + implMetrics.steps;
       const metrics = this.calculateMetrics(
         totalInputTokens,
         totalOutputTokens,
-        duration,
+        implMetrics.duration,
         totalSteps,
       );
 
@@ -217,12 +201,7 @@ Implement the application following this plan exactly. Create all files as speci
 
       return metrics;
     } catch (error) {
-      // Handle errors
-      const duration = Date.now() - startTime;
-      this.emitError(io, error as Error);
-
-      // Return partial metrics
-      return this.calculateMetrics(0, 0, duration, 0);
+      return this.handleGenerationError(io, startTime, error);
     }
   }
 }
