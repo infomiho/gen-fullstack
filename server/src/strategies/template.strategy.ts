@@ -11,7 +11,7 @@ import type { ClientToServerEvents, ServerToClientEvents } from '../types/index.
 import { BaseStrategy, type GenerationMetrics } from './base.strategy.js';
 
 // Maximum number of tool calls allowed in a single generation
-const MAX_TOOL_CALLS = 15; // Fewer than naive since we start with template
+const MAX_TOOL_CALLS = 20; // Same as naive/plan-first for thorough implementation
 
 /**
  * Template-Based Strategy: Start from pre-built full-stack template
@@ -41,34 +41,39 @@ export class TemplateStrategy extends BaseStrategy {
   getSystemPrompt(): string {
     return `You are an expert full-stack web application generator. A complete full-stack template has been pre-loaded into your workspace.
 
-YOUR TASK: Customize this template to implement the user's specific requirements.
+YOUR TASK: Carefully analyze the user's requirements, then customize this template to implement EXACTLY what they requested.
+
+⚠️ CRITICAL: DO NOT use generic examples (Post, User, etc.) unless that's what the user specifically asked for. Build for THEIR domain (plants, tasks, recipes, etc.).
 
 TEMPLATE STRUCTURE - ALREADY SET UP (DO NOT READ OR MODIFY):
 ✓ Root package.json with npm workspaces and scripts
 ✓ client/package.json, vite.config.ts, tsconfig.json (Vite + React 19 configured)
 ✓ server/package.json, tsconfig.json (Express 5 + Prisma configured)
 ✓ client/index.html, client/src/main.tsx (HTML template and React entry point)
+✓ client/src/App.tsx - Has User CRUD as placeholder (REPLACE with user's actual requirements)
+✓ server/src/index.ts - Has /api/users endpoints as placeholder (REPLACE with user's actual entities)
+✓ prisma/schema.prisma - Has User model as placeholder (ADD user's actual models)
 
-FILES TO MODIFY (ONLY THESE 4):
-1. prisma/schema.prisma - Add your data models (User model already exists as example)
-2. server/src/index.ts - Add your API endpoints (User CRUD already exists as example)
-3. client/src/App.tsx - Customize UI (User management UI already exists as example)
-4. client/src/App.css - Style your UI (Example styles already exist)
-5. client/src/components/* - Create new components as needed
+FILES TO MODIFY:
+1. prisma/schema.prisma - ADD models for user's domain (keep or remove User model as needed)
+2. server/src/index.ts - ADD/REPLACE API endpoints for user's entities
+3. client/src/App.tsx - REPLACE with UI for user's requirements
+4. client/src/App.css - Style the UI appropriately
+5. client/src/components/* - Create components as needed
 
-EFFICIENT WORKFLOW:
-1. Analyze the user's requirements
-2. Start implementing immediately (DO NOT use listFiles or readFile on config files):
-   a. Update prisma/schema.prisma with the required data models
-   b. Add API routes to server/src/index.ts for CRUD operations
-   c. Create React components in client/src/components/ for the UI
-   d. Update client/src/App.tsx to integrate the new features
+WORKFLOW:
+1. **READ THE USER'S PROMPT CAREFULLY** - Identify their domain, entities, and operations
+2. Start implementing (DO NOT use listFiles or readFile on config files):
+   a. Add appropriate data models to prisma/schema.prisma
+   b. Add/replace API routes in server/src/index.ts
+   c. Create React components in client/src/components/
+   d. Update client/src/App.tsx to match the user's requirements
 
-EXAMPLE - Task Tracker App:
-- Add Task model to prisma/schema.prisma (title, completed, userId fields)
-- Add GET/POST/PUT/DELETE /api/tasks endpoints to server/src/index.ts
-- Create TaskList.tsx and TaskForm.tsx components in client/src/components/
-- Update App.tsx to render and manage tasks
+EXAMPLE - If user asks for "plant watering app":
+- DON'T create Post/User models - CREATE Plant model (name, species, lastWatered, etc.)
+- DON'T add /api/posts - CREATE /api/plants endpoints
+- DON'T show generic UI - CREATE plant tracking interface
+This applies to ANY domain - build what the user asks for, not generic examples.
 
 ${ARCHITECTURE_DESCRIPTION}
 

@@ -100,13 +100,28 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Define your models here based on requirements
-model User {
-  id    Int     @id @default(autoincrement())
-  email String  @unique
-  name  String?
-  // ... add fields based on requirements
+// Define your models here based on USER'S requirements
+// Example: For a task tracker, you might have:
+model Task {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?
+  completed   Boolean  @default(false)
+  dueDate     DateTime?
+  createdAt   DateTime @default(now())
 }
+
+// Example: For a recipe app, you might have:
+model Recipe {
+  id          Int      @id @default(autoincrement())
+  name        String
+  ingredients String   // JSON or text
+  steps       String
+  cookTime    Int      // minutes
+  createdAt   DateTime @default(now())
+}
+
+// IMPORTANT: Use models that match the user's domain, not these examples
 \`\`\``;
 
 /**
@@ -151,33 +166,55 @@ const PORT = 3000;
 app.use(cors());
 app.use(express.json());
 
-// API routes - Express 5 handles async errors, but handle specific cases:
-app.get('/api/users', async (req, res) => {
-  const users = await prisma.user.findMany();
-  res.json(users);
+// API routes - Create endpoints for YOUR entities (examples below show pattern):
+
+// Example: GET all items
+app.get('/api/tasks', async (req, res) => {
+  const tasks = await prisma.task.findMany();
+  res.json(tasks);
 });
 
-app.post('/api/users', async (req, res) => {
-  const { email, name } = req.body;
+// Example: POST create item with validation
+app.post('/api/tasks', async (req, res) => {
+  const { title, description } = req.body;
 
   // Validate input (return 400 for bad requests)
-  if (!email) {
-    return res.status(400).json({ error: 'Email is required' });
+  if (!title) {
+    return res.status(400).json({ error: 'Title is required' });
   }
 
   try {
-    const user = await prisma.user.create({ data: { email, name } });
-    res.json(user);
+    const task = await prisma.task.create({
+      data: { title, description, completed: false }
+    });
+    res.json(task);
   } catch (error: any) {
     // Handle Prisma unique constraint violations (return 409)
     if (error.code === 'P2002') {
-      return res.status(409).json({ error: 'Email already exists' });
+      return res.status(409).json({ error: 'Duplicate entry' });
     }
     throw error; // Let Express 5 handle as 500
   }
 });
 
-// Add more routes...
+// Example: PUT update item
+app.put('/api/tasks/:id', async (req, res) => {
+  const id = parseInt(req.params.id);
+  const updated = await prisma.task.update({
+    where: { id },
+    data: req.body
+  });
+  res.json(updated);
+});
+
+// Example: DELETE item
+app.delete('/api/tasks/:id', async (req, res) => {
+  const id = parseInt(req.params.id);
+  await prisma.task.delete({ where: { id } });
+  res.json({ success: true });
+});
+
+// IMPORTANT: Adapt these routes to YOUR domain (tasks → plants/recipes/etc.)
 
 app.listen(PORT, () => {
   console.log(\`Server running on http://localhost:\${PORT}\`);
@@ -239,19 +276,43 @@ export const CLIENT_APP_EXAMPLE = `8. **client/src/App.tsx** - Make API calls wi
 import { useEffect, useState } from 'react';
 import './App.css';
 
+// Example structure - adapt to YOUR domain
 export default function App() {
-  const [data, setData] = useState([]);
+  const [items, setItems] = useState([]); // tasks, plants, recipes, etc.
+  const [formData, setFormData] = useState({}); // fields for your entity
 
   useEffect(() => {
-    fetch('/api/users')
+    fetch('/api/tasks') // Change 'tasks' to your entity
       .then(res => res.json())
-      .then(setData);
+      .then(setItems);
   }, []);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    await fetch('/api/tasks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formData)
+    });
+    // Refresh list
+    fetch('/api/tasks').then(r => r.json()).then(setItems);
+  }
 
   return (
     <div className="container">
-      <h1 className="title">{/* Your title here */}</h1>
-      {/* Use CSS classes for all styling */}
+      <h1 className="title">Your App Title</h1>
+
+      <form className="form" onSubmit={handleSubmit}>
+        {/* Form fields for your entity */}
+      </form>
+
+      <div className="items-list">
+        {items.map(item => (
+          <div key={item.id} className="item-card">
+            {/* Display item properties */}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -270,7 +331,11 @@ body {
 
 .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
 .title { font-size: 2rem; font-weight: 700; margin-bottom: 1.5rem; color: #111827; }
-/* Add more classes for buttons, cards, forms, etc. */
+.form { background: white; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; }
+.item-card { background: white; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; }
+.button { padding: 0.5rem 1rem; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; }
+.button:hover { background: #2563eb; }
+/* Add more classes for your specific UI needs */
 \`\`\`
 
 **STYLING**: Use CSS classes (not inline styles), include proper spacing/colors/typography, style interactive elements with hover states.`;
@@ -352,66 +417,95 @@ ${COMPLETION_MESSAGE}`;
  * Implementation guidelines for template-based strategy
  */
 export function getTemplateImplementationGuidelines(): string {
-  return `WHAT TO DO:
+  return `STEP 1: ANALYZE USER REQUIREMENTS
+Before writing any code, carefully read the user's prompt and identify:
+- What domain/problem are they solving? (e.g., plant watering, task tracking, recipe management)
+- What are the core entities/models needed? (e.g., Plant, Task, Recipe - NOT Post/User unless that's what they asked for)
+- What operations do users need to perform? (create, read, update, delete, etc.)
+
+DO NOT default to generic examples. Build EXACTLY what the user requested.
+
+STEP 2: IMPLEMENT THE APPLICATION
 
 **DO NOT READ CONFIG FILES** - All setup is complete. Focus only on implementation:
 
-1. **prisma/schema.prisma** - Add new models:
+1. **prisma/schema.prisma** - Add models based on USER'S domain:
 \`\`\`prisma
-model Post {
+// Example for a plant watering app (ADAPT TO USER'S ACTUAL REQUEST):
+model Plant {
+  id          Int      @id @default(autoincrement())
+  name        String
+  species     String?
+  lastWatered DateTime?
+  waterEvery  Int      // days between watering
+  notes       String?
+  createdAt   DateTime @default(now())
+}
+
+// Example for a task tracker (ADAPT TO USER'S ACTUAL REQUEST):
+model Task {
   id        Int      @id @default(autoincrement())
   title     String
-  content   String
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id])
+  completed Boolean  @default(false)
+  priority  String?  // "high", "medium", "low"
+  dueDate   DateTime?
   createdAt DateTime @default(now())
 }
 \`\`\`
 
-2. **server/src/index.ts** - Add API endpoints (keep existing imports and setup):
+2. **server/src/index.ts** - Add API endpoints for USER'S entities (keep existing imports/setup):
 \`\`\`typescript
-app.get('/api/posts', async (req, res) => {
-  const posts = await prisma.post.findMany({ include: { user: true } });
-  res.json(posts);
+// Example for plants API (ADAPT TO USER'S ACTUAL REQUEST):
+app.get('/api/plants', async (req, res) => {
+  const plants = await prisma.plant.findMany();
+  res.json(plants);
 });
 
-app.post('/api/posts', async (req, res) => {
-  const { title, content, userId } = req.body;
-  if (!title || !content || !userId) {
-    return res.status(400).json({ error: 'Missing required fields' });
+app.post('/api/plants', async (req, res) => {
+  const { name, species, waterEvery } = req.body;
+  if (!name || !waterEvery) {
+    return res.status(400).json({ error: 'Name and waterEvery are required' });
   }
-  try {
-    const post = await prisma.post.create({ data: { title, content, userId } });
-    res.json(post);
-  } catch (error: any) {
-    if (error.code === 'P2003') return res.status(404).json({ error: 'User not found' });
-    throw error;
-  }
+  const plant = await prisma.plant.create({
+    data: { name, species, waterEvery, lastWatered: new Date() }
+  });
+  res.json(plant);
 });
+
+// Add PUT, DELETE, etc. based on user's needs
 \`\`\`
 
-3. **client/src/components/** - Create new components:
+3. **client/src/components/** - Create components for USER'S domain:
 \`\`\`typescript
-// PostList.tsx
+// Example: PlantList.tsx (ADAPT TO USER'S ACTUAL REQUEST)
 import { useEffect, useState } from 'react';
-import './PostList.css';
+import './PlantList.css';
 
-export default function PostList() {
-  const [posts, setPosts] = useState([]);
-  useEffect(() => { fetch('/api/posts').then(r => r.json()).then(setPosts); }, []);
+export default function PlantList() {
+  const [plants, setPlants] = useState([]);
+  useEffect(() => {
+    fetch('/api/plants').then(r => r.json()).then(setPlants);
+  }, []);
   return (
-    <div className="posts-section">
-      {posts.map(post => <div key={post.id} className="post-card"><h3>{post.title}</h3></div>)}
+    <div className="plants-section">
+      {plants.map(plant => (
+        <div key={plant.id} className="plant-card">
+          <h3>{plant.name}</h3>
+          <p>{plant.species}</p>
+        </div>
+      ))}
     </div>
   );
 }
 \`\`\`
 
-4. **client/src/App.tsx & App.css** - Update UI and styles to use your new components.
+4. **client/src/App.tsx & App.css** - Build UI for USER'S requirements (not generic examples).
 
 ${IMPORTANT_GUIDELINES}
 
 DO NOT: Read package.json, tsconfig.json, vite.config.ts, index.html, or main.tsx. They're already configured.
+
+CRITICAL: The examples above (Plant, Task) are ONLY to show the pattern. You MUST implement the ACTUAL entities from the user's prompt, not these examples.
 
 ${COMPLETION_MESSAGE}`;
 }

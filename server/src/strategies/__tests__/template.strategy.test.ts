@@ -107,13 +107,13 @@ describe('TemplateStrategy', () => {
       expect(prompt).toContain('prisma/');
 
       // Should provide workflow guidance
-      expect(prompt).toContain('EFFICIENT WORKFLOW');
-      expect(prompt).toContain('readFile');
-      expect(prompt).toContain('listFiles');
+      expect(prompt).toContain('WORKFLOW');
+      expect(prompt).toContain('READ THE USER');
+      expect(prompt).toContain('domain');
 
-      // Should include concrete example
-      expect(prompt).toContain('EXAMPLE - Task Tracker App');
-      expect(prompt).toContain('Task model');
+      // Should include concrete example showing adaptation
+      expect(prompt).toContain('plant watering app');
+      expect(prompt).toContain('Plant model');
 
       // Should emphasize building over exploration
       expect(prompt).toContain('requirements');
@@ -174,8 +174,8 @@ describe('TemplateStrategy', () => {
 
       await strategy.generateApp(prompt, mockIO, sessionId);
 
-      // Template strategy should use 15 max tool calls (fewer than naive)
-      expect(stepCountIs).toHaveBeenCalledWith(15);
+      // Template strategy should use 20 max tool calls (same as naive/plan-first)
+      expect(stepCountIs).toHaveBeenCalledWith(20);
     });
 
     it('should return generation metrics', async () => {
