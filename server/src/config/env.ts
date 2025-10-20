@@ -3,14 +3,7 @@ import { configLogger } from '../lib/logger.js';
 
 const EnvSchema = z.object({
   // Server
-  PORT: z
-    .string()
-    .optional()
-    .default('3001')
-    .transform((val) => parseInt(val, 10))
-    .refine((val) => !Number.isNaN(val) && val > 0 && val < 65536, {
-      message: 'PORT must be a valid port number (1-65535)',
-    }),
+  PORT: z.coerce.number().int().min(1).max(65535).default(3001),
   CLIENT_URL: z.string().url().default('http://localhost:5173'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 
@@ -23,14 +16,7 @@ const EnvSchema = z.object({
   // Docker
   DOCKER_HOST: z.string().optional(),
   COLIMA_HOME: z.string().optional(),
-  MAX_CONTAINERS: z
-    .string()
-    .optional()
-    .default('20')
-    .transform((val) => parseInt(val, 10))
-    .refine((val) => !Number.isNaN(val) && val > 0, {
-      message: 'MAX_CONTAINERS must be a positive number',
-    }),
+  MAX_CONTAINERS: z.coerce.number().int().positive().default(20),
 
   // Logging (Note: LOG_LEVEL is used by logger.ts which can't import this due to circular deps)
   LOG_LEVEL: z
