@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import httpProxy from 'http-proxy';
 import { validateEnv } from './config/env.js';
+import { serverLogger } from './lib/logger.js';
 import sessionRoutes from './routes/sessions.js';
 import { databaseService } from './services/database.service.js';
 import { processService } from './services/process.service.js';
@@ -34,7 +35,7 @@ const proxy = httpProxy.createProxyServer({
 
 // Handle proxy errors
 proxy.on('error', (err, _req, res) => {
-  console.error('Proxy error:', err);
+  serverLogger.error({ error: err }, 'Proxy error');
   if ('status' in res && typeof res.status === 'function') {
     res.status(502).json({ error: 'Bad Gateway', message: 'Failed to proxy request' });
   }
@@ -76,7 +77,7 @@ app.use('/preview/:sessionId', (req, res) => {
     },
     (err) => {
       if (err) {
-        console.error(`Failed to proxy request to ${sessionId}:`, err);
+        serverLogger.error({ error: err, sessionId }, 'Failed to proxy request');
         res.status(502).json({ error: 'Proxy failed', message: String(err) });
       }
     },
@@ -113,50 +114,50 @@ const io = setupWebSocket(httpServer);
 // Initialize process service with Docker availability check
 async function initializeServices() {
   // Initialize database
-  console.log('[Server] Initializing database...');
+  serverLogger.info('Initializing database...');
   try {
     await databaseService.initialize();
-    console.log('[Server] ✓ Database initialized');
+    serverLogger.info('✓ Database initialized');
   } catch (err) {
-    console.error('[Server] Failed to initialize database:', err);
+    serverLogger.error({ error: err }, 'Failed to initialize database');
     process.exit(1);
   }
 
-  console.log('[Server] Checking Docker availability...');
+  serverLogger.info('Checking Docker availability...');
 
   const dockerAvailable = await processService.checkDockerAvailability();
 
   if (!dockerAvailable) {
-    console.error('[Server] ⚠️  Docker is not available!');
-    console.error('[Server] App execution features will be disabled.');
-    console.error('[Server] To enable app execution:');
-    console.error(
-      '[Server]   1. Install Docker Desktop: https://www.docker.com/products/docker-desktop',
+    serverLogger.warn('Docker is not available!');
+    serverLogger.warn('App execution features will be disabled.');
+    serverLogger.warn('To enable app execution:');
+    serverLogger.warn(
+      '  1. Install Docker Desktop: https://www.docker.com/products/docker-desktop',
     );
-    console.error('[Server]   2. Start Docker');
-    console.error('[Server]   3. Restart this server');
+    serverLogger.warn('  2. Start Docker');
+    serverLogger.warn('  3. Restart this server');
     return;
   }
 
-  console.log('[Server] ✓ Docker is available');
+  serverLogger.info('✓ Docker is available');
 
   // Clean up orphaned containers from previous sessions
   try {
     await processService.cleanupOrphanedContainers();
   } catch (err) {
-    console.error('[Server] Failed to cleanup orphaned containers:', err);
+    serverLogger.error({ error: err }, 'Failed to cleanup orphaned containers');
     // Continue anyway - not critical
   }
 
-  console.log('[Server] Building Docker runner image...');
+  serverLogger.info('Building Docker runner image...');
 
   try {
     await processService.initialize();
-    console.log('[Server] ✓ Docker runner image ready');
-    console.log('[Server] App execution features enabled');
+    serverLogger.info('✓ Docker runner image ready');
+    serverLogger.info('App execution features enabled');
   } catch (err) {
-    console.error('[Server] Failed to initialize process service:', err);
-    console.error('[Server] App execution will not work');
+    serverLogger.error({ error: err }, 'Failed to initialize process service');
+    serverLogger.error('App execution will not work');
   }
 }
 
@@ -165,25 +166,25 @@ initializeServices();
 
 // Start server
 httpServer.listen(PORT, () => {
-  console.log(`[Server] Server running on http://localhost:${PORT}`);
-  console.log(`[Server] Accepting connections from ${CLIENT_URL}`);
+  serverLogger.info({ port: PORT }, `Server running on http://localhost:${PORT}`);
+  serverLogger.info({ clientUrl: CLIENT_URL }, `Accepting connections from ${CLIENT_URL}`);
 });
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {
-  console.log('SIGTERM signal received: closing servers');
+  serverLogger.info('SIGTERM signal received: closing servers');
 
   // Cleanup running apps
   await processService.cleanup();
-  console.log('Process service cleaned up');
+  serverLogger.info('Process service cleaned up');
 
   // Close database connection
   databaseService.close();
 
   io.close(() => {
-    console.log('Socket.io server closed');
+    serverLogger.info('Socket.io server closed');
     httpServer.close(() => {
-      console.log('HTTP server closed');
+      serverLogger.info('HTTP server closed');
       process.exit(0);
     });
   });

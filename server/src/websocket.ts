@@ -58,7 +58,7 @@ function sanitizeError(error: unknown): string {
     return 'Invalid input provided';
   }
 
-  console.error('[Error Details]:', error);
+  websocketLogger.error({ error }, 'Unhandled error');
 
   return 'An error occurred. Please try again.';
 }
@@ -91,7 +91,7 @@ async function handleGenerationError(sessionId: string | null, error: unknown): 
       errorMessage: error instanceof Error ? error.message : String(error),
     });
   } catch (dbError) {
-    console.error('Failed to update session status:', dbError);
+    websocketLogger.error({ error: dbError, sessionId }, 'Failed to update session status');
   }
 }
 
@@ -150,7 +150,7 @@ export function setupWebSocket(httpServer: HTTPServer) {
       try {
         const { sessionId } = SubscribeSessionSchema.parse(payload);
         socket.join(sessionId);
-        console.log(`Socket ${socket.id} subscribed to session: ${sessionId}`);
+        websocketLogger.info({ socketId: socket.id, sessionId }, 'Socket subscribed to session');
       } catch (error) {
         socket.emit('error', sanitizeError(error));
       }
@@ -161,12 +161,12 @@ export function setupWebSocket(httpServer: HTTPServer) {
 
       try {
         const validated = StartGenerationSchema.parse(payload);
-        console.log('Starting generation with strategy:', validated.strategy);
+        websocketLogger.info({ strategy: validated.strategy }, 'Starting generation');
 
         sessionId = uuidv4();
 
         socket.join(sessionId);
-        console.log(`Socket ${socket.id} joined session room: ${sessionId}`);
+        websocketLogger.info({ socketId: socket.id, sessionId }, 'Socket joined session room');
 
         await databaseService.createSession({
           id: sessionId,
@@ -189,7 +189,7 @@ export function setupWebSocket(httpServer: HTTPServer) {
           activeGenerations.delete(sessionId);
         }
       } catch (error) {
-        console.error('Generation error:', error);
+        websocketLogger.error({ error, sessionId }, 'Generation error');
         await handleGenerationError(sessionId, error);
         socket.emit('error', sanitizeError(error));
       }
@@ -229,7 +229,7 @@ export function setupWebSocket(httpServer: HTTPServer) {
     socket.on('start_app', async (payload) => {
       try {
         const { sessionId } = AppActionSchema.parse(payload);
-        console.log(`[WebSocket] Starting app for session: ${sessionId}`);
+        websocketLogger.info({ sessionId }, 'Starting app');
 
         const dockerAvailable = await processService.checkDockerAvailability();
         if (!dockerAvailable) {
@@ -246,7 +246,7 @@ export function setupWebSocket(httpServer: HTTPServer) {
 
         await processService.startApp(sessionId, workingDir);
       } catch (error) {
-        console.error('[WebSocket] Failed to start app:', error);
+        websocketLogger.error({ error }, 'Failed to start app');
         socket.emit('error', sanitizeError(error));
       }
     });
@@ -254,10 +254,10 @@ export function setupWebSocket(httpServer: HTTPServer) {
     socket.on('stop_app', async (payload) => {
       try {
         const { sessionId } = AppActionSchema.parse(payload);
-        console.log(`[WebSocket] Stopping app for session: ${sessionId}`);
+        websocketLogger.info({ sessionId }, 'Stopping app');
         await processService.stopApp(sessionId);
       } catch (error) {
-        console.error('[WebSocket] Failed to stop app:', error);
+        websocketLogger.error({ error }, 'Failed to stop app');
         socket.emit('error', sanitizeError(error));
       }
     });
@@ -265,10 +265,10 @@ export function setupWebSocket(httpServer: HTTPServer) {
     socket.on('restart_app', async (payload) => {
       try {
         const { sessionId } = AppActionSchema.parse(payload);
-        console.log(`[WebSocket] Restarting app for session: ${sessionId}`);
+        websocketLogger.info({ sessionId }, 'Restarting app');
         await processService.restartApp(sessionId);
       } catch (error) {
-        console.error('[WebSocket] Failed to restart app:', error);
+        websocketLogger.error({ error }, 'Failed to restart app');
         socket.emit('error', sanitizeError(error));
       }
     });
@@ -296,7 +296,7 @@ export function setupWebSocket(httpServer: HTTPServer) {
           });
         }
       } catch (error) {
-        console.error('[WebSocket] Failed to get app status:', error);
+        websocketLogger.error({ error }, 'Failed to get app status');
         socket.emit('error', sanitizeError(error));
       }
     });
@@ -309,7 +309,7 @@ export function setupWebSocket(httpServer: HTTPServer) {
 
       try {
         const { sessionId, path: filePath, content } = SaveFileSchema.parse(payload);
-        console.log(`[WebSocket] Saving file ${filePath} for session: ${sessionId}`);
+        websocketLogger.info({ sessionId, filePath }, 'Saving file');
 
         await writeFile(sessionId, filePath, content);
 
@@ -321,15 +321,15 @@ export function setupWebSocket(httpServer: HTTPServer) {
 
         io.to(sessionId).emit('file_updated', { path: filePath, content });
 
-        console.log(`[WebSocket] File ${filePath} saved successfully`);
+        websocketLogger.info({ sessionId, filePath }, 'File saved successfully');
       } catch (error) {
-        console.error('[WebSocket] Failed to save file:', error);
+        websocketLogger.error({ error }, 'Failed to save file');
         socket.emit('error', sanitizeError(error));
       }
     });
 
     socket.on('clear_workspace', () => {
-      console.log('[WebSocket] Clearing workspace for client:', socket.id);
+      websocketLogger.info({ socketId: socket.id }, 'Clearing workspace for client');
 
       // Clear workspace just resets client-side UI state
       // Files on disk remain intact for persistence
@@ -337,7 +337,7 @@ export function setupWebSocket(httpServer: HTTPServer) {
     });
 
     socket.on('disconnect', () => {
-      console.log('Client disconnected:', socket.id);
+      websocketLogger.info({ socketId: socket.id }, 'Client disconnected');
     });
   });
 

@@ -49,8 +49,12 @@ export { logger };
 /**
  * Logger instances for different services
  */
+export const serverLogger = createLogger({ service: 'server' });
 export const dockerLogger = createLogger({ service: 'docker' });
 export const processLogger = createLogger({ service: 'process' });
 export const strategyLogger = createLogger({ service: 'strategy' });
 export const websocketLogger = createLogger({ service: 'websocket' });
 export const databaseLogger = createLogger({ service: 'database' });
+export const filesystemLogger = createLogger({ service: 'filesystem' });
+export const commandLogger = createLogger({ service: 'command' });
+export const routesLogger = createLogger({ service: 'routes' });

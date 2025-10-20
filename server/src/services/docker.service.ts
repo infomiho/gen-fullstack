@@ -174,8 +174,9 @@ async function retryOnConflict<T>(operation: () => Promise<T>, operationName: st
       }
 
       const delay = RETRY_CONFIG.delayMs * RETRY_CONFIG.backoffMultiplier ** (attempt - 1);
-      console.log(
-        `[Docker] ${operationName} failed with 409 conflict, retrying in ${delay}ms (attempt ${attempt}/${RETRY_CONFIG.maxAttempts})`,
+      dockerLogger.info(
+        { operationName, delay, attempt, maxAttempts: RETRY_CONFIG.maxAttempts },
+        `${operationName} failed with 409 conflict, retrying`,
       );
       await new Promise((resolve) => setTimeout(resolve, delay));
     }
@@ -400,7 +401,7 @@ export class DockerService extends EventEmitter {
    */
   async cleanupOrphanedContainers(): Promise<void> {
     try {
-      console.log('[Docker] Cleaning up orphaned containers...');
+      dockerLogger.info('Cleaning up orphaned containers...');
 
       const containers = await docker.listContainers({ all: true });
       const orphanedContainers = containers.filter((c) =>
@@ -408,11 +409,14 @@ export class DockerService extends EventEmitter {
       );
 
       if (orphanedContainers.length === 0) {
-        console.log('[Docker] No orphaned containers found');
+        dockerLogger.info('No orphaned containers found');
         return;
       }
 
-      console.log(`[Docker] Found ${orphanedContainers.length} orphaned containers, removing...`);
+      dockerLogger.info(
+        { count: orphanedContainers.length },
+        'Found orphaned containers, removing...',
+      );
 
       const promises = orphanedContainers.map(async (c) => {
         const container = docker.getContainer(c.Id);
@@ -421,16 +425,19 @@ export class DockerService extends EventEmitter {
             await container.stop({ t: 5 });
           }
           await container.remove({ force: true });
-          console.log(`[Docker] Removed orphaned container: ${c.Names[0]}`);
+          dockerLogger.info({ containerName: c.Names[0] }, 'Removed orphaned container');
         } catch (error) {
-          console.error(`[Docker] Failed to remove orphaned container ${c.Names[0]}:`, error);
+          dockerLogger.error(
+            { error, containerName: c.Names[0] },
+            'Failed to remove orphaned container',
+          );
         }
       });
 
       await Promise.all(promises);
-      console.log('[Docker] Orphaned container cleanup complete');
+      dockerLogger.info('Orphaned container cleanup complete');
     } catch (error) {
-      console.error('[Docker] Failed to cleanup orphaned containers:', error);
+      dockerLogger.error({ error }, 'Failed to cleanup orphaned containers');
     }
   }
 
@@ -473,7 +480,7 @@ export class DockerService extends EventEmitter {
       const existingContainer = containers.find((c) => c.Names.includes(`/${containerName}`));
 
       if (existingContainer) {
-        console.log(`[Docker] Found existing container ${containerName}, removing...`);
+        dockerLogger.info({ containerName }, 'Found existing container, removing...');
         const container = docker.getContainer(existingContainer.Id);
 
         if (existingContainer.State === 'running') {
@@ -489,10 +496,10 @@ export class DockerService extends EventEmitter {
           () => container.remove({ force: true }),
           `Remove container ${containerName}`,
         );
-        console.log(`[Docker] Removed existing container ${containerName}`);
+        dockerLogger.info({ containerName }, 'Removed existing container');
       }
     } catch (error) {
-      console.error('[Docker] Failed to cleanup existing container:', error);
+      dockerLogger.error({ error }, 'Failed to cleanup existing container');
     }
   }
 
@@ -588,7 +595,7 @@ export class DockerService extends EventEmitter {
         serverUrl: `http://localhost:${serverHostPort}`,
       };
     } catch (error) {
-      console.error('[Docker] Failed to create container:', error);
+      dockerLogger.error({ error, sessionId }, 'Failed to create container');
       // Record failure for circuit breaker
       this.recordFailure();
       throw new Error(`Failed to create Docker container: ${error}`);
@@ -662,7 +669,7 @@ export class DockerService extends EventEmitter {
       );
 
       const errorHandler = (error: Error) => {
-        console.error(`[Docker] Log stream error for ${sessionId}:`, error);
+        dockerLogger.error({ error, sessionId }, 'Log stream error');
       };
 
       stream.on('data', dataHandler);
@@ -679,7 +686,7 @@ export class DockerService extends EventEmitter {
         };
       }
     } catch (error) {
-      console.error('[Docker] Failed to setup log stream:', error);
+      dockerLogger.error({ error, sessionId }, 'Failed to setup log stream');
     }
   }
 
@@ -701,9 +708,14 @@ export class DockerService extends EventEmitter {
       // Log first and last failures for debugging
       const shouldLog = attempt === 0 || attempt === HTTP_READY_CHECK.maxAttempts - 1;
       if (shouldLog) {
-        console.log(
-          `[Docker] HTTP ready check attempt ${attempt + 1}/${HTTP_READY_CHECK.maxAttempts} failed:`,
-          error instanceof Error ? error.message : error,
+        dockerLogger.info(
+          {
+            port,
+            attempt: attempt + 1,
+            maxAttempts: HTTP_READY_CHECK.maxAttempts,
+            error: error instanceof Error ? error.message : error,
+          },
+          'HTTP ready check attempt failed',
         );
       }
       return false;
@@ -797,12 +809,14 @@ export class DockerService extends EventEmitter {
                   sessionId,
                   status: 'running',
                 });
-                console.log(
-                  `[Docker] HTTP server ready for ${sessionId} on client port ${containerInfo.clientPort}`,
+                dockerLogger.info(
+                  { sessionId, clientPort: containerInfo.clientPort },
+                  'HTTP server ready',
                 );
               } else {
-                console.warn(
-                  `[Docker] HTTP readiness check failed for ${sessionId}, but VITE reported ready`,
+                dockerLogger.warn(
+                  { sessionId },
+                  'HTTP readiness check failed, but VITE reported ready',
                 );
 
                 // Emit warning event that surfaces in the UI
@@ -848,7 +862,7 @@ export class DockerService extends EventEmitter {
   private processExecStream(sessionId: string, stream: NodeJS.ReadableStream): () => void {
     const dataHandler = this.createDockerStreamHandler(sessionId, (log) => {
       this.storeLogEntry(sessionId, log);
-      console.log(`[Docker:${sessionId}] ${log.message}`);
+      dockerLogger.debug({ sessionId, message: log.message }, 'Container log');
     });
 
     stream.on('data', dataHandler);
@@ -927,7 +941,7 @@ export class DockerService extends EventEmitter {
         cleanupStream = undefined;
       }
 
-      console.log(`[Docker] Dependencies installed for ${sessionId}`);
+      dockerLogger.info({ sessionId }, 'Dependencies installed');
       this.emitLog(sessionId, 'system', 'Dependencies installed successfully');
 
       // Step 2: Generate Prisma client
@@ -1082,7 +1096,7 @@ export class DockerService extends EventEmitter {
 
       containerInfo.devServerStreamCleanup = this.processExecStream(sessionId, stream);
 
-      console.log(`[Docker] Dev servers starting for ${sessionId} (client + server)`);
+      dockerLogger.info({ sessionId }, 'Dev servers starting (client + server)');
 
       await this.waitForReady(sessionId, TIMEOUTS.start);
     } catch (error) {
@@ -1148,9 +1162,9 @@ export class DockerService extends EventEmitter {
     const timer = setTimeout(() => {
       const containerInfo = this.containers.get(sessionId);
       if (containerInfo && containerInfo.status !== 'stopped') {
-        console.log(`[Docker] Auto-cleanup timeout for ${sessionId}`);
+        dockerLogger.info({ sessionId }, 'Auto-cleanup timeout');
         this.destroyContainer(sessionId).catch((err) =>
-          console.error(`[Docker] Auto-cleanup failed for ${sessionId}:`, err),
+          dockerLogger.error({ error: err, sessionId }, 'Auto-cleanup failed'),
         );
       }
     }, TIMEOUTS.maxRuntime);
@@ -1246,10 +1260,10 @@ export class DockerService extends EventEmitter {
 
       this.containers.delete(sessionId);
 
-      console.log(`[Docker] Container destroyed: ${sessionId}`);
+      dockerLogger.info({ sessionId }, 'Container destroyed');
       this.emitLog(sessionId, 'system', 'Container stopped and cleaned up');
     } catch (error) {
-      console.error('[Docker] Failed to destroy container:', error);
+      dockerLogger.error({ error, sessionId }, 'Failed to destroy container');
       try {
         await retryOnConflict(
           () => containerInfo.container.remove({ force: true }),
