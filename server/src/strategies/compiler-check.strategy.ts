@@ -97,13 +97,26 @@ ${getNaiveImplementationSteps()}`;
     return createFixPrompt(
       'TypeScript compilation',
       'The application was generated but has TypeScript compilation errors.',
-      'Fix the TypeScript errors by updating the relevant files.',
+      `Fix the TypeScript errors by updating the relevant files.
+
+**CRITICAL RULES:**
+1. DO NOT delete working code to fix import errors
+2. DO NOT replace Express/Prisma implementations with stubs
+3. For "Cannot find module" errors (TS2307):
+   - Dependencies are already installed (Phase 1.5)
+   - Check if the import path is correct
+   - Verify the package is listed in package.json
+   - DO NOT remove the import or delete the code using it
+4. For type errors: Add proper type annotations or fix type mismatches
+5. For config errors: Update tsconfig.json if needed
+
+Focus on minimal, surgical fixes that preserve all functionality.`,
       [
-        'Missing imports',
+        'Missing imports or incorrect import paths',
         'Incorrect types from Prisma Client (@prisma/client)',
         'Props type mismatches in React components',
         'Async/await issues',
-        'Missing type annotations',
+        'Missing type annotations (implicit any)',
       ],
     );
   }
@@ -174,6 +187,7 @@ ${getNaiveImplementationSteps()}`;
     return allErrors;
   }
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Three-phase generation workflow with validation and iterative fixes
   async generateApp(
     prompt: string,
     io: SocketIOServer<ClientToServerEvents, ServerToClientEvents>,
@@ -213,6 +227,33 @@ ${getNaiveImplementationSteps()}`;
       let totalOutputTokens = initialMetrics.outputTokens;
       let totalSteps = initialMetrics.steps;
 
+      // ==================== PHASE 1.5: INSTALL DEPENDENCIES ====================
+      this.emitMessage(io, 'system', 'Phase 1.5: Installing dependencies...');
+
+      const { executeCommand } = await import('../services/command.service.js');
+      const installResult = await executeCommand(sessionId, 'npm install', 120000);
+
+      if (!installResult.success) {
+        const errorMsg = `Dependency installation failed: ${installResult.stderr.substring(0, 200)}`;
+        this.emitMessage(io, 'system', `⚠️ ${errorMsg}`);
+
+        // Early return - no point continuing without dependencies
+        const duration = Date.now() - startTime;
+        const failureMetrics: GenerationMetrics = {
+          ...this.calculateMetrics(totalInputTokens, totalOutputTokens, duration, totalSteps),
+          compilerIterations: 0,
+          schemaValidationPassed: false,
+          typeCheckPassed: false,
+          totalCompilerErrors: 0,
+        };
+
+        this.logComplete(sessionId, failureMetrics);
+        this.emitComplete(io, failureMetrics);
+        return failureMetrics;
+      }
+
+      this.emitMessage(io, 'system', '✅ Dependencies installed successfully');
+
       // ==================== PHASE 2: SCHEMA VALIDATION ====================
       this.emitMessage(io, 'system', 'Phase 2: Validating Prisma schema...');
 
@@ -225,6 +266,10 @@ ${getNaiveImplementationSteps()}`;
           'system',
           `⚠️ Schema errors found (${schemaResult.errors.length}). Fixing...`,
         );
+
+        // Emit the actual errors to UI for visibility
+        const errorList = schemaResult.errors.map((e, i) => `${i + 1}. ${e}`).join('\n');
+        this.emitMessage(io, 'system', `Prisma Schema Errors:\n${errorList}`);
 
         // Single fix iteration for schema
         const fixPrompt = `The following Prisma schema validation errors were found:\n\n${schemaResult.errors.join('\n')}\n\nPlease fix these errors in the schema file.`;
@@ -276,6 +321,9 @@ ${getNaiveImplementationSteps()}`;
         );
 
         const fixPrompt = formatTypeScriptErrorsForLLM(tsErrors);
+
+        // Emit the formatted errors to UI for visibility
+        this.emitMessage(io, 'system', `TypeScript Errors:\n${fixPrompt}`);
 
         const fixResult = streamText({
           model: this.model,

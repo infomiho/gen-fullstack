@@ -3,101 +3,103 @@ import { parsePrismaErrors } from '../prisma-error-parser.js';
 
 describe('Prisma Error Parser', () => {
   describe('parsePrismaErrors', () => {
-    it('should parse simple error messages', () => {
+    it('should parse error message with location and context', () => {
       const stderr = `
-Error: Invalid field type in model User
+Error: Prisma schema validation - (validate wasm)
+Error code: P1012
+\x1b[1;91merror\x1b[0m: \x1b[1mError parsing attribute "@relation": A one-to-one relation must use unique fields on the defining side.\x1b[0m
+  \x1b[1;94m-->\x1b[0m  \x1b[4mschema.prisma:18\x1b[0m
+\x1b[1;94m   | \x1b[0m
+\x1b[1;94m17 | \x1b[0m  userId Int
+\x1b[1;94m18 | \x1b[0m  \x1b[1;91muser   User @relation(fields: [userId], references: [id])\x1b[0m
+\x1b[1;94m19 | \x1b[0m}
+\x1b[1;94m   | \x1b[0m
+
+Validation Error Count: 1
       `.trim();
 
       const errors = parsePrismaErrors(stderr);
 
       expect(errors).toHaveLength(1);
-      expect(errors[0]).toBe('Error: Invalid field type in model User');
+      expect(errors[0]).toContain('Error parsing attribute "@relation"');
+      expect(errors[0]).toContain('Location: schema.prisma:18');
+      expect(errors[0]).toContain('17 |');
+      expect(errors[0]).toContain('18 |');
+      expect(errors[0]).not.toContain('\x1b['); // ANSI codes stripped
     });
 
-    it('should parse multi-line error blocks with indented context', () => {
+    it('should parse multiple errors', () => {
       const stderr = `
-Error: Invalid field type in model User
-  Field name must be a valid identifier
-  Location: schema.prisma:5:3
-      `.trim();
+Error: Prisma schema validation - (validate wasm)
+Error code: P1012
+error: Invalid field type in model User
+  -->  schema.prisma:5
+   |
+ 5 |   name InvalidType
+   |
 
-      const errors = parsePrismaErrors(stderr);
+error: Missing required field in model Post
+  -->  schema.prisma:12
+   |
+12 |   author User
+   |
 
-      expect(errors).toHaveLength(1);
-      expect(errors[0]).toContain('Error: Invalid field type in model User');
-      expect(errors[0]).toContain('Field name must be a valid identifier');
-      expect(errors[0]).toContain('Location: schema.prisma:5:3');
-    });
-
-    it('should parse multiple error blocks', () => {
-      const stderr = `
-Error: Invalid field type in model User
-  Field name must be a valid identifier
-
-Error: Missing relation field in model Post
-  Relation must have a field on both sides
+Validation Error Count: 2
       `.trim();
 
       const errors = parsePrismaErrors(stderr);
 
       expect(errors).toHaveLength(2);
       expect(errors[0]).toContain('Invalid field type in model User');
-      expect(errors[1]).toContain('Missing relation field in model Post');
+      expect(errors[0]).toContain('Location: schema.prisma:5');
+      expect(errors[1]).toContain('Missing required field in model Post');
+      expect(errors[1]).toContain('Location: schema.prisma:12');
     });
 
-    it('should handle lowercase "error" keyword', () => {
+    it('should strip ANSI color codes', () => {
       const stderr = `
-error: Schema validation failed
-  Expected field type String
+error: \x1b[1;91mError with colors\x1b[0m
+  -->  schema.prisma:10
       `.trim();
 
       const errors = parsePrismaErrors(stderr);
 
       expect(errors).toHaveLength(1);
-      expect(errors[0]).toContain('error: Schema validation failed');
+      expect(errors[0]).toBe('Error with colors\nLocation: schema.prisma:10');
+      expect(errors[0]).not.toContain('\x1b[');
     });
 
-    it('should stop capturing context at empty line', () => {
+    it('should handle errors without location', () => {
       const stderr = `
-Error: Invalid field type
-  Context line 1
-  Context line 2
-
-This line should not be included
+error: General schema error without specific location
       `.trim();
 
       const errors = parsePrismaErrors(stderr);
 
       expect(errors).toHaveLength(1);
-      expect(errors[0]).toContain('Context line 1');
-      expect(errors[0]).toContain('Context line 2');
-      expect(errors[0]).not.toContain('This line should not be included');
+      expect(errors[0]).toBe('General schema error without specific location');
     });
 
-    it('should stop capturing context at non-indented line', () => {
+    it('should handle errors without context lines', () => {
       const stderr = `
-Error: Invalid field type
-  Context line 1
-  Context line 2
-Non-indented line (new error)
-  This should start a new block
+error: Error with location but no context
+  -->  schema.prisma:5
       `.trim();
 
       const errors = parsePrismaErrors(stderr);
 
-      expect(errors).toHaveLength(2);
-      expect(errors[0]).toContain('Invalid field type');
-      expect(errors[0]).toContain('Context line 2');
-      expect(errors[0]).not.toContain('Non-indented');
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toBe('Error with location but no context\nLocation: schema.prisma:5');
     });
 
-    it('should return full stderr as fallback if no structured errors found', () => {
-      const stderr = 'Something went wrong but no structured error format';
+    it('should return cleaned stderr as fallback if no structured errors', () => {
+      const stderr = '\x1b[1;91mSome unstructured error output\x1b[0m';
 
       const errors = parsePrismaErrors(stderr);
 
       expect(errors).toHaveLength(1);
-      expect(errors[0]).toBe(stderr);
+      expect(errors[0]).toBe('Some unstructured error output');
+      expect(errors[0]).not.toContain('\x1b[');
     });
 
     it('should handle empty stderr', () => {
@@ -108,21 +110,40 @@ Non-indented line (new error)
       expect(errors).toHaveLength(0);
     });
 
-    it('should preserve the last error block', () => {
+    it('should parse real Prisma validation error', () => {
+      // Real error output from Prisma CLI
       const stderr = `
-Error: First error
-  Context for first
+Prisma schema loaded from schema.prisma
 
-Error: Second error
-  Context for second
-  More context
+Error: Prisma schema validation - (validate wasm)
+Error code: P1012
+\x1b[1;91merror\x1b[0m: \x1b[1mError parsing attribute "@relation": A one-to-one relation must use unique fields on the defining side. Either add an \`@unique\` attribute to the field \`userId\`, or change the relation to one-to-many.\x1b[0m
+  \x1b[1;94m-->\x1b[0m  \x1b[4mschema.prisma:18\x1b[0m
+\x1b[1;94m   | \x1b[0m
+\x1b[1;94m17 | \x1b[0m  userId Int
+\x1b[1;94m18 | \x1b[0m  \x1b[1;91muser   User @relation(fields: [userId], references: [id])\x1b[0m
+\x1b[1;94m19 | \x1b[0m}
+\x1b[1;94m   | \x1b[0m
+
+Validation Error Count: 1
+[Context: validate]
+
+Prisma CLI Version : 6.17.1
       `.trim();
 
       const errors = parsePrismaErrors(stderr);
 
-      expect(errors).toHaveLength(2);
-      expect(errors[1]).toContain('Second error');
-      expect(errors[1]).toContain('More context');
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toContain('Error parsing attribute "@relation"');
+      expect(errors[0]).toContain('A one-to-one relation must use unique fields');
+      expect(errors[0]).toContain('Location: schema.prisma:18');
+      expect(errors[0]).toContain('Code:');
+      expect(errors[0]).toContain('17 |');
+      expect(errors[0]).toContain('18 |');
+      expect(errors[0]).toContain('userId Int');
+      expect(errors[0]).not.toContain('\x1b['); // No ANSI codes
+      expect(errors[0]).not.toContain('Error code: P1012'); // Header info excluded
+      expect(errors[0]).not.toContain('Validation Error Count'); // Footer info excluded
     });
   });
 });

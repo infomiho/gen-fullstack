@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { formatTypeScriptErrorsForLLM, parseTypeScriptErrors } from '../typescript-error-parser.js';
+import {
+  categorizeErrors,
+  formatTypeScriptErrorsForLLM,
+  parseTypeScriptErrors,
+  type TypeScriptError,
+} from '../typescript-error-parser.js';
 
 describe('TypeScript Error Parser', () => {
   describe('parseTypeScriptErrors', () => {
@@ -116,6 +121,32 @@ src/index.ts(30,15): error TS2345: Argument of type 'boolean' is not assignable 
       expect(errors[1].line).toBe(20);
       expect(errors[2].line).toBe(30);
     });
+
+    it('should not duplicate workspace prefix if path already includes it', () => {
+      const output = `
+client/src/main.tsx(42,10): error TS2339: Property 'foo' does not exist on type 'Bar'.
+client/src/App.tsx:15:5 - error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.
+      `.trim();
+
+      const errors = parseTypeScriptErrors(output, 'client');
+
+      expect(errors).toHaveLength(2);
+      expect(errors[0].file).toBe('client/src/main.tsx'); // Not client/client/src/main.tsx
+      expect(errors[1].file).toBe('client/src/App.tsx'); // Not client/client/src/App.tsx
+    });
+
+    it('should handle mix of paths with and without workspace prefix', () => {
+      const output = `
+src/index.ts(10,5): error TS2322: Type 'number' is not assignable to type 'string'.
+server/src/utils.ts(20,10): error TS2339: Property 'bar' does not exist on type 'Foo'.
+      `.trim();
+
+      const errors = parseTypeScriptErrors(output, 'server');
+
+      expect(errors).toHaveLength(2);
+      expect(errors[0].file).toBe('server/src/index.ts'); // Prefix added
+      expect(errors[1].file).toBe('server/src/utils.ts'); // Prefix already present
+    });
   });
 
   describe('formatTypeScriptErrorsForLLM', () => {
@@ -177,7 +208,159 @@ src/index.ts(30,15): error TS2345: Argument of type 'boolean' is not assignable 
       expect(formatted).toContain('15 type errors');
       expect(formatted).toContain('10. file9.ts:10:1');
       expect(formatted).not.toContain('11. file10.ts');
-      expect(formatted).toContain('... and 5 more errors');
+      expect(formatted).toContain('... and 5 more type errors'); // Updated to match new format
+    });
+  });
+
+  describe('categorizeErrors', () => {
+    it('should categorize TS2307 errors as dependency errors', () => {
+      const errors = [
+        {
+          file: 'server/src/index.ts',
+          line: 1,
+          column: 1,
+          code: 'TS2307',
+          message: "Cannot find module 'express'",
+        },
+        {
+          file: 'server/src/db.ts',
+          line: 2,
+          column: 1,
+          code: 'TS2307',
+          message: "Cannot find module '@prisma/client'",
+        },
+      ];
+
+      const result = categorizeErrors(errors);
+
+      expect(result.dependency).toHaveLength(2);
+      expect(result.type).toHaveLength(0);
+      expect(result.config).toHaveLength(0);
+    });
+
+    it('should categorize TS5xxx and TS18003 as config errors', () => {
+      const errors = [
+        {
+          file: 'tsconfig.json',
+          line: 1,
+          column: 1,
+          code: 'TS5042',
+          message: 'Option strictNullChecks cannot be specified',
+        },
+        {
+          file: 'tsconfig.json',
+          line: 2,
+          column: 1,
+          code: 'TS18003',
+          message: 'No inputs were found in config file',
+        },
+      ];
+
+      const result = categorizeErrors(errors);
+
+      expect(result.config).toHaveLength(2);
+      expect(result.dependency).toHaveLength(0);
+      expect(result.type).toHaveLength(0);
+    });
+
+    it('should categorize all other errors as type errors', () => {
+      const errors = [
+        {
+          file: 'src/App.tsx',
+          line: 1,
+          column: 1,
+          code: 'TS2339',
+          message: "Property 'foo' does not exist on type 'Bar'",
+        },
+        {
+          file: 'src/utils.ts',
+          line: 2,
+          column: 1,
+          code: 'TS2345',
+          message: 'Argument of type string is not assignable to parameter of type number',
+        },
+        {
+          file: 'src/index.ts',
+          line: 3,
+          column: 1,
+          code: 'TS7006',
+          message: "Parameter 'x' implicitly has an 'any' type",
+        },
+      ];
+
+      const result = categorizeErrors(errors);
+
+      expect(result.type).toHaveLength(3);
+      expect(result.dependency).toHaveLength(0);
+      expect(result.config).toHaveLength(0);
+    });
+
+    it('should handle mixed error categories', () => {
+      const errors = [
+        {
+          file: 'server/src/index.ts',
+          line: 1,
+          column: 1,
+          code: 'TS2307',
+          message: "Cannot find module 'express'",
+        },
+        {
+          file: 'src/App.tsx',
+          line: 2,
+          column: 1,
+          code: 'TS2339',
+          message: "Property 'foo' does not exist",
+        },
+        {
+          file: 'tsconfig.json',
+          line: 3,
+          column: 1,
+          code: 'TS5042',
+          message: 'Invalid config option',
+        },
+      ];
+
+      const result = categorizeErrors(errors);
+
+      expect(result.dependency).toHaveLength(1);
+      expect(result.type).toHaveLength(1);
+      expect(result.config).toHaveLength(1);
+    });
+
+    it('should handle empty error array', () => {
+      const errors: TypeScriptError[] = [];
+
+      const result = categorizeErrors(errors);
+
+      expect(result.dependency).toHaveLength(0);
+      expect(result.type).toHaveLength(0);
+      expect(result.config).toHaveLength(0);
+    });
+
+    it('should correctly categorize boundary config error codes', () => {
+      const errors = [
+        {
+          file: 'tsconfig.json',
+          line: 1,
+          column: 1,
+          code: 'TS5000',
+          message: 'Config error at boundary',
+        },
+        {
+          file: 'src/test.ts',
+          line: 2,
+          column: 1,
+          code: 'TS4999',
+          message: 'Not a config error (below TS5000)',
+        },
+      ];
+
+      const result = categorizeErrors(errors);
+
+      expect(result.config).toHaveLength(1);
+      expect(result.config[0].code).toBe('TS5000');
+      expect(result.type).toHaveLength(1);
+      expect(result.type[0].code).toBe('TS4999');
     });
   });
 });

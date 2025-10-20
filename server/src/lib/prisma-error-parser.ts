@@ -2,86 +2,141 @@
  * Prisma Error Parser
  *
  * Parses Prisma CLI error messages from stderr output.
- * Handles multi-line error blocks with indented context.
+ * Extracts meaningful error messages and locations from Prisma validation output.
+ *
+ * Prisma errors typically follow this format:
+ * ```
+ * Error: Prisma schema validation - (validate wasm)
+ * Error code: P1012
+ * error: Error parsing attribute "@relation": ...
+ *   -->  schema.prisma:18
+ *    |
+ * 17 |   userId Int
+ * 18 |   user   User @relation(...)
+ * 19 | }
+ *    |
+ * Validation Error Count: 1
+ * ```
  */
 
 /**
- * Check if a line is the start of a Prisma error block
+ * Strip ANSI color codes from a string
  */
-function isErrorHeader(trimmed: string): boolean {
-  return trimmed.startsWith('Error:') || /error/i.test(trimmed);
+function stripAnsiCodes(text: string): string {
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escape codes require control characters
+  return text.replace(/\x1b\[[0-9;]*m/g, '');
+}
+
+interface ParsedError {
+  message: string;
+  location?: string;
+  context?: string[];
 }
 
 /**
- * Check if a line is indented context within an error block
+ * Parse a single Prisma error block
  */
-function isContextLine(line: string, trimmed: string, inErrorBlock: boolean): boolean {
-  return inErrorBlock && line.startsWith(' ') && trimmed.length > 0;
-}
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Parser needs to handle multiple Prisma output formats
+function parseErrorBlock(lines: string[], startIndex: number): ParsedError | null {
+  let message = '';
+  let location: string | undefined;
+  const context: string[] = [];
 
-/**
- * Check if error block should end
- */
-function shouldEndErrorBlock(line: string, inErrorBlock: boolean): boolean {
-  return inErrorBlock && !line.startsWith(' ');
-}
+  // Find the actual error message (starts with "error:")
+  for (let i = startIndex; i < lines.length; i++) {
+    const line = lines[i];
+    const stripped = stripAnsiCodes(line).trim();
 
-/**
- * Save current error block to errors array if it exists
- */
-function saveErrorBlock(currentError: string[], errors: string[]): void {
-  if (currentError.length > 0) {
-    errors.push(currentError.join('\n'));
+    // Main error message
+    if (stripped.startsWith('error:')) {
+      message = stripped.replace(/^error:\s*/, '');
+      continue;
+    }
+
+    // Location line (-->)
+    if (stripped.includes('-->')) {
+      const match = stripped.match(/-->\s+(.+)/);
+      if (match) {
+        location = match[1];
+      }
+      continue;
+    }
+
+    // Context lines (numbered code lines)
+    if (/^\d+\s*\|/.test(stripped)) {
+      context.push(stripped);
+      continue;
+    }
+
+    // Empty line - but only after we've found some context, otherwise keep looking
+    if (stripped === '') {
+      // If we've already captured context lines, this empty line signals the end
+      if (context.length > 0) {
+        break;
+      }
+      continue;
+    }
+
+    // Separator lines (just "|") - skip them, don't break
+    if (stripped === '|') {
+      continue;
+    }
+
+    // Stop at validation error count or next error
+    if (stripped.startsWith('Validation Error Count:') || stripped.startsWith('Error:')) {
+      break;
+    }
   }
+
+  if (!message) {
+    return null;
+  }
+
+  return { message, location, context };
 }
 
 /**
  * Parse Prisma error messages from stderr
  *
- * Handles multi-line error blocks by capturing error lines and their context.
- * Prisma errors typically follow patterns like:
- * - "Error: <message>"
- * - Lines containing "error" (case insensitive)
- * - Indented context lines following error headers
+ * Extracts meaningful error messages with locations and code context.
+ * Strips ANSI color codes and formats errors for LLM consumption.
  *
  * @param stderr - Standard error output from Prisma CLI
- * @returns Array of error messages (may include multi-line errors)
+ * @returns Array of formatted error messages
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Parser needs to iterate through lines and build formatted errors
 export function parsePrismaErrors(stderr: string): string[] {
-  const errors: string[] = [];
+  const formattedErrors: string[] = [];
   const lines = stderr.split('\n');
 
-  let inErrorBlock = false;
-  let currentError: string[] = [];
+  // Find all "error:" lines (these are the actual errors)
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const stripped = stripAnsiCodes(line).trim();
 
-  for (const line of lines) {
-    const trimmed = line.trim();
+    if (stripped.startsWith('error:')) {
+      const parsed = parseErrorBlock(lines, i);
+      if (parsed) {
+        // Format the error for LLM consumption
+        let formatted = parsed.message;
 
-    if (isErrorHeader(trimmed)) {
-      // Save previous error block if exists
-      saveErrorBlock(currentError, errors);
+        if (parsed.location) {
+          formatted += `\nLocation: ${parsed.location}`;
+        }
 
-      // Start new error block
-      currentError = [trimmed];
-      inErrorBlock = true;
-    } else if (isContextLine(line, trimmed, inErrorBlock)) {
-      // Continue error block with indented context
-      currentError.push(trimmed);
-    } else if (shouldEndErrorBlock(line, inErrorBlock)) {
-      // End of error block (empty line or non-indented line)
-      saveErrorBlock(currentError, errors);
-      currentError = [];
-      inErrorBlock = false;
+        if (parsed.context && parsed.context.length > 0) {
+          formatted += `\nCode:\n${parsed.context.join('\n')}`;
+        }
+
+        formattedErrors.push(formatted);
+      }
     }
   }
 
-  // Save the last error block
-  saveErrorBlock(currentError, errors);
-
-  // If no specific errors found, return the full stderr as fallback
-  if (errors.length === 0 && stderr.trim()) {
-    errors.push(stderr.trim());
+  // If no structured errors found, return cleaned stderr as fallback
+  if (formattedErrors.length === 0 && stderr.trim()) {
+    formattedErrors.push(stripAnsiCodes(stderr.trim()));
   }
 
-  return errors;
+  return formattedErrors;
 }

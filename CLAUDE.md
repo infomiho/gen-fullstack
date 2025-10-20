@@ -370,23 +370,31 @@ Complete upgrade from single-app generator to full-stack application generator:
 
 ## Development Commands
 
+**IMPORTANT**: Always verify your current directory with `pwd` before running commands that depend on a specific folder location.
+
 ```bash
-# Install dependencies
+# Check current directory
+pwd
+
+# Install dependencies (run from project root: /Users/ilakovac/dev/gen-fullstack)
 pnpm install
 
-# Run both client and server in dev mode
+# Run both client and server in dev mode (from project root)
 pnpm dev
 
-# Run client only
+# Run client only (from project root)
 pnpm dev:client
 
-# Run server only
+# Run server only (from project root)
 pnpm dev:server
 
 # Run Storybook (component development)
+# Option 1: From project root
+pnpm --filter client storybook
+# Option 2: From client folder
 cd client && pnpm storybook
 
-# Type check
+# Type check (from project root)
 pnpm typecheck
 
 # Run tests
@@ -493,11 +501,28 @@ gh issue develop <issue-number>
 
 ## Maintenance
 
+### Database Location
+
+The SQLite database is located at `server/data/gen-fullstack.db` (relative to project root). To query it directly:
+
+```bash
+# From project root
+sqlite3 server/data/gen-fullstack.db "SELECT * FROM sessions LIMIT 5;"
+
+# Or navigate to server folder first
+cd server
+sqlite3 data/gen-fullstack.db ".tables"
+
+# Common queries
+sqlite3 server/data/gen-fullstack.db "SELECT id, prompt, strategy, status FROM sessions ORDER BY timestamp DESC LIMIT 10;"
+sqlite3 server/data/gen-fullstack.db "SELECT content FROM timeline_items WHERE session_id = 'SESSION_ID' AND type = 'message' ORDER BY timestamp;"
+```
+
 ### Cleanup Script
 
 The project includes a cleanup script to remove old generated applications and reset the database:
 
-**Location**: `scripts/cleanup-generations.ts`
+**Location**: `scripts/cleanup-generations.ts` (run from project root)
 
 **Usage**:
 ```bash

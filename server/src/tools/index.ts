@@ -1,5 +1,6 @@
 import { tool } from 'ai';
 import { z } from 'zod';
+import { checkFileSafety } from '../lib/file-safety.js';
 import { databaseLogger } from '../lib/logger.js';
 import * as commandService from '../services/command.service.js';
 import { databaseService } from '../services/database.service.js';
@@ -28,6 +29,42 @@ export const writeFile = tool({
   }),
   execute: async ({ path, content }, { experimental_context: context }) => {
     const { sessionId, io } = extractToolContext(context);
+
+    // Safety check: warn about large code deletions
+    try {
+      const existingContent = await filesystemService.readFile(sessionId, path);
+      const safetyCheck = checkFileSafety(existingContent, content, path);
+
+      if (!safetyCheck.isSafe && safetyCheck.warning) {
+        if (io) {
+          io.to(sessionId).emit('message', {
+            role: 'system',
+            content: safetyCheck.warning,
+            timestamp: Date.now(),
+          });
+        }
+        databaseLogger.warn(
+          {
+            sessionId,
+            path,
+            oldSize: safetyCheck.oldSize,
+            newSize: safetyCheck.newSize,
+            reductionPercent: safetyCheck.reductionPercent,
+          },
+          safetyCheck.warning,
+        );
+      }
+    } catch (err) {
+      // Only ignore ENOENT (file not found) - log other errors
+      if (err instanceof Error && 'code' in err && err.code === 'ENOENT') {
+        // File doesn't exist (new file) - no warning needed
+      } else {
+        databaseLogger.warn(
+          { error: err, sessionId, path },
+          'Unexpected error during safety check',
+        );
+      }
+    }
 
     // Emit file_updated event immediately (real-time streaming) to session room
     if (io) {

@@ -110,6 +110,14 @@ export abstract class BaseStrategy {
   /**
    * Emit a message to the client and persist to database
    *
+   * Message ID generation strategy:
+   * - System messages: Always get a new ID (discrete status updates)
+   * - Assistant messages: Share ID for consecutive calls (streaming responses)
+   * - User messages: Get new ID when role changes (discrete inputs)
+   *
+   * This ensures system messages appear as separate Timeline cards, while
+   * assistant streaming responses are concatenated into a single message.
+   *
    * @param io - Socket.io server instance
    * @param role - Message role (user, assistant, system)
    * @param content - Message content
@@ -121,8 +129,9 @@ export abstract class BaseStrategy {
   ): void {
     const timestamp = Date.now();
 
-    // If role changed, generate a new message ID
-    if (this.currentMessageRole !== role) {
+    // System messages are discrete events (each should be a separate Timeline card)
+    // Assistant/user messages are grouped by role (for streaming and deduplication)
+    if (role === 'system' || this.currentMessageRole !== role) {
       this.currentMessageId = this.generateMessageId();
       this.currentMessageRole = role;
     }

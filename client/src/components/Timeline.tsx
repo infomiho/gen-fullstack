@@ -14,6 +14,7 @@ import {
 import { formatTimestamp } from '../lib/time-utils';
 import { getToolSummary, renderToolParameters } from '../lib/tool-utils';
 import { EmptyState } from './EmptyState';
+import { MarkdownMessage } from './MarkdownMessage';
 
 interface TimelineProps {
   messages: LLMMessage[];
@@ -142,7 +143,7 @@ function MessageItem({ message }: { message: LLMMessage }) {
             {formatTimestamp(message.timestamp)}
           </div>
         </div>
-        <div className={`whitespace-pre-wrap ${typography.body}`}>{message.content}</div>
+        <MarkdownMessage content={message.content} />
       </div>
     </div>
   );
