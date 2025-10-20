@@ -38,7 +38,6 @@ describe('useGenerationStore', () => {
       expect(result.current.toolResults).toEqual([]);
       expect(result.current.files).toEqual([]);
       expect(result.current.isGenerating).toBe(false);
-      expect(result.current.currentSessionId).toBeNull();
       expect(result.current.metrics).toBeNull();
     });
   });
@@ -251,20 +250,11 @@ describe('useGenerationStore', () => {
       expect(result.current.isGenerating).toBe(false);
     });
 
-    it('should set session ID', () => {
-      const { result } = renderHook(() => useGenerationStore());
-
-      act(() => {
-        result.current.setSessionId('test-session-123');
-      });
-
-      expect(result.current.currentSessionId).toBe('test-session-123');
-    });
-
     it('should set metrics', () => {
       const { result } = renderHook(() => useGenerationStore());
 
       const metrics: GenerationMetrics = {
+        sessionId: 'test-session-123',
         strategy: 'naive',
         model: 'gpt-4',
         totalTokens: 1000,
@@ -301,7 +291,6 @@ describe('useGenerationStore', () => {
           timestamp: Date.now(),
         });
         result.current.setGenerating(true);
-        result.current.setSessionId('test-session');
       });
 
       expect(result.current.messages).toHaveLength(1);
@@ -317,7 +306,6 @@ describe('useGenerationStore', () => {
       expect(result.current.toolResults).toEqual([]);
       expect(result.current.files).toEqual([]);
       expect(result.current.isGenerating).toBe(false);
-      expect(result.current.currentSessionId).toBeNull();
       expect(result.current.metrics).toBeNull();
     });
   });
@@ -515,21 +503,11 @@ describe('useGenerationStore', () => {
       expect(result.current.messages).toHaveLength(100);
     });
 
-    it('should handle null session ID', () => {
-      const { result } = renderHook(() => useGenerationStore());
-
-      act(() => {
-        result.current.setSessionId('test-session');
-        result.current.setSessionId(null);
-      });
-
-      expect(result.current.currentSessionId).toBeNull();
-    });
-
     it('should handle null metrics', () => {
       const { result } = renderHook(() => useGenerationStore());
 
       const metrics: GenerationMetrics = {
+        sessionId: 'test-session-456',
         totalTokens: 100,
         inputTokens: 50,
         outputTokens: 50,

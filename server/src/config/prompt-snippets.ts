@@ -352,11 +352,11 @@ ${COMPLETION_MESSAGE}`;
  * Implementation guidelines for template-based strategy
  */
 export function getTemplateImplementationGuidelines(): string {
-  return `TEMPLATE CUSTOMIZATION GUIDELINES:
+  return `WHAT TO DO:
 
-The template is ready with User CRUD, Express routes, and styled React UI. Extend it based on requirements:
+**DO NOT READ CONFIG FILES** - All setup is complete. Focus only on implementation:
 
-1. **Prisma schema** - Add models, keep generator/datasource blocks:
+1. **prisma/schema.prisma** - Add new models:
 \`\`\`prisma
 model Post {
   id        Int      @id @default(autoincrement())
@@ -368,7 +368,7 @@ model Post {
 }
 \`\`\`
 
-2. **Express routes** - Add endpoints, keep existing setup:
+2. **server/src/index.ts** - Add API endpoints (keep existing imports and setup):
 \`\`\`typescript
 app.get('/api/posts', async (req, res) => {
   const posts = await prisma.post.findMany({ include: { user: true } });
@@ -384,45 +384,34 @@ app.post('/api/posts', async (req, res) => {
     const post = await prisma.post.create({ data: { title, content, userId } });
     res.json(post);
   } catch (error: any) {
-    if (error.code === 'P2003') {
-      return res.status(404).json({ error: 'User not found' });
-    }
+    if (error.code === 'P2003') return res.status(404).json({ error: 'User not found' });
     throw error;
   }
 });
 \`\`\`
 
-3. **React components** - Create components with CSS, keep Vite config:
+3. **client/src/components/** - Create new components:
 \`\`\`typescript
-// client/src/components/PostList.tsx
+// PostList.tsx
 import { useEffect, useState } from 'react';
 import './PostList.css';
 
 export default function PostList() {
   const [posts, setPosts] = useState([]);
-
-  useEffect(() => {
-    fetch('/api/posts').then(res => res.json()).then(setPosts);
-  }, []);
-
+  useEffect(() => { fetch('/api/posts').then(r => r.json()).then(setPosts); }, []);
   return (
     <div className="posts-section">
-      {posts.map(post => (
-        <div key={post.id} className="post-card">
-          <h3>{post.title}</h3>
-          <p>{post.content}</p>
-        </div>
-      ))}
+      {posts.map(post => <div key={post.id} className="post-card"><h3>{post.title}</h3></div>)}
     </div>
   );
 }
 \`\`\`
 
-4. **Adding packages** - Only if needed, add to correct package.json (server/client) with caret ranges (^).
+4. **client/src/App.tsx & App.css** - Update UI and styles to use your new components.
 
 ${IMPORTANT_GUIDELINES}
 
-STRATEGY: Extend template, don't replace. Focus on YOUR features, not boilerplate.
+DO NOT: Read package.json, tsconfig.json, vite.config.ts, index.html, or main.tsx. They're already configured.
 
 ${COMPLETION_MESSAGE}`;
 }

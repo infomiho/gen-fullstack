@@ -17,7 +17,7 @@ import { immer } from 'zustand/middleware/immer';
  * - Messages from the LLM
  * - Tool calls and their results
  * - File updates
- * - Generation status and session tracking
+ * - Generation status and metrics
  */
 
 interface GenerationState {
@@ -27,7 +27,6 @@ interface GenerationState {
   toolResults: ToolResult[];
   files: FileUpdate[];
   isGenerating: boolean;
-  currentSessionId: string | null;
   metrics: GenerationMetrics | null;
 }
 
@@ -45,7 +44,6 @@ interface GenerationActions {
 
   // Generation control
   setGenerating: (value: boolean) => void;
-  setSessionId: (sessionId: string | null) => void;
   setMetrics: (metrics: GenerationMetrics | null) => void;
 
   // Utility actions
@@ -65,7 +63,6 @@ const initialState: GenerationState = {
   toolResults: [],
   files: [],
   isGenerating: false,
-  currentSessionId: null,
   metrics: null,
 };
 
@@ -117,8 +114,6 @@ export const useGenerationStore = create<GenerationStore>()(
         }),
 
       setGenerating: (value) => set({ isGenerating: value }),
-
-      setSessionId: (sessionId) => set({ currentSessionId: sessionId }),
 
       setMetrics: (metrics) => set({ metrics }),
 

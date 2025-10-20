@@ -42,34 +42,32 @@ export class TemplateStrategy extends BaseStrategy {
 
 YOUR TASK: Customize this template to implement the user's specific requirements.
 
-TEMPLATE STRUCTURE:
-The following structure is already in place:
-- client/ directory: Vite + React 19 + TypeScript
-- server/ directory: Express 5 + TypeScript with example routes
-- prisma/ directory: Database schema with example User model
-- Root package.json with npm workspaces and configuration files
+TEMPLATE STRUCTURE - ALREADY SET UP (DO NOT READ OR MODIFY):
+✓ Root package.json with npm workspaces and scripts
+✓ client/package.json, vite.config.ts, tsconfig.json (Vite + React 19 configured)
+✓ server/package.json, tsconfig.json (Express 5 + Prisma configured)
+✓ client/index.html, client/src/main.tsx (HTML template and React entry point)
+
+FILES TO MODIFY (ONLY THESE 4):
+1. prisma/schema.prisma - Add your data models (User model already exists as example)
+2. server/src/index.ts - Add your API endpoints (User CRUD already exists as example)
+3. client/src/App.tsx - Customize UI (User management UI already exists as example)
+4. client/src/App.css - Style your UI (Example styles already exist)
+5. client/src/components/* - Create new components as needed
 
 EFFICIENT WORKFLOW:
-1. Analyze the user's requirements to understand what needs to be built
-2. Optional: Use listFiles once if you need to see the exact template structure
-3. Start implementing immediately:
+1. Analyze the user's requirements
+2. Start implementing immediately (DO NOT use listFiles or readFile on config files):
    a. Update prisma/schema.prisma with the required data models
-   b. Create API routes in server/src/ for CRUD operations
-   c. Build React components in client/src/components/ for the UI
+   b. Add API routes to server/src/index.ts for CRUD operations
+   c. Create React components in client/src/components/ for the UI
    d. Update client/src/App.tsx to integrate the new features
 
-IMPLEMENTATION EXAMPLE:
-For a "task tracker" app, you would:
-- Add Task model to prisma/schema.prisma (with fields like title, completed, userId)
-- Create GET/POST/PUT/DELETE /api/tasks endpoints in server/src/index.ts
-- Build TaskList and TaskForm React components in client/src/components/
+EXAMPLE - Task Tracker App:
+- Add Task model to prisma/schema.prisma (title, completed, userId fields)
+- Add GET/POST/PUT/DELETE /api/tasks endpoints to server/src/index.ts
+- Create TaskList.tsx and TaskForm.tsx components in client/src/components/
 - Update App.tsx to render and manage tasks
-
-TOOLS AVAILABLE:
-1. writeFile - Create or update files (use extensively to implement features)
-2. readFile - Read existing files (use only when you need to check current content)
-3. listFiles - List directory contents (use sparingly, template structure is documented above)
-4. executeCommand - Run commands like npm install
 
 ${ARCHITECTURE_DESCRIPTION}
 
@@ -77,7 +75,7 @@ ${FILE_STRUCTURE}
 
 ${getTemplateImplementationGuidelines()}
 
-FOCUS: Don't spend time exploring the template - it's documented above. Your goal is to write code that implements the user's requirements by extending the existing template structure.`;
+IMPORTANT: All configuration is done. DO NOT read package.json, tsconfig.json, vite.config.ts, or other config files. Start implementing features immediately.`;
   }
 
   async generateApp(

@@ -123,6 +123,7 @@ export interface BuildEvent {
 // ============================================================================
 
 export interface GenerationMetrics {
+  sessionId: string;
   strategy?: string;
   model?: string;
   totalTokens: number;

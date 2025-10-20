@@ -19,7 +19,6 @@ interface UseWebSocketReturn {
   socket: Socket | null;
   isConnected: boolean;
   isGenerating: boolean;
-  currentSessionId: string | null;
   messages: LLMMessage[];
   toolCalls: ToolCall[];
   toolResults: ToolResult[];
@@ -60,7 +59,6 @@ export function useWebSocket(navigate?: NavigateFunction): UseWebSocketReturn {
   const setConnected = useConnectionStore((state) => state.setConnected);
 
   const isGenerating = useGenerationStore((state) => state.isGenerating);
-  const currentSessionId = useGenerationStore((state) => state.currentSessionId);
   const messages = useGenerationStore((state) => state.messages);
   const toolCalls = useGenerationStore((state) => state.toolCalls);
   const toolResults = useGenerationStore((state) => state.toolResults);
@@ -138,9 +136,6 @@ export function useWebSocket(navigate?: NavigateFunction): UseWebSocketReturn {
     };
 
     const handleSessionStarted = ({ sessionId }: { sessionId: string }) => {
-      // Set sessionId in store for components that need it (AppControls, etc.)
-      useGenerationStore.getState().setSessionId(sessionId);
-
       // If navigate function provided (from HomePage), navigate directly to session page
       if (navigate) {
         navigate(`/${sessionId}`);
@@ -196,12 +191,10 @@ export function useWebSocket(navigate?: NavigateFunction): UseWebSocketReturn {
       });
 
       // Auto-start the app after a short delay to let files finish writing
-      const sessionId = useGenerationStore.getState().currentSessionId;
-      if (sessionId) {
-        setTimeout(() => {
-          newSocket.emit('start_app', { sessionId });
-        }, TIMEOUTS.AUTO_START_DELAY);
-      }
+      // sessionId comes from the event payload (server always knows which session completed)
+      setTimeout(() => {
+        newSocket.emit('start_app', { sessionId: metrics.sessionId });
+      }, TIMEOUTS.AUTO_START_DELAY);
     };
 
     const handleError = (error: string) => {
@@ -337,7 +330,6 @@ export function useWebSocket(navigate?: NavigateFunction): UseWebSocketReturn {
     socket,
     isConnected,
     isGenerating,
-    currentSessionId,
     messages,
     toolCalls,
     toolResults,
