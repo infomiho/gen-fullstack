@@ -2,8 +2,11 @@ import { stepCountIs, streamText } from 'ai';
 import type { Server as SocketIOServer } from 'socket.io';
 import {
   ARCHITECTURE_DESCRIPTION,
+  DOMAIN_SPECIFIC_WARNING,
   FILE_STRUCTURE,
   getNaiveImplementationSteps,
+  SYSTEM_PROMPT_INTRO,
+  TOOL_CAPABILITIES,
 } from '../config/prompt-snippets.js';
 import { tools } from '../tools/index.js';
 import type { ClientToServerEvents, ServerToClientEvents } from '../types/index.js';
@@ -30,14 +33,11 @@ export class NaiveStrategy extends BaseStrategy {
   }
 
   getSystemPrompt(): string {
-    return `You are an expert full-stack web application generator. Your goal is to create complete, working full-stack applications with client, server, and database.
+    return `${SYSTEM_PROMPT_INTRO}
 
-CAPABILITIES:
-You have access to four tools to build applications:
-1. writeFile - Create/update files with content
-2. readFile - Read existing file contents
-3. listFiles - List files in a directory
-4. executeCommand - Run commands (npm install, npm dev, etc.)
+${DOMAIN_SPECIFIC_WARNING}
+
+${TOOL_CAPABILITIES}
 
 ${ARCHITECTURE_DESCRIPTION}
 

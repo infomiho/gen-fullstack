@@ -47,17 +47,15 @@ describe('Strategy Validation', () => {
       }
     });
 
-    it('should reject unimplemented strategy: compiler-check', () => {
+    it('should accept implemented strategy: compiler-check', () => {
       const result = StartGenerationSchema.safeParse({
         prompt: 'Build a todo app',
         strategy: 'compiler-check',
       });
 
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error).toBeInstanceOf(ZodError);
-        expect(result.error.issues[0].path).toEqual(['strategy']);
-        expect(result.error.issues[0].message).toContain('Invalid enum value');
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.strategy).toBe('compiler-check');
       }
     });
 

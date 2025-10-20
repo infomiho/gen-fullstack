@@ -17,8 +17,10 @@ import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 export const sessions = sqliteTable('sessions', {
   id: text('id').primaryKey(),
   prompt: text('prompt').notNull(),
-  // Strategy must be one of: 'naive', 'plan-first', 'template'
-  strategy: text('strategy').$type<'naive' | 'plan-first' | 'template'>().notNull(),
+  // Strategy must be one of: 'naive', 'plan-first', 'template', 'compiler-check'
+  strategy: text('strategy')
+    .$type<'naive' | 'plan-first' | 'template' | 'compiler-check'>()
+    .notNull(),
   // Status must be one of: 'pending', 'generating', 'completed', 'failed', 'cancelled'
   status: text('status')
     .$type<'pending' | 'generating' | 'completed' | 'failed' | 'cancelled'>()

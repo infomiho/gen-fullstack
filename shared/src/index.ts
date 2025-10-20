@@ -54,7 +54,7 @@ export const STRATEGIES: readonly StrategyMetadata[] = [
     value: 'compiler-check',
     label: 'Compiler Checks',
     description: 'Self-correct with TypeScript errors',
-    implemented: false,
+    implemented: true,
   },
   {
     value: 'building-blocks',
@@ -81,7 +81,7 @@ export type ImplementedStrategyType = (typeof IMPLEMENTED_STRATEGIES)[number]['v
 export const StartGenerationSchema = z.object({
   prompt: z.string().min(1),
   strategy: z
-    .enum(['naive', 'plan-first', 'template'])
+    .enum(['naive', 'plan-first', 'template', 'compiler-check'])
     .describe('Only implemented strategies are allowed'),
 });
 
@@ -198,6 +198,11 @@ export interface GenerationMetrics {
   cost: number;
   duration: number;
   steps: number;
+  // Compiler Check strategy metrics
+  compilerIterations?: number;
+  schemaValidationPassed?: boolean;
+  typeCheckPassed?: boolean;
+  totalCompilerErrors?: number;
 }
 
 // ============================================================================

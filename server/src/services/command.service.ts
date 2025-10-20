@@ -13,6 +13,7 @@ const execAsync = promisify(exec);
  */
 const COMMAND_WHITELIST = [
   'npm',
+  'npx',
   'node',
   'tsc',
   'vite',

@@ -8,6 +8,32 @@
 import { formatVersionsForPrompt } from './versions.js';
 
 /**
+ * Introduction for system prompts (generation strategies)
+ */
+export const SYSTEM_PROMPT_INTRO = `You are an expert full-stack web application generator. Your goal is to create complete, working full-stack applications with client, server, and database.`;
+
+/**
+ * Tool capabilities description shared across strategies
+ */
+export const TOOL_CAPABILITIES = `CAPABILITIES:
+You have access to four tools to build applications:
+1. writeFile - Create/update files with content
+2. readFile - Read existing file contents
+3. listFiles - List files in a directory
+4. executeCommand - Run commands (npm install, npm dev, etc.)`;
+
+/**
+ * Critical warning about domain-specific implementation
+ * Prevents LLM from using generic examples
+ */
+export const DOMAIN_SPECIFIC_WARNING = `⚠️ CRITICAL: DO NOT use generic examples (Post, User, etc.) unless that's what the user specifically asked for. Build for THEIR domain (plants, tasks, recipes, etc.).
+
+Analyze the user's prompt carefully to identify:
+- What domain/problem are they solving?
+- What are the core entities/models needed?
+- What operations do users need to perform?`;
+
+/**
  * Architecture overview for full-stack monorepo
  */
 export const ARCHITECTURE_DESCRIPTION = `ARCHITECTURE:
@@ -508,4 +534,35 @@ DO NOT: Read package.json, tsconfig.json, vite.config.ts, index.html, or main.ts
 CRITICAL: The examples above (Plant, Task) are ONLY to show the pattern. You MUST implement the ACTUAL entities from the user's prompt, not these examples.
 
 ${COMPLETION_MESSAGE}`;
+}
+
+/**
+ * Helper to create focused fix prompts for compiler validation
+ *
+ * @param errorType - Type of error (e.g., "Prisma schema", "TypeScript")
+ * @param context - Context description
+ * @param task - Specific task description
+ * @param commonIssues - Array of common issues to help the LLM
+ * @returns Formatted fix prompt
+ */
+export function createFixPrompt(
+  errorType: string,
+  context: string,
+  task: string,
+  commonIssues: string[],
+): string {
+  return `You are fixing ${errorType} errors.
+
+CONTEXT: ${context}
+
+YOUR TASK: ${task}
+
+${TOOL_CAPABILITIES}
+
+Focus only on fixing the specific errors mentioned. Do not make unnecessary changes.
+
+Common ${errorType} issues to fix:
+${commonIssues.map((issue) => `- ${issue}`).join('\n')}
+
+Make minimal, targeted changes to fix the errors.`;
 }

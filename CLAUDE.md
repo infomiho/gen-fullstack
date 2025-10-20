@@ -66,8 +66,8 @@ gen-fullstack/
 Multiple approaches to full-stack app generation (extensible):
 - **Naive**: Direct prompt-to-code generation of complete full-stack apps
 - **Plan First**: Generate architectural plan (database schema, API endpoints, components) before implementation
-- **With Template**: Start from pre-built full-stack template (future)
-- **Compiler Checks**: Self-correct with TypeScript errors (future)
+- **With Template**: Start from pre-built full-stack template
+- **Compiler Checks**: Validate with Prisma and TypeScript compilers, iterate to fix errors
 - **Building Blocks**: Use higher-level components (future)
 
 All strategies generate monorepo structure with npm workspaces:
@@ -169,7 +169,57 @@ export const Default: Story = {
 
 ## Recent Changes
 
-### Full-Stack App Generator Upgrade (Latest - January 2025) ✅
+### Compiler Checks Strategy (Latest - October 2025) ✅
+Implemented fourth generation strategy with automatic validation and error fixing:
+
+**Three-Phase Workflow**:
+1. **Phase 1: Initial Generation** (20 tool calls max)
+   - Generate complete full-stack app using naive approach
+   - Create all files (package.json, Prisma schema, client/server code)
+
+2. **Phase 2: Prisma Schema Validation** (1 fix attempt)
+   - Run `npx prisma validate && npx prisma generate`
+   - Parse validation errors from Prisma CLI
+   - If errors found: Send focused prompt to LLM for fixes (5 tool calls)
+   - Re-validate after fix attempt
+   - **Critical**: Must succeed to generate `@prisma/client` types for TypeScript
+
+3. **Phase 3: TypeScript Validation** (up to 3 iterations)
+   - Run `npx tsc --noEmit` for both server and client
+   - Parse TypeScript errors (file, line, column, code, message)
+   - If errors found: Send formatted errors to LLM for fixes (5 tool calls per iteration)
+   - Re-check after each fix
+   - Stop when: no errors (success) or max iterations reached (partial success)
+
+**Implementation Details**:
+- Total tool call budget: 20 + 5 + (3 × 5) = 40 max
+- Command whitelist: Added `npx` to enable Prisma/TypeScript CLI
+- Error parsing: Regex-based extraction from compiler output
+- Focused prompts: Separate system prompts for schema fixes vs TypeScript fixes
+- Metrics tracking: Iterations, validation pass/fail, total errors
+
+**Database Updates**:
+- Extended database schema to support 'compiler-check' strategy
+- Added optional compiler metrics to GenerationMetrics interface:
+  - `compilerIterations`: Number of TypeScript fix iterations
+  - `schemaValidationPassed`: Boolean for Prisma validation
+  - `typeCheckPassed`: Boolean for final TypeScript state
+  - `totalCompilerErrors`: Remaining errors after all iterations
+
+**Testing**:
+- All 185 tests passing ✅
+- Updated validation test to accept compiler-check as implemented
+- Typecheck passing across all workspaces
+
+**Files Changed**:
+- `server/src/strategies/compiler-check.strategy.ts` - New strategy implementation
+- `server/src/services/command.service.ts` - Added npx to whitelist
+- `server/src/websocket.ts` - Registered strategy
+- `server/src/db/schema.ts` - Extended strategy type
+- `shared/src/index.ts` - Updated types and schemas
+- `server/src/__tests__/strategy-validation.test.ts` - Updated test
+
+### Full-Stack App Generator Upgrade (January 2025) ✅
 Complete upgrade from single-app generator to full-stack application generator:
 
 **Architecture Changes**:

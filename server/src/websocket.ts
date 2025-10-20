@@ -9,6 +9,7 @@ import { websocketLogger } from './lib/logger.js';
 import { databaseService } from './services/database.service.js';
 import { getSandboxPath, writeFile } from './services/filesystem.service.js';
 import { processService } from './services/process.service.js';
+import { CompilerCheckStrategy } from './strategies/compiler-check.strategy.js';
 import { NaiveStrategy } from './strategies/naive.strategy.js';
 import { PlanFirstStrategy } from './strategies/plan-first.strategy.js';
 import { TemplateStrategy } from './strategies/template.strategy.js';
@@ -68,8 +69,8 @@ function sanitizeError(error: unknown): string {
  * Create strategy instance based on type
  */
 function createStrategy(
-  strategyType: 'naive' | 'plan-first' | 'template',
-): NaiveStrategy | PlanFirstStrategy | TemplateStrategy {
+  strategyType: 'naive' | 'plan-first' | 'template' | 'compiler-check',
+): NaiveStrategy | PlanFirstStrategy | TemplateStrategy | CompilerCheckStrategy {
   switch (strategyType) {
     case 'naive':
       return new NaiveStrategy();
@@ -77,6 +78,8 @@ function createStrategy(
       return new PlanFirstStrategy();
     case 'template':
       return new TemplateStrategy();
+    case 'compiler-check':
+      return new CompilerCheckStrategy();
   }
 }
 
@@ -112,7 +115,10 @@ export function setupWebSocket(httpServer: HTTPServer) {
   });
 
   // Track active generations for cancellation support
-  const activeGenerations = new Map<string, NaiveStrategy | PlanFirstStrategy | TemplateStrategy>();
+  const activeGenerations = new Map<
+    string,
+    NaiveStrategy | PlanFirstStrategy | TemplateStrategy | CompilerCheckStrategy
+  >();
 
   /**
    * Apply rate limiting to a handler

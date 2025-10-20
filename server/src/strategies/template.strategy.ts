@@ -2,8 +2,10 @@ import { stepCountIs, streamText } from 'ai';
 import type { Server as SocketIOServer } from 'socket.io';
 import {
   ARCHITECTURE_DESCRIPTION,
+  DOMAIN_SPECIFIC_WARNING,
   FILE_STRUCTURE,
   getTemplateImplementationGuidelines,
+  SYSTEM_PROMPT_INTRO,
 } from '../config/prompt-snippets.js';
 import { strategyLogger } from '../lib/logger.js';
 import { tools } from '../tools/index.js';
@@ -39,11 +41,13 @@ export class TemplateStrategy extends BaseStrategy {
   }
 
   getSystemPrompt(): string {
-    return `You are an expert full-stack web application generator. A complete full-stack template has been pre-loaded into your workspace.
+    return `${SYSTEM_PROMPT_INTRO}
+
+A complete full-stack template has been pre-loaded into your workspace.
 
 YOUR TASK: Carefully analyze the user's requirements, then customize this template to implement EXACTLY what they requested.
 
-⚠️ CRITICAL: DO NOT use generic examples (Post, User, etc.) unless that's what the user specifically asked for. Build for THEIR domain (plants, tasks, recipes, etc.).
+${DOMAIN_SPECIFIC_WARNING}
 
 TEMPLATE STRUCTURE - ALREADY SET UP (DO NOT READ OR MODIFY):
 ✓ Root package.json with npm workspaces and scripts
