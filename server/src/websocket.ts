@@ -63,6 +63,38 @@ function sanitizeError(error: unknown): string {
   return 'An error occurred. Please try again.';
 }
 
+/**
+ * Create strategy instance based on type
+ */
+function createStrategy(
+  strategyType: 'naive' | 'plan-first' | 'template',
+): NaiveStrategy | PlanFirstStrategy | TemplateStrategy {
+  switch (strategyType) {
+    case 'naive':
+      return new NaiveStrategy();
+    case 'plan-first':
+      return new PlanFirstStrategy();
+    case 'template':
+      return new TemplateStrategy();
+  }
+}
+
+/**
+ * Handle session creation failure
+ */
+async function handleGenerationError(sessionId: string | null, error: unknown): Promise<void> {
+  if (!sessionId) return;
+
+  try {
+    await databaseService.updateSession(sessionId, {
+      status: 'failed',
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+  } catch (dbError) {
+    console.error('Failed to update session status:', dbError);
+  }
+}
+
 export function setupWebSocket(httpServer: HTTPServer) {
   const io = new SocketIOServer<ClientToServerEvents, ServerToClientEvents>(httpServer, {
     cors: {
@@ -145,21 +177,7 @@ export function setupWebSocket(httpServer: HTTPServer) {
 
         socket.emit('session_started', { sessionId });
 
-        let strategy: NaiveStrategy | PlanFirstStrategy | TemplateStrategy;
-        switch (validated.strategy) {
-          case 'naive':
-            strategy = new NaiveStrategy();
-            break;
-          case 'plan-first':
-            strategy = new PlanFirstStrategy();
-            break;
-          case 'template':
-            strategy = new TemplateStrategy();
-            break;
-          default:
-            // This should never happen due to Zod validation, but TypeScript requires exhaustive checking
-            throw new Error(`Unknown strategy: ${validated.strategy}`);
-        }
+        const strategy = createStrategy(validated.strategy);
 
         // Track active generation for cancellation support
         activeGenerations.set(sessionId, strategy);
@@ -172,19 +190,7 @@ export function setupWebSocket(httpServer: HTTPServer) {
         }
       } catch (error) {
         console.error('Generation error:', error);
-
-        // Update session status to failed if we created it
-        if (sessionId) {
-          try {
-            await databaseService.updateSession(sessionId, {
-              status: 'failed',
-              errorMessage: error instanceof Error ? error.message : String(error),
-            });
-          } catch (dbError) {
-            console.error('Failed to update session status:', dbError);
-          }
-        }
-
+        await handleGenerationError(sessionId, error);
         socket.emit('error', sanitizeError(error));
       }
     });

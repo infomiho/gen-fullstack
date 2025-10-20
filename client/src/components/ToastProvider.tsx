@@ -34,6 +34,98 @@ export function useToast() {
   return context;
 }
 
+/**
+ * Get background and border classes for toast type
+ */
+function getToastBgClasses(type: ToastType): string {
+  switch (type) {
+    case 'success':
+      return 'bg-green-50 border-green-200';
+    case 'error':
+      return 'bg-red-50 border-red-200';
+    case 'info':
+      return 'bg-blue-50 border-blue-200';
+  }
+}
+
+/**
+ * Get text color classes for toast type
+ */
+function getToastTextClasses(type: ToastType): {
+  title: string;
+  description: string;
+  close: string;
+} {
+  switch (type) {
+    case 'success':
+      return {
+        title: 'text-green-900',
+        description: 'text-green-700',
+        close: 'text-green-700',
+      };
+    case 'error':
+      return {
+        title: 'text-red-900',
+        description: 'text-red-700',
+        close: 'text-red-700',
+      };
+    case 'info':
+      return {
+        title: 'text-blue-900',
+        description: 'text-blue-700',
+        close: 'text-blue-700',
+      };
+  }
+}
+
+/**
+ * Individual toast item component
+ */
+function ToastItem({ toast, onRemove }: { toast: ToastMessage; onRemove: (id: string) => void }) {
+  const bgClasses = getToastBgClasses(toast.type);
+  const textClasses = getToastTextClasses(toast.type);
+
+  return (
+    <Toast.Root
+      key={toast.id}
+      className={`
+        ${radius.md} border p-4 shadow-lg
+        data-[state=open]:animate-in data-[state=closed]:animate-out
+        data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)]
+        data-[swipe=cancel]:translate-x-0
+        data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)]
+        data-[state=open]:slide-in-from-top-full data-[state=closed]:fade-out-80
+        ${transitions.all}
+        ${bgClasses}
+      `}
+      onOpenChange={(open) => !open && onRemove(toast.id)}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1">
+          <Toast.Title className={`${typography.label} font-medium ${textClasses.title}`}>
+            {toast.title}
+          </Toast.Title>
+          {toast.description && (
+            <Toast.Description className={`mt-1 ${typography.caption} ${textClasses.description}`}>
+              {toast.description}
+            </Toast.Description>
+          )}
+        </div>
+        <Toast.Close
+          className={`
+            ${focus.ring} ${radius.sm} ${transitions.colors}
+            p-1 hover:bg-black/10
+            ${textClasses.close}
+          `}
+          aria-label="Close"
+        >
+          <X className="h-4 w-4" />
+        </Toast.Close>
+      </div>
+    </Toast.Root>
+  );
+}
+
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
@@ -56,59 +148,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       <Toast.Provider swipeDirection="right">
         {children}
         {toasts.map((toast) => (
-          <Toast.Root
-            key={toast.id}
-            className={`
-              ${radius.md} border p-4 shadow-lg
-              data-[state=open]:animate-in data-[state=closed]:animate-out
-              data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)]
-              data-[swipe=cancel]:translate-x-0
-              data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)]
-              data-[state=open]:slide-in-from-top-full data-[state=closed]:fade-out-80
-              ${transitions.all}
-              ${
-                toast.type === 'success'
-                  ? 'bg-green-50 border-green-200'
-                  : toast.type === 'error'
-                    ? 'bg-red-50 border-red-200'
-                    : 'bg-blue-50 border-blue-200'
-              }
-            `}
-            onOpenChange={(open) => !open && removeToast(toast.id)}
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <Toast.Title
-                  className={`
-                    ${typography.label} font-medium
-                    ${toast.type === 'success' ? 'text-green-900' : toast.type === 'error' ? 'text-red-900' : 'text-blue-900'}
-                  `}
-                >
-                  {toast.title}
-                </Toast.Title>
-                {toast.description && (
-                  <Toast.Description
-                    className={`
-                      mt-1 ${typography.caption}
-                      ${toast.type === 'success' ? 'text-green-700' : toast.type === 'error' ? 'text-red-700' : 'text-blue-700'}
-                    `}
-                  >
-                    {toast.description}
-                  </Toast.Description>
-                )}
-              </div>
-              <Toast.Close
-                className={`
-                  ${focus.ring} ${radius.sm} ${transitions.colors}
-                  p-1 hover:bg-black/10
-                  ${toast.type === 'success' ? 'text-green-700' : toast.type === 'error' ? 'text-red-700' : 'text-blue-700'}
-                `}
-                aria-label="Close"
-              >
-                <X className="h-4 w-4" />
-              </Toast.Close>
-            </div>
-          </Toast.Root>
+          <ToastItem key={toast.id} toast={toast} onRemove={removeToast} />
         ))}
         <Toast.Viewport className="fixed top-0 right-0 flex flex-col gap-2 w-96 max-w-full m-0 p-6 list-none z-50 outline-none" />
       </Toast.Provider>

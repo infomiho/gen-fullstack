@@ -53,31 +53,68 @@ export class ProcessService extends EventEmitter {
   }
 
   /**
+   * Handle existing process cleanup or return if still running
+   */
+  private async handleExistingProcess(sessionId: string): Promise<ProcessInfo | null> {
+    if (!this.processes.has(sessionId)) {
+      return null;
+    }
+
+    const existingProcess = this.processes.get(sessionId);
+    if (!existingProcess) {
+      throw new Error(`Process state inconsistency for ${sessionId}`);
+    }
+
+    if (existingProcess.status === 'failed') {
+      console.log(`[Process] Cleaning up failed process ${sessionId} before restart`);
+      this.processes.delete(sessionId);
+      try {
+        await this.docker.destroyContainer(sessionId);
+      } catch (_err) {
+        // Ignore cleanup errors
+      }
+      return null;
+    }
+
+    const existingStatus = this.docker.getStatus(sessionId);
+    if (existingStatus && existingStatus.status !== 'stopped') {
+      return existingProcess;
+    }
+
+    this.processes.delete(sessionId);
+    return null;
+  }
+
+  /**
+   * Handle app startup error
+   */
+  private handleStartupError(sessionId: string, error: unknown): void {
+    console.error(`[Process] Failed to start app ${sessionId}:`, error);
+
+    const processInfo = this.processes.get(sessionId);
+    if (processInfo) {
+      processInfo.status = 'failed';
+      processInfo.error = String(error);
+      this.emit('app_status', {
+        sessionId,
+        status: 'failed',
+        error: String(error),
+      });
+    }
+  }
+
+  /**
    * Start an app: create container, install deps, start dev server
    */
   async startApp(sessionId: string, workingDir: string): Promise<ProcessInfo> {
     try {
-      if (this.processes.has(sessionId)) {
-        const existingProcess = this.processes.get(sessionId);
-        if (!existingProcess) {
-          throw new Error(`Process state inconsistency for ${sessionId}`);
-        }
-
-        if (existingProcess.status === 'failed') {
-          console.log(`[Process] Cleaning up failed process ${sessionId} before restart`);
-          this.processes.delete(sessionId);
-          try {
-            await this.docker.destroyContainer(sessionId);
-          } catch (_err) {}
-        } else {
-          const existingStatus = this.docker.getStatus(sessionId);
-          if (existingStatus && existingStatus.status !== 'stopped') {
-            return existingProcess;
-          }
-          this.processes.delete(sessionId);
-        }
+      // Check for existing process
+      const existingProcess = await this.handleExistingProcess(sessionId);
+      if (existingProcess) {
+        return existingProcess;
       }
 
+      // Create new container
       const appInfo = await this.docker.createContainer(sessionId, workingDir);
 
       const processInfo: ProcessInfo = {
@@ -89,10 +126,11 @@ export class ProcessService extends EventEmitter {
 
       this.emit('app_status', appInfo);
 
+      // Install dependencies and start dev server
       await this.docker.installDependencies(sessionId);
-
       await this.docker.startDevServer(sessionId);
 
+      // Emit final status
       const status = this.docker.getStatus(sessionId);
       if (status) {
         processInfo.status = status.status;
@@ -101,19 +139,7 @@ export class ProcessService extends EventEmitter {
 
       return processInfo;
     } catch (error) {
-      console.error(`[Process] Failed to start app ${sessionId}:`, error);
-
-      const processInfo = this.processes.get(sessionId);
-      if (processInfo) {
-        processInfo.status = 'failed';
-        processInfo.error = String(error);
-        this.emit('app_status', {
-          sessionId,
-          status: 'failed',
-          error: String(error),
-        });
-      }
-
+      this.handleStartupError(sessionId, error);
       throw error;
     }
   }
