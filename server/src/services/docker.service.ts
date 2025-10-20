@@ -684,6 +684,33 @@ export class DockerService extends EventEmitter {
   }
 
   /**
+   * Attempt a single HTTP readiness check
+   */
+  private async attemptHttpCheck(
+    port: number,
+    attempt: number,
+    signal?: AbortSignal,
+  ): Promise<boolean> {
+    try {
+      await fetch(`http://localhost:${port}`, {
+        method: 'HEAD',
+        signal: signal || AbortSignal.timeout(HTTP_READY_CHECK.requestTimeoutMs),
+      });
+      return true; // Any response means server is listening
+    } catch (error) {
+      // Log first and last failures for debugging
+      const shouldLog = attempt === 0 || attempt === HTTP_READY_CHECK.maxAttempts - 1;
+      if (shouldLog) {
+        console.log(
+          `[Docker] HTTP ready check attempt ${attempt + 1}/${HTTP_READY_CHECK.maxAttempts} failed:`,
+          error instanceof Error ? error.message : error,
+        );
+      }
+      return false;
+    }
+  }
+
+  /**
    * Check if HTTP server is actually ready to accept connections
    *
    * Polls the HTTP endpoint with HEAD requests until the server responds.
@@ -703,40 +730,24 @@ export class DockerService extends EventEmitter {
    * - Can be canceled via AbortSignal
    */
   private async checkHttpReady(port: number, signal?: AbortSignal): Promise<boolean> {
-    const shouldLog = (attempt: number) =>
-      attempt === 0 || attempt === HTTP_READY_CHECK.maxAttempts - 1;
-
     for (let i = 0; i < HTTP_READY_CHECK.maxAttempts; i++) {
-      // Check if canceled
       if (signal?.aborted) {
         return false;
       }
 
-      try {
-        await fetch(`http://localhost:${port}`, {
-          method: 'HEAD',
-          signal: signal || AbortSignal.timeout(HTTP_READY_CHECK.requestTimeoutMs),
-        });
-        // Any response (even 404) means the server is listening
+      const isReady = await this.attemptHttpCheck(port, i, signal);
+      if (isReady) {
         return true;
-      } catch (error) {
-        // If aborted, return immediately
-        if (signal?.aborted) {
-          return false;
-        }
+      }
 
-        // Log first and last failures for debugging
-        if (shouldLog(i)) {
-          console.log(
-            `[Docker] HTTP ready check attempt ${i + 1}/${HTTP_READY_CHECK.maxAttempts} failed:`,
-            error instanceof Error ? error.message : error,
-          );
-        }
-        // Server not ready yet, wait and retry
-        const isLastAttempt = i === HTTP_READY_CHECK.maxAttempts - 1;
-        if (!isLastAttempt) {
-          await new Promise((resolve) => setTimeout(resolve, HTTP_READY_CHECK.delayMs));
-        }
+      if (signal?.aborted) {
+        return false;
+      }
+
+      // Wait before next attempt (unless last attempt)
+      const isLastAttempt = i === HTTP_READY_CHECK.maxAttempts - 1;
+      if (!isLastAttempt) {
+        await new Promise((resolve) => setTimeout(resolve, HTTP_READY_CHECK.delayMs));
       }
     }
     return false;

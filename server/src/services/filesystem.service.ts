@@ -250,15 +250,22 @@ export async function copyTemplateToSandbox(
 
   let fileCount = 0;
 
+  /**
+   * Handle directory read errors
+   */
+  function handleReadError(error: unknown): never {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new Error(`Template not found: ${templateName}`);
+    }
+    throw error;
+  }
+
   async function copyRecursive(src: string, dest: string): Promise<void> {
     let entries: Dirent[];
     try {
       entries = await fs.readdir(src, { withFileTypes: true });
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        throw new Error(`Template not found: ${templateName}`);
-      }
-      throw error;
+      handleReadError(error);
     }
 
     for (const entry of entries) {
@@ -304,42 +311,60 @@ export async function getAllFiles(
   const sandboxPath = getSandboxPath(sessionId);
   const allFiles: Array<{ relativePath: string; content: string }> = [];
 
-  async function readRecursive(dir: string): Promise<void> {
-    // Security: Validate that directory is within sandbox
+  /**
+   * Validate that directory is within sandbox
+   */
+  function validateDirectoryPath(dir: string): void {
     const resolvedDir = path.resolve(dir);
     if (!resolvedDir.startsWith(sandboxPath)) {
       throw new Error(`Directory traversal detected: ${dir} is outside sandbox`);
     }
+  }
 
-    let entries: Dirent[];
+  /**
+   * Read directory entries with error handling
+   */
+  async function readDirectoryEntries(dir: string): Promise<Dirent[]> {
     try {
-      entries = await fs.readdir(dir, { withFileTypes: true });
+      return await fs.readdir(dir, { withFileTypes: true });
     } catch (error) {
       throw new Error(
         `Failed to read directory ${dir}: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
+  }
+
+  /**
+   * Process a single directory entry (file or directory)
+   */
+  async function processEntry(entry: Dirent, dir: string): Promise<void> {
+    const fullPath = path.join(dir, entry.name);
+    const relativePath = path.relative(sandboxPath, fullPath);
+
+    // Skip symlinks for security
+    if (entry.isSymbolicLink()) {
+      return;
+    }
+
+    if (entry.isDirectory()) {
+      await readRecursive(fullPath);
+    } else if (entry.isFile()) {
+      try {
+        const content = await fs.readFile(fullPath, 'utf-8');
+        allFiles.push({ relativePath, content });
+      } catch (_error) {
+        // UTF-8 read failed - likely a binary file (images, fonts, etc.)
+        console.warn(`[Filesystem] Skipping non-text file ${relativePath}`);
+      }
+    }
+  }
+
+  async function readRecursive(dir: string): Promise<void> {
+    validateDirectoryPath(dir);
+    const entries = await readDirectoryEntries(dir);
 
     for (const entry of entries) {
-      const fullPath = path.join(dir, entry.name);
-      const relativePath = path.relative(sandboxPath, fullPath);
-
-      // Skip symlinks for security
-      if (entry.isSymbolicLink()) {
-        continue;
-      }
-
-      if (entry.isDirectory()) {
-        await readRecursive(fullPath);
-      } else if (entry.isFile()) {
-        try {
-          const content = await fs.readFile(fullPath, 'utf-8');
-          allFiles.push({ relativePath, content });
-        } catch (_error) {
-          // UTF-8 read failed - likely a binary file (images, fonts, etc.)
-          console.warn(`[Filesystem] Skipping non-text file ${relativePath}`);
-        }
-      }
+      await processEntry(entry, dir);
     }
   }
 
