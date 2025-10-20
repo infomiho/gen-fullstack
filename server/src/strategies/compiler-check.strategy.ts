@@ -9,6 +9,12 @@ import {
   SYSTEM_PROMPT_INTRO,
   TOOL_CAPABILITIES,
 } from '../config/prompt-snippets.js';
+import { parsePrismaErrors } from '../lib/prisma-error-parser.js';
+import {
+  formatTypeScriptErrorsForLLM,
+  parseTypeScriptErrors,
+  type TypeScriptError,
+} from '../lib/typescript-error-parser.js';
 import { tools } from '../tools/index.js';
 import type { ClientToServerEvents, ServerToClientEvents } from '../types/index.js';
 import { BaseStrategy, type GenerationMetrics } from './base.strategy.js';
@@ -21,17 +27,6 @@ const MAX_FIX_TOOL_CALLS = 5;
 
 // Maximum number of TypeScript fix iterations
 const MAX_TYPESCRIPT_ITERATIONS = 3;
-
-/**
- * TypeScript error structure parsed from tsc output
- */
-interface TypeScriptError {
-  file: string;
-  line: number;
-  column: number;
-  code: string; // e.g., "TS2339"
-  message: string;
-}
 
 /**
  * Schema validation result
@@ -126,7 +121,7 @@ ${getNaiveImplementationSteps()}`;
     const validateResult = await executeCommand(sessionId, 'npx prisma validate', 60000);
 
     if (!validateResult.success) {
-      const errors = this.parsePrismaErrors(validateResult.stderr);
+      const errors = parsePrismaErrors(validateResult.stderr);
       return { valid: false, errors };
     }
 
@@ -134,71 +129,11 @@ ${getNaiveImplementationSteps()}`;
     const generateResult = await executeCommand(sessionId, 'npx prisma generate', 60000);
 
     if (!generateResult.success) {
-      const errors = this.parsePrismaErrors(generateResult.stderr);
+      const errors = parsePrismaErrors(generateResult.stderr);
       return { valid: false, errors };
     }
 
     return { valid: true, errors: [] };
-  }
-
-  /**
-   * Parse Prisma error messages from stderr
-   *
-   * Handles multi-line error blocks by capturing error lines and their context.
-   * Prisma errors typically follow patterns like:
-   * - "Error: <message>"
-   * - Lines containing "error" (case insensitive)
-   * - Indented context lines following error headers
-   *
-   * @param stderr - Standard error output from Prisma CLI
-   * @returns Array of error messages (may include multi-line errors)
-   */
-  private parsePrismaErrors(stderr: string): string[] {
-    const errors: string[] = [];
-    const lines = stderr.split('\n');
-
-    let inErrorBlock = false;
-    let currentError: string[] = [];
-
-    for (const line of lines) {
-      const trimmed = line.trim();
-
-      // Start of an error block
-      if (trimmed.startsWith('Error:') || /error/i.test(trimmed)) {
-        // Save previous error block if exists
-        if (currentError.length > 0) {
-          errors.push(currentError.join('\n'));
-        }
-
-        // Start new error block
-        currentError = [trimmed];
-        inErrorBlock = true;
-      }
-      // Continue error block if we're in one and line is indented (context)
-      else if (inErrorBlock && line.startsWith(' ') && trimmed) {
-        currentError.push(trimmed);
-      }
-      // End of error block (empty line or non-indented line)
-      else if (inErrorBlock && !line.startsWith(' ')) {
-        if (currentError.length > 0) {
-          errors.push(currentError.join('\n'));
-          currentError = [];
-        }
-        inErrorBlock = false;
-      }
-    }
-
-    // Don't forget the last error block
-    if (currentError.length > 0) {
-      errors.push(currentError.join('\n'));
-    }
-
-    // If no specific errors found, return the full stderr as fallback
-    if (errors.length === 0 && stderr.trim()) {
-      errors.push(stderr.trim());
-    }
-
-    return errors;
   }
 
   /**
@@ -220,7 +155,7 @@ ${getNaiveImplementationSteps()}`;
     );
 
     if (!serverResult.success) {
-      const serverErrors = this.parseTypeScriptErrors(serverResult.stdout, 'server');
+      const serverErrors = parseTypeScriptErrors(serverResult.stdout, 'server');
       allErrors.push(...serverErrors);
     }
 
@@ -232,76 +167,11 @@ ${getNaiveImplementationSteps()}`;
     );
 
     if (!clientResult.success) {
-      const clientErrors = this.parseTypeScriptErrors(clientResult.stdout, 'client');
+      const clientErrors = parseTypeScriptErrors(clientResult.stdout, 'client');
       allErrors.push(...clientErrors);
     }
 
     return allErrors;
-  }
-
-  /**
-   * Parse TypeScript errors from tsc output
-   *
-   * @param output - Standard output from tsc command
-   * @param workspace - Workspace name (server/client) for context
-   * @returns Array of structured TypeScript errors
-   */
-  private parseTypeScriptErrors(output: string, workspace: string): TypeScriptError[] {
-    const errors: TypeScriptError[] = [];
-
-    // TypeScript format: "file(line,col): error TSxxxx: message"
-    // Use [^\n]+ instead of .+ to avoid matching across lines
-    const regex1 = /([^:(]+)\((\d+),(\d+)\):\s*error\s+(TS\d+):\s*([^\n]+)/g;
-    for (const match of output.matchAll(regex1)) {
-      errors.push({
-        file: `${workspace}/${match[1].trim()}`,
-        line: Number.parseInt(match[2], 10),
-        column: Number.parseInt(match[3], 10),
-        code: match[4],
-        message: match[5].trim(),
-      });
-    }
-
-    // TypeScript format: "file:line:col - error TSxxxx: message"
-    const regex2 = /([^:]+):(\d+):(\d+)\s*-\s*error\s+(TS\d+):\s*([^\n]+)/g;
-    for (const match of output.matchAll(regex2)) {
-      errors.push({
-        file: `${workspace}/${match[1].trim()}`,
-        line: Number.parseInt(match[2], 10),
-        column: Number.parseInt(match[3], 10),
-        code: match[4],
-        message: match[5].trim(),
-      });
-    }
-
-    return errors;
-  }
-
-  /**
-   * Format TypeScript errors for LLM consumption
-   *
-   * @param errors - Array of TypeScript errors
-   * @returns Formatted error string for LLM
-   */
-  private formatErrorsForLLM(errors: TypeScriptError[]): string {
-    const errorCount = errors.length;
-    const maxErrorsToShow = 10;
-
-    let message = `TypeScript found ${errorCount} type error${errorCount === 1 ? '' : 's'}:\n\n`;
-
-    const errorsToShow = errors.slice(0, maxErrorsToShow);
-    for (let i = 0; i < errorsToShow.length; i++) {
-      const e = errorsToShow[i];
-      message += `${i + 1}. ${e.file}:${e.line}:${e.column} - ${e.code}: ${e.message}\n`;
-    }
-
-    if (errorCount > maxErrorsToShow) {
-      message += `\n... and ${errorCount - maxErrorsToShow} more errors\n`;
-    }
-
-    message += '\nFix these errors by updating the relevant files.';
-
-    return message;
   }
 
   async generateApp(
@@ -405,7 +275,7 @@ ${getNaiveImplementationSteps()}`;
           `⚠️ Found ${tsErrors.length} TypeScript error${tsErrors.length === 1 ? '' : 's'}. Fixing (iteration ${tsIteration}/${MAX_TYPESCRIPT_ITERATIONS})...`,
         );
 
-        const fixPrompt = this.formatErrorsForLLM(tsErrors);
+        const fixPrompt = formatTypeScriptErrorsForLLM(tsErrors);
 
         const fixResult = streamText({
           model: this.model,
