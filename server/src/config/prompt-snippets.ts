@@ -161,7 +161,7 @@ import { PrismaClient } from '@prisma/client';
 
 const app = express();
 const prisma = new PrismaClient();
-const PORT = 3000;
+const PORT = 3000; // IMPORTANT: Must be 3000 (matches Vite proxy config)
 
 app.use(cors());
 app.use(express.json());
@@ -216,6 +216,7 @@ app.delete('/api/tasks/:id', async (req, res) => {
 
 // IMPORTANT: Adapt these routes to YOUR domain (tasks → plants/recipes/etc.)
 
+// Start server (MUST use port 3000 for Vite proxy to work)
 app.listen(PORT, () => {
   console.log(\`Server running on http://localhost:\${PORT}\`);
 });
