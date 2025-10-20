@@ -151,7 +151,7 @@ IMPORTANT: All configuration is done. DO NOT read package.json, tsconfig.json, v
       this.emitMessage(
         io,
         'assistant',
-        `## 🏗️ Template Strategy\n\nStarted with a complete full-stack template (${fileCount} files copied):\n- ✅ Root package.json with npm workspaces\n- ✅ Vite + React 19 client setup\n- ✅ Express 5 + TypeScript server\n- ✅ Prisma ORM + SQLite database\n- ✅ Example User model and CRUD API\n\nNow customizing the template based on your requirements...\n\n`,
+        `Started with a complete full-stack template (${fileCount} files copied):\n- ✅ Root package.json with npm workspaces\n- ✅ Vite + React 19 client setup\n- ✅ Express 5 + TypeScript server\n- ✅ Prisma ORM + SQLite database\n- ✅ Example User model and CRUD API\n\nNow customizing the template based on your requirements...\n\n`,
       );
 
       // Stream implementation with reduced tool calls (template handles boilerplate)

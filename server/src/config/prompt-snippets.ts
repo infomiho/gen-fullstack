@@ -133,7 +133,7 @@ export const SERVER_PACKAGE_JSON = `4. **server/package.json**:
   "name": "server",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts"
+    "dev": "PORT=3000 tsx watch src/index.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.10.0",
@@ -161,7 +161,7 @@ import { PrismaClient } from '@prisma/client';
 
 const app = express();
 const prisma = new PrismaClient();
-const PORT = 3000; // IMPORTANT: Must be 3000 (matches Vite proxy config)
+const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
 
 app.use(cors());
 app.use(express.json());
@@ -216,7 +216,6 @@ app.delete('/api/tasks/:id', async (req, res) => {
 
 // IMPORTANT: Adapt these routes to YOUR domain (tasks → plants/recipes/etc.)
 
-// Start server (MUST use port 3000 for Vite proxy to work)
 app.listen(PORT, () => {
   console.log(\`Server running on http://localhost:\${PORT}\`);
 });

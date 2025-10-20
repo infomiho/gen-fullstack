@@ -153,7 +153,7 @@ describe('TemplateStrategy', () => {
         'llm_message',
         expect.objectContaining({
           role: 'assistant',
-          content: expect.stringContaining('Template Strategy'),
+          content: expect.stringContaining('Started with a complete full-stack template'),
         }),
       );
 

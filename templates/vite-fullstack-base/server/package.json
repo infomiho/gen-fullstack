@@ -2,7 +2,7 @@
   "name": "server",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts"
+    "dev": "PORT=3000 tsx watch src/index.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.10.0",
