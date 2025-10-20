@@ -125,13 +125,20 @@ IMPORTANT: All configuration is done. DO NOT read package.json, tsconfig.json, v
 
         // Persist files in parallel for better performance
         await Promise.all(
-          templateFiles.map((file) =>
-            databaseService.saveFile({
+          templateFiles.map(async (file) => {
+            // Save to database
+            await databaseService.saveFile({
               sessionId,
               path: file.relativePath,
               content: file.content,
-            }),
-          ),
+            });
+
+            // Emit file_updated event for real-time UI updates (same pattern as writeFile tool)
+            io.to(sessionId).emit('file_updated', {
+              path: file.relativePath,
+              content: file.content,
+            });
+          }),
         );
 
         strategyLogger.info(
