@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import type { AppInfo, AppLog, AppStatus, BuildEvent } from '@gen-fullstack/shared';
 import type { Container, ContainerCreateOptions } from 'dockerode';
 import Docker from 'dockerode';
+import { getEnv } from '../config/env.js';
 import { dockerLogger } from '../lib/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -57,10 +58,11 @@ function isValidSocketPath(socketPath: string): boolean {
  * Get the Docker socket path based on the platform and Docker runtime
  */
 function getDockerSocketPath(): string {
+  const env = getEnv();
+
   // 1. Check DOCKER_HOST environment variable (standard Docker way)
-  const dockerHost = process.env.DOCKER_HOST;
-  if (dockerHost?.startsWith('unix://')) {
-    const socketPath = dockerHost.replace('unix://', '');
+  if (env.DOCKER_HOST?.startsWith('unix://')) {
+    const socketPath = env.DOCKER_HOST.replace('unix://', '');
     if (isValidSocketPath(socketPath)) {
       dockerLogger.info({ socketPath }, 'Using validated socket from DOCKER_HOST');
       return socketPath;
@@ -70,7 +72,7 @@ function getDockerSocketPath(): string {
 
   if (os.platform() === 'darwin') {
     // 2. Check for Colima (common on macOS)
-    const colimaHome = process.env.COLIMA_HOME || path.join(os.homedir(), '.colima');
+    const colimaHome = env.COLIMA_HOME || path.join(os.homedir(), '.colima');
     const colimaSocket = path.join(colimaHome, 'default/docker.sock');
     if (isValidSocketPath(colimaSocket)) {
       dockerLogger.info({ socketPath: colimaSocket }, 'Using Colima socket');
@@ -92,7 +94,7 @@ function getDockerSocketPath(): string {
 
     dockerLogger.warn(
       {
-        dockerHost: dockerHost || 'not set',
+        dockerHost: env.DOCKER_HOST || 'not set',
         colimaSocket,
         dockerDesktopSocket,
       },
@@ -123,11 +125,7 @@ const RESOURCE_LIMITS = {
   diskQuota: 100 * 1024 * 1024, // 100MB disk (not enforced on all systems)
 };
 
-// Container limits to prevent resource exhaustion
-const MAX_CONCURRENT_CONTAINERS = parseInt(
-  process.env.MAX_CONTAINERS || '20', // Default to 20 containers max
-  10,
-);
+// Note: MAX_CONCURRENT_CONTAINERS moved to DockerService.maxConcurrentContainers (initialized from env)
 
 // Timeouts
 const TIMEOUTS = {
@@ -235,9 +233,16 @@ export class DockerService extends EventEmitter {
   private consecutiveFailures = 0;
   private circuitBreakerOpen = false;
   private circuitBreakerResetTimeout?: NodeJS.Timeout;
+  private maxConcurrentContainers: number;
 
   private static readonly CIRCUIT_BREAKER_THRESHOLD = 5; // Open after 5 consecutive failures
   private static readonly CIRCUIT_BREAKER_RESET_MS = 60 * 1000; // Try again after 1 minute
+
+  constructor() {
+    super();
+    const env = getEnv();
+    this.maxConcurrentContainers = env.MAX_CONTAINERS;
+  }
 
   /**
    * Check if circuit breaker is open and throw error if so
@@ -512,9 +517,9 @@ export class DockerService extends EventEmitter {
       this.checkCircuitBreaker();
 
       // Check container limit before creating new ones
-      if (this.containers.size >= MAX_CONCURRENT_CONTAINERS) {
+      if (this.containers.size >= this.maxConcurrentContainers) {
         throw new Error(
-          `Container limit reached (${MAX_CONCURRENT_CONTAINERS}). ` +
+          `Container limit reached (${this.maxConcurrentContainers}). ` +
             `Please stop some running containers before starting new ones. ` +
             `Increase MAX_CONTAINERS environment variable if needed.`,
         );

@@ -3,7 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
 import httpProxy from 'http-proxy';
-import { validateEnv } from './config/env.js';
+import { getEnv } from './config/env.js';
 import { serverLogger } from './lib/logger.js';
 import sessionRoutes from './routes/sessions.js';
 import { databaseService } from './services/database.service.js';
@@ -12,8 +12,8 @@ import { setupWebSocket } from './websocket.js';
 
 dotenv.config();
 
-// Validate environment variables
-const env = validateEnv();
+// Get validated environment config (validates on first call, cached thereafter)
+const env = getEnv();
 
 const app = express();
 const httpServer = createServer(app);

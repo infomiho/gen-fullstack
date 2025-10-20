@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { configLogger } from '../lib/logger.js';
 
 const EnvSchema = z.object({
+  // Server
   PORT: z
     .string()
     .optional()
@@ -11,19 +12,70 @@ const EnvSchema = z.object({
       message: 'PORT must be a valid port number (1-65535)',
     }),
   CLIENT_URL: z.string().url().default('http://localhost:5173'),
-  OPENAI_API_KEY: z.string().min(1, 'OPENAI_API_KEY is required for LLM functionality'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+
+  // AI
+  OPENAI_API_KEY: z.string().min(1, 'OPENAI_API_KEY is required for LLM functionality'),
+
+  // Database
+  DATABASE_URL: z.string().optional(),
+
+  // Docker
+  DOCKER_HOST: z.string().optional(),
+  COLIMA_HOME: z.string().optional(),
+  MAX_CONTAINERS: z
+    .string()
+    .optional()
+    .default('20')
+    .transform((val) => parseInt(val, 10))
+    .refine((val) => !Number.isNaN(val) && val > 0, {
+      message: 'MAX_CONTAINERS must be a positive number',
+    }),
+
+  // Logging (Note: LOG_LEVEL is used by logger.ts which can't import this due to circular deps)
+  LOG_LEVEL: z
+    .enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal'])
+    .optional()
+    .default('info'),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
 
+/**
+ * Validated environment config singleton
+ * Initialized once on first import, subsequent imports get the cached value
+ */
+let envCache: Env | null = null;
+
+/**
+ * Get validated environment config
+ * Validates on first call, then returns cached value
+ */
+export function getEnv(): Env {
+  if (envCache) {
+    return envCache;
+  }
+  envCache = validateEnv();
+  return envCache;
+}
+
 export function validateEnv(): Env {
   try {
     return EnvSchema.parse({
+      // Server
       PORT: process.env.PORT,
       CLIENT_URL: process.env.CLIENT_URL,
-      OPENAI_API_KEY: process.env.OPENAI_API_KEY,
       NODE_ENV: process.env.NODE_ENV,
+      // AI
+      OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+      // Database
+      DATABASE_URL: process.env.DATABASE_URL,
+      // Docker
+      DOCKER_HOST: process.env.DOCKER_HOST,
+      COLIMA_HOME: process.env.COLIMA_HOME,
+      MAX_CONTAINERS: process.env.MAX_CONTAINERS,
+      // Logging
+      LOG_LEVEL: process.env.LOG_LEVEL,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

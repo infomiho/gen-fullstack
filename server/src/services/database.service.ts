@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import Database from 'better-sqlite3';
 import { and, desc, eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { getEnv } from '../config/env.js';
 import { databaseLogger } from '../lib/logger.js';
 import {
   type File,
@@ -37,7 +38,8 @@ class DatabaseService {
 
   constructor() {
     // Determine database path
-    const dbPath = process.env.DATABASE_URL || path.join(__dirname, '../../data/gen-fullstack.db');
+    const env = getEnv();
+    const dbPath = env.DATABASE_URL || path.join(__dirname, '../../data/gen-fullstack.db');
 
     // Ensure data directory exists
     const dbDir = path.dirname(dbPath);

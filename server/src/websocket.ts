@@ -4,6 +4,7 @@ import { RateLimiterMemory } from 'rate-limiter-flexible';
 import { Server as SocketIOServer } from 'socket.io';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
+import { getEnv } from './config/env.js';
 import { websocketLogger } from './lib/logger.js';
 import { databaseService } from './services/database.service.js';
 import { getSandboxPath, writeFile } from './services/filesystem.service.js';
@@ -96,9 +97,10 @@ async function handleGenerationError(sessionId: string | null, error: unknown): 
 }
 
 export function setupWebSocket(httpServer: HTTPServer) {
+  const env = getEnv();
   const io = new SocketIOServer<ClientToServerEvents, ServerToClientEvents>(httpServer, {
     cors: {
-      origin: process.env.CLIENT_URL || 'http://localhost:5173',
+      origin: env.CLIENT_URL,
       methods: ['GET', 'POST'],
     },
   });
