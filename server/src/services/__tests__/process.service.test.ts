@@ -4,48 +4,12 @@
  * Tests app lifecycle management with mocked Docker service.
  */
 
-import { EventEmitter } from 'node:events';
+import type { EventEmitter } from 'node:events';
 import type { AppLog, BuildEvent } from '@gen-fullstack/shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createMockDockerService } from '../../__tests__/test-utils/docker-mocks';
 import type { DockerService } from '../docker.service';
 import { ProcessService } from '../process.service';
-
-// Create a mock Docker service
-function createMockDockerService(): DockerService {
-  const emitter = new EventEmitter();
-
-  return {
-    ...emitter,
-    on: emitter.on.bind(emitter),
-    emit: emitter.emit.bind(emitter),
-    // Return the actual sessionId passed as parameter
-    createContainer: vi.fn().mockImplementation((sessionId: string) =>
-      Promise.resolve({
-        sessionId,
-        containerId: 'container-123',
-        status: 'creating',
-        port: 5000,
-        url: 'http://localhost:5000',
-      }),
-    ),
-    installDependencies: vi.fn().mockResolvedValue(undefined),
-    startDevServer: vi.fn().mockResolvedValue(undefined),
-    destroyContainer: vi.fn().mockResolvedValue(undefined),
-    // Return the actual sessionId passed as parameter
-    getStatus: vi.fn().mockImplementation((sessionId: string) => ({
-      sessionId,
-      containerId: 'container-123',
-      status: 'running',
-      port: 5000,
-      url: 'http://localhost:5000',
-    })),
-    getLogs: vi.fn().mockReturnValue([]),
-    listContainers: vi.fn().mockReturnValue([]),
-    buildRunnerImage: vi.fn().mockResolvedValue(undefined),
-    checkDockerAvailability: vi.fn().mockResolvedValue(true),
-    cleanup: vi.fn().mockResolvedValue(undefined),
-  } as unknown as DockerService;
-}
 
 describe('ProcessService', () => {
   let processService: ProcessService;
@@ -71,8 +35,10 @@ describe('ProcessService', () => {
         sessionId,
         containerId: 'container-123',
         status: 'running',
-        port: 5000,
-        url: 'http://localhost:5000',
+        clientPort: 5001,
+        serverPort: 5101,
+        clientUrl: 'http://localhost:5001',
+        serverUrl: 'http://localhost:5101',
         workingDir,
         startedAt: expect.any(Number),
       });
@@ -194,8 +160,10 @@ describe('ProcessService', () => {
         sessionId: 'test-session',
         containerId: 'container-123',
         status: 'running',
-        port: 5000,
-        url: 'http://localhost:5000',
+        clientPort: 5001,
+        serverPort: 5101,
+        clientUrl: 'http://localhost:5001',
+        serverUrl: 'http://localhost:5101',
         workingDir: '/tmp/test-app',
         startedAt: expect.any(Number),
       });

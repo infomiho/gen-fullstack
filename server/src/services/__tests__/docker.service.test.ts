@@ -23,51 +23,51 @@ vi.mock('node:os', () => ({
   },
 }));
 
-// Mock dockerode
-vi.mock('dockerode', () => {
+// Mock dockerode using inline mock (can't use external function due to hoisting)
+vi.mock('dockerode', async () => {
+  const { EventEmitter } = await import('node:events');
+  const vitest = await import('vitest');
+
   const createMockStream = () => {
     const stream = new EventEmitter();
-    // Emit 'end' after a short delay to prevent timeouts
     setTimeout(() => stream.emit('end'), 10);
     return stream;
   };
 
   const mockContainer = {
     id: 'mock-container-id',
-    start: vi.fn().mockResolvedValue(undefined),
-    stop: vi.fn().mockResolvedValue(undefined),
-    remove: vi.fn().mockResolvedValue(undefined),
-    logs: vi.fn().mockImplementation(() => {
+    start: vitest.vi.fn().mockResolvedValue(undefined),
+    stop: vitest.vi.fn().mockResolvedValue(undefined),
+    remove: vitest.vi.fn().mockResolvedValue(undefined),
+    logs: vitest.vi.fn().mockImplementation(() => {
       const stream = new EventEmitter();
       return Promise.resolve(stream);
     }),
-    exec: vi.fn().mockImplementation(() => {
+    exec: vitest.vi.fn().mockImplementation(() => {
       return Promise.resolve({
-        start: vi.fn().mockImplementation(() => {
+        start: vitest.vi.fn().mockImplementation(() => {
           return Promise.resolve(createMockStream());
         }),
       });
     }),
   };
 
-  // Create a shared instance that will be returned by all Docker() calls
   const sharedDockerInstance = {
-    ping: vi.fn().mockResolvedValue(true),
-    listImages: vi.fn().mockResolvedValue([]),
-    listContainers: vi.fn().mockResolvedValue([]),
-    buildImage: vi.fn().mockResolvedValue(new EventEmitter()),
-    createContainer: vi.fn().mockResolvedValue(mockContainer),
-    getContainer: vi.fn().mockReturnValue(mockContainer),
+    ping: vitest.vi.fn().mockResolvedValue(true),
+    listImages: vitest.vi.fn().mockResolvedValue([]),
+    listContainers: vitest.vi.fn().mockResolvedValue([]),
+    buildImage: vitest.vi.fn().mockResolvedValue(new EventEmitter()),
+    createContainer: vitest.vi.fn().mockResolvedValue(mockContainer),
+    getContainer: vitest.vi.fn().mockReturnValue(mockContainer),
     modem: {
-      followProgress: vi.fn((_stream, onFinished, onProgress) => {
-        // Simulate build progress
+      followProgress: vitest.vi.fn((_stream, onFinished, onProgress) => {
         onProgress?.({ stream: 'Building...' });
         onFinished?.(null, [{ stream: 'Successfully built' }]);
       }),
     },
   };
 
-  const mockDocker = vi.fn().mockImplementation(() => sharedDockerInstance);
+  const mockDocker = vitest.vi.fn().mockImplementation(() => sharedDockerInstance);
 
   // @ts-expect-error - Adding mock properties for test access
   mockDocker.mockContainer = mockContainer;
