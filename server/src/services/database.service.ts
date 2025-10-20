@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import Database from 'better-sqlite3';
 import { and, desc, eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { databaseLogger } from '../lib/logger.js';
 import {
   type File,
   files,
@@ -50,7 +51,7 @@ class DatabaseService {
     this.sqlite.pragma('foreign_keys = ON'); // Enable foreign key constraints for cascade deletes
     this.db = drizzle(this.sqlite);
 
-    console.log(`[Database] Connected to SQLite database: ${dbPath}`);
+    databaseLogger.info({ dbPath }, 'Connected to SQLite database');
   }
 
   /**
@@ -77,7 +78,7 @@ class DatabaseService {
         if (fs.existsSync(migrationPath)) {
           const migrationSQL = fs.readFileSync(migrationPath, 'utf8');
           this.sqlite.exec(migrationSQL);
-          console.log('[Database] Initial migration applied successfully');
+          databaseLogger.info('Initial migration applied successfully');
         }
       }
 
@@ -93,7 +94,7 @@ class DatabaseService {
         if (fs.existsSync(migration0001Path)) {
           const migrationSQL = fs.readFileSync(migration0001Path, 'utf8');
           this.sqlite.exec(migrationSQL);
-          console.log('[Database] Migration 0001 (message_id) applied successfully');
+          databaseLogger.info('Migration 0001 (message_id) applied successfully');
         }
       }
 
@@ -109,13 +110,13 @@ class DatabaseService {
         if (fs.existsSync(migration0002Path)) {
           const migrationSQL = fs.readFileSync(migration0002Path, 'utf8');
           this.sqlite.exec(migrationSQL);
-          console.log('[Database] Migration 0002 (unique message_id) applied successfully');
+          databaseLogger.info('Migration 0002 (unique message_id) applied successfully');
         }
       }
 
       this.initialized = true;
     } catch (error) {
-      console.error('[Database] Failed to initialize:', error);
+      databaseLogger.error({ error }, 'Failed to initialize');
       throw error;
     }
   }
@@ -211,12 +212,15 @@ class DatabaseService {
 
       return result;
     } catch (error) {
-      console.error('[Database] Failed to upsert message:', {
-        sessionId,
-        messageId,
-        role,
-        error: error instanceof Error ? error.message : String(error),
-      });
+      databaseLogger.error(
+        {
+          sessionId,
+          messageId,
+          role,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        'Failed to upsert message',
+      );
       throw error;
     }
   }
@@ -298,7 +302,7 @@ class DatabaseService {
    */
   close(): void {
     this.sqlite.close();
-    console.log('[Database] Connection closed');
+    databaseLogger.info('Connection closed');
   }
 
   /**

@@ -1,5 +1,6 @@
 import { tool } from 'ai';
 import { z } from 'zod';
+import { databaseLogger } from '../lib/logger.js';
 import * as commandService from '../services/command.service.js';
 import { databaseService } from '../services/database.service.js';
 import * as filesystemService from '../services/filesystem.service.js';
@@ -46,7 +47,9 @@ export const writeFile = tool({
         path,
         content,
       })
-      .catch((err) => console.error('[writeFile] Failed to persist file to database:', err));
+      .catch((err) =>
+        databaseLogger.error({ error: err, sessionId, path }, 'Failed to persist file to database'),
+      );
 
     return result;
   },

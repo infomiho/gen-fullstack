@@ -2,6 +2,7 @@ import * as fs from 'node:fs/promises';
 import type { Dirent } from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { filesystemLogger } from '../lib/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -68,7 +69,7 @@ export async function initializeSandbox(sessionId: string): Promise<string> {
 
   await fs.mkdir(sandboxPath, { recursive: true });
 
-  console.log(`[Filesystem] Initialized sandbox: ${sandboxPath}`);
+  filesystemLogger.info({ sandboxPath }, 'Initialized sandbox');
   return sandboxPath;
 }
 
@@ -96,7 +97,7 @@ export async function writeFile(
   await fs.writeFile(fullPath, content, 'utf-8');
 
   const relativePath = path.relative(sandboxPath, fullPath);
-  console.log(`[Filesystem] Wrote file: ${relativePath}`);
+  filesystemLogger.info({ relativePath, bytes: content.length }, 'Wrote file');
 
   return `Successfully wrote ${content.length} bytes to ${relativePath}`;
 }
@@ -117,7 +118,7 @@ export async function readFile(sessionId: string, filePath: string): Promise<str
   try {
     const content = await fs.readFile(fullPath, 'utf-8');
     const relativePath = path.relative(sandboxPath, fullPath);
-    console.log(`[Filesystem] Read file: ${relativePath} (${content.length} bytes)`);
+    filesystemLogger.info({ relativePath, bytes: content.length }, 'Read file');
     return content;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -151,7 +152,10 @@ export async function listFiles(
     }));
 
     const relativePath = path.relative(sandboxPath, fullPath);
-    console.log(`[Filesystem] Listed directory: ${relativePath || '.'} (${result.length} entries)`);
+    filesystemLogger.info(
+      { relativePath: relativePath || '.', count: result.length },
+      'Listed directory',
+    );
 
     return result;
   } catch (error) {
@@ -172,9 +176,9 @@ export async function cleanupSandbox(sessionId: string): Promise<void> {
 
   try {
     await fs.rm(sandboxPath, { recursive: true, force: true });
-    console.log(`[Filesystem] Cleaned up sandbox: ${sandboxPath}`);
+    filesystemLogger.info({ sandboxPath }, 'Cleaned up sandbox');
   } catch (error) {
-    console.error(`[Filesystem] Failed to cleanup sandbox: ${error}`);
+    filesystemLogger.error({ error, sandboxPath }, 'Failed to cleanup sandbox');
   }
 }
 
@@ -274,7 +278,7 @@ export async function copyTemplateToSandbox(
 
       // Security: Skip symlinks to prevent reading arbitrary files
       if (entry.isSymbolicLink()) {
-        console.warn(`[Filesystem] Skipping symlink in template: ${entry.name}`);
+        filesystemLogger.warn({ entryName: entry.name }, 'Skipping symlink in template');
         continue;
       }
 
@@ -291,7 +295,7 @@ export async function copyTemplateToSandbox(
 
   await copyRecursive(templatePath, sandboxPath);
 
-  console.log(`[Filesystem] Copied template '${templateName}' to sandbox: ${fileCount} files`);
+  filesystemLogger.info({ templateName, fileCount }, 'Copied template to sandbox');
   return fileCount;
 }
 
@@ -354,7 +358,7 @@ export async function getAllFiles(
         allFiles.push({ relativePath, content });
       } catch (_error) {
         // UTF-8 read failed - likely a binary file (images, fonts, etc.)
-        console.warn(`[Filesystem] Skipping non-text file ${relativePath}`);
+        filesystemLogger.warn({ relativePath }, 'Skipping non-text file');
       }
     }
   }

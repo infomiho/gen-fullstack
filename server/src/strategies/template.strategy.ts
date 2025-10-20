@@ -5,6 +5,7 @@ import {
   FILE_STRUCTURE,
   getTemplateImplementationGuidelines,
 } from '../config/prompt-snippets.js';
+import { strategyLogger } from '../lib/logger.js';
 import { tools } from '../tools/index.js';
 import type { ClientToServerEvents, ServerToClientEvents } from '../types/index.js';
 import { BaseStrategy, type GenerationMetrics } from './base.strategy.js';
@@ -128,11 +129,12 @@ IMPORTANT: All configuration is done. DO NOT read package.json, tsconfig.json, v
           ),
         );
 
-        console.log(
-          `[Template] Persisted ${templateFiles.length} template files to database for session ${sessionId}`,
+        strategyLogger.info(
+          { sessionId, fileCount: templateFiles.length },
+          'Persisted template files to database',
         );
       } catch (error) {
-        console.error('[Template] Failed to persist template files to database:', error);
+        strategyLogger.error({ error, sessionId }, 'Failed to persist template files to database');
         this.emitMessage(
           io,
           'system',

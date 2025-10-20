@@ -7,6 +7,7 @@
 
 import { EventEmitter } from 'node:events';
 import type { AppInfo, AppLog, BuildEvent } from '@gen-fullstack/shared';
+import { processLogger } from '../lib/logger.js';
 import { type DockerService, dockerService } from './docker.service';
 
 export interface ProcessInfo extends AppInfo {
@@ -66,7 +67,7 @@ export class ProcessService extends EventEmitter {
     }
 
     if (existingProcess.status === 'failed') {
-      console.log(`[Process] Cleaning up failed process ${sessionId} before restart`);
+      processLogger.info({ sessionId }, 'Cleaning up failed process before restart');
       this.processes.delete(sessionId);
       try {
         await this.docker.destroyContainer(sessionId);
@@ -89,7 +90,7 @@ export class ProcessService extends EventEmitter {
    * Handle app startup error
    */
   private handleStartupError(sessionId: string, error: unknown): void {
-    console.error(`[Process] Failed to start app ${sessionId}:`, error);
+    processLogger.error({ error, sessionId }, 'Failed to start app');
 
     const processInfo = this.processes.get(sessionId);
     if (processInfo) {
@@ -228,7 +229,7 @@ export class ProcessService extends EventEmitter {
   async cleanup(): Promise<void> {
     const promises = Array.from(this.processes.keys()).map((sessionId) =>
       this.stopApp(sessionId).catch((err) =>
-        console.error(`Failed to stop app ${sessionId}:`, err),
+        processLogger.error({ error: err, sessionId }, 'Failed to stop app'),
       ),
     );
     await Promise.all(promises);

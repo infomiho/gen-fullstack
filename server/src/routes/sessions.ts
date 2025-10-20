@@ -5,6 +5,7 @@
  */
 
 import { Router } from 'express';
+import { routesLogger } from '../lib/logger.js';
 import { databaseService } from '../services/database.service.js';
 
 const router: Router = Router();
@@ -19,7 +20,7 @@ router.get('/', async (_req, res) => {
     const sessions = await databaseService.listSessions();
     res.json({ sessions });
   } catch (error) {
-    console.error('[SessionAPI] Failed to list sessions:', error);
+    routesLogger.error({ error }, 'Failed to list sessions');
     const message = error instanceof Error ? error.message : 'Failed to list sessions';
     res.status(500).json({ error: message });
   }
@@ -52,7 +53,7 @@ router.get('/:sessionId', async (req, res) => {
       files,
     });
   } catch (error) {
-    console.error('[SessionAPI] Failed to get session:', error);
+    routesLogger.error({ error, sessionId: req.params.sessionId }, 'Failed to get session');
     const message = error instanceof Error ? error.message : 'Failed to get session';
     res.status(500).json({ error: message });
   }
@@ -79,7 +80,7 @@ router.delete('/:sessionId', async (req, res) => {
 
     res.json({ success: true, message: 'Session deleted' });
   } catch (error) {
-    console.error('[SessionAPI] Failed to delete session:', error);
+    routesLogger.error({ error, sessionId: req.params.sessionId }, 'Failed to delete session');
     const message = error instanceof Error ? error.message : 'Failed to delete session';
     res.status(500).json({ error: message });
   }

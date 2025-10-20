@@ -58,3 +58,4 @@ export const databaseLogger = createLogger({ service: 'database' });
 export const filesystemLogger = createLogger({ service: 'filesystem' });
 export const commandLogger = createLogger({ service: 'command' });
 export const routesLogger = createLogger({ service: 'routes' });
+export const configLogger = createLogger({ service: 'config' });

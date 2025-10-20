@@ -1,5 +1,6 @@
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
+import { commandLogger } from '../lib/logger.js';
 import { getSandboxPath } from './filesystem.service.js';
 
 const execAsync = promisify(exec);
@@ -122,7 +123,7 @@ export async function executeCommand(
 
   const sandboxPath = getSandboxPath(sessionId);
 
-  console.log(`[Command] Executing in ${sandboxPath}: ${command}`);
+  commandLogger.info({ workingDir: sandboxPath, command }, 'Executing command');
 
   try {
     const { stdout, stderr } = await execAsync(command, {
@@ -146,9 +147,14 @@ export async function executeCommand(
       success: true,
     };
 
-    console.log(
-      `[Command] Success (${executionTime}ms): ${command} ` +
-        `(stdout: ${stdout.length} bytes, stderr: ${stderr.length} bytes)`,
+    commandLogger.info(
+      {
+        command,
+        executionTime,
+        stdoutBytes: stdout.length,
+        stderrBytes: stderr.length,
+      },
+      'Command succeeded',
     );
 
     return result;
@@ -164,7 +170,7 @@ export async function executeCommand(
     };
 
     if (err.killed && err.signal === 'SIGTERM') {
-      console.error(`[Command] Timeout after ${timeoutMs}ms: ${command}`);
+      commandLogger.error({ command, timeoutMs }, 'Command timeout');
       return {
         stdout: err.stdout ? truncateOutput(err.stdout) : '',
         stderr: `Command timed out after ${timeoutMs}ms`,
@@ -174,7 +180,7 @@ export async function executeCommand(
       };
     }
 
-    console.error(`[Command] Failed (${executionTime}ms): ${command}`, err.message);
+    commandLogger.error({ command, executionTime, error: err.message }, 'Command failed');
 
     return {
       stdout: err.stdout ? truncateOutput(err.stdout) : '',

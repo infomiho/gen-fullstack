@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { configLogger } from '../lib/logger.js';
 
 const EnvSchema = z.object({
   PORT: z
@@ -26,11 +27,11 @@ export function validateEnv(): Env {
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      console.error('❌ Environment validation failed:');
+      configLogger.error({ errors: error.errors }, '❌ Environment validation failed');
       error.errors.forEach((err) => {
-        console.error(`  - ${err.path.join('.')}: ${err.message}`);
+        configLogger.error({ path: err.path.join('.'), message: err.message }, 'Validation error');
       });
-      console.error('\nPlease check your .env file and ensure all required variables are set.');
+      configLogger.error('Please check your .env file and ensure all required variables are set');
       process.exit(1);
     }
     throw error;
