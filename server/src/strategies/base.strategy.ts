@@ -1,5 +1,6 @@
 import type { LanguageModel } from 'ai';
 import type { Server as SocketIOServer } from 'socket.io';
+import { createLogger } from '../lib/logger.js';
 import { databaseService } from '../services/database.service.js';
 import { initializeSandbox } from '../services/filesystem.service.js';
 import { calculateCost, getModel, type ModelName } from '../services/llm.service.js';
@@ -24,13 +25,39 @@ export type { GenerationMetrics };
 export abstract class BaseStrategy {
   protected model: LanguageModel;
   protected modelName: ModelName;
+  protected logger: ReturnType<typeof createLogger>;
   private currentMessageId: string | null = null;
   private currentMessageRole: 'user' | 'assistant' | 'system' | null = null;
   private sessionId: string | null = null;
+  private abortController: AbortController;
 
   constructor(modelName: ModelName = 'gpt-5-nano') {
     this.modelName = modelName;
     this.model = getModel(modelName);
+    this.abortController = new AbortController();
+    // Create a logger with strategy name (will be set by child class)
+    this.logger = createLogger({ service: 'strategy', name: this.getName() });
+  }
+
+  /**
+   * Get the abort signal for this generation
+   */
+  getAbortSignal(): AbortSignal {
+    return this.abortController.signal;
+  }
+
+  /**
+   * Abort the ongoing generation
+   */
+  abort(): void {
+    this.abortController.abort();
+  }
+
+  /**
+   * Check if generation was aborted
+   */
+  isAborted(): boolean {
+    return this.abortController.signal.aborted;
   }
 
   /**
@@ -112,7 +139,9 @@ export abstract class BaseStrategy {
     if (this.sessionId && this.currentMessageId) {
       databaseService
         .upsertMessage(this.sessionId, this.currentMessageId, role, content, new Date(timestamp))
-        .catch((err) => console.error('[BaseStrategy] Failed to upsert message:', err));
+        .catch((err) =>
+          this.logger.error({ err, sessionId: this.sessionId }, 'Failed to upsert message'),
+        );
     }
   }
 
@@ -155,7 +184,9 @@ export abstract class BaseStrategy {
           toolName,
           toolArgs: JSON.stringify(args),
         })
-        .catch((err) => console.error('[BaseStrategy] Failed to persist tool call:', err));
+        .catch((err) =>
+          this.logger.error({ err, sessionId: this.sessionId }, 'Failed to persist tool call'),
+        );
     }
   }
 
@@ -198,7 +229,9 @@ export abstract class BaseStrategy {
           result,
           isError: false,
         })
-        .catch((err) => console.error('[BaseStrategy] Failed to persist tool result:', err));
+        .catch((err) =>
+          this.logger.error({ err, sessionId: this.sessionId }, 'Failed to persist tool result'),
+        );
     }
   }
 
@@ -216,6 +249,7 @@ export abstract class BaseStrategy {
       io.to(this.sessionId).emit('generation_complete', {
         strategy: this.getName(),
         model: this.modelName,
+        status: 'completed' as const,
         ...metrics,
       });
     }
@@ -232,8 +266,49 @@ export abstract class BaseStrategy {
           durationMs: metrics.duration,
           stepCount: metrics.steps,
         })
-        .catch((err) => console.error('[BaseStrategy] Failed to update session:', err));
+        .catch((err) =>
+          this.logger.error({ err, sessionId: this.sessionId }, 'Failed to update session'),
+        );
     }
+  }
+
+  /**
+   * Emit generation cancelled event and update database
+   *
+   * @param io - Socket.io server instance
+   * @param partialMetrics - Partial metrics up to cancellation point
+   */
+  protected emitCancelled(
+    io: SocketIOServer<ClientToServerEvents, ServerToClientEvents>,
+    partialMetrics: GenerationMetrics,
+  ): void {
+    if (this.sessionId) {
+      io.to(this.sessionId).emit('generation_complete', {
+        strategy: this.getName(),
+        model: this.modelName,
+        status: 'cancelled' as const,
+        ...partialMetrics,
+      });
+    }
+
+    if (this.sessionId) {
+      databaseService
+        .updateSession(this.sessionId, {
+          status: 'cancelled',
+          completedAt: new Date(),
+          inputTokens: partialMetrics.inputTokens,
+          outputTokens: partialMetrics.outputTokens,
+          totalTokens: partialMetrics.totalTokens,
+          cost: partialMetrics.cost.toString(),
+          durationMs: partialMetrics.duration,
+          stepCount: partialMetrics.steps,
+        })
+        .catch((err) =>
+          this.logger.error({ err, sessionId: this.sessionId }, 'Failed to update session'),
+        );
+    }
+
+    this.logger.info({ sessionId: this.sessionId }, 'Generation cancelled');
   }
 
   /**
@@ -252,7 +327,7 @@ export abstract class BaseStrategy {
       io.to(this.sessionId).emit('error', message);
     }
 
-    console.error(`[${this.getName()}] Error:`, error);
+    this.logger.error({ error, sessionId: this.sessionId }, 'Generation error');
 
     if (this.sessionId) {
       databaseService
@@ -260,7 +335,9 @@ export abstract class BaseStrategy {
           status: 'failed',
           errorMessage: message,
         })
-        .catch((err) => console.error('[BaseStrategy] Failed to update session error:', err));
+        .catch((err) =>
+          this.logger.error({ err, sessionId: this.sessionId }, 'Failed to update session error'),
+        );
     }
   }
 
@@ -308,12 +385,17 @@ export abstract class BaseStrategy {
    * @param metrics - Generation metrics
    */
   protected logComplete(sessionId: string, metrics: GenerationMetrics): void {
-    console.log(
-      `[${this.getName()}] Completed generation for session ${sessionId}`,
-      `\nTokens: ${metrics.totalTokens} (in: ${metrics.inputTokens}, out: ${metrics.outputTokens})`,
-      `\nCost: $${metrics.cost.toFixed(4)}`,
-      `\nDuration: ${metrics.duration}ms`,
-      `\nSteps: ${metrics.steps}`,
+    this.logger.info(
+      {
+        sessionId,
+        totalTokens: metrics.totalTokens,
+        inputTokens: metrics.inputTokens,
+        outputTokens: metrics.outputTokens,
+        cost: metrics.cost,
+        duration: metrics.duration,
+        steps: metrics.steps,
+      },
+      'Generation completed',
     );
   }
 
@@ -407,8 +489,9 @@ export abstract class BaseStrategy {
    *
    * Processes errors by:
    * 1. Calculating duration from start time
-   * 2. Emitting error event to client
-   * 3. Returning partial metrics with zero tokens
+   * 2. Checking if error is an abort (cancellation)
+   * 3. Emitting appropriate event (cancelled or error)
+   * 4. Returning partial metrics
    *
    * This eliminates duplication across strategy error handlers.
    *
@@ -423,6 +506,15 @@ export abstract class BaseStrategy {
     error: unknown,
   ): GenerationMetrics {
     const duration = Date.now() - startTime;
+
+    // Check if error is due to abort (cancellation)
+    if (error instanceof Error && (error.name === 'AbortError' || this.isAborted())) {
+      const metrics = this.calculateMetrics(0, 0, duration, 0);
+      this.emitCancelled(io, metrics);
+      return metrics;
+    }
+
+    // Regular error handling
     this.emitError(io, error as Error);
     return this.calculateMetrics(0, 0, duration, 0);
   }

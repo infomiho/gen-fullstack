@@ -4,6 +4,7 @@ import { RateLimiterMemory } from 'rate-limiter-flexible';
 import { Server as SocketIOServer } from 'socket.io';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
+import { websocketLogger } from './lib/logger.js';
 import { databaseService } from './services/database.service.js';
 import { getSandboxPath, writeFile } from './services/filesystem.service.js';
 import { processService } from './services/process.service.js';
@@ -76,6 +77,9 @@ export function setupWebSocket(httpServer: HTTPServer) {
     blockDuration: 0, // Do not block, just reject
   });
 
+  // Track active generations for cancellation support
+  const activeGenerations = new Map<string, NaiveStrategy | PlanFirstStrategy | TemplateStrategy>();
+
   /**
    * Apply rate limiting to a handler
    */
@@ -108,7 +112,7 @@ export function setupWebSocket(httpServer: HTTPServer) {
   });
 
   io.on('connection', (socket) => {
-    console.log('Client connected:', socket.id);
+    websocketLogger.info({ socketId: socket.id }, 'Client connected');
 
     socket.on('subscribe_to_session', (payload) => {
       try {
@@ -157,7 +161,15 @@ export function setupWebSocket(httpServer: HTTPServer) {
             throw new Error(`Unknown strategy: ${validated.strategy}`);
         }
 
-        await strategy.generateApp(validated.prompt, io, sessionId);
+        // Track active generation for cancellation support
+        activeGenerations.set(sessionId, strategy);
+
+        try {
+          await strategy.generateApp(validated.prompt, io, sessionId);
+        } finally {
+          // Always remove from active generations when done
+          activeGenerations.delete(sessionId);
+        }
       } catch (error) {
         console.error('Generation error:', error);
 
@@ -177,9 +189,35 @@ export function setupWebSocket(httpServer: HTTPServer) {
       }
     });
 
-    socket.on('stop_generation', () => {
-      console.log('Stopping generation');
-      // TODO: Implement stop logic
+    socket.on('stop_generation', async () => {
+      let sessionId: string | undefined;
+      try {
+        // Get sessionId from the socket's joined rooms
+        // The socket should be in a room named after the sessionId
+        const rooms = Array.from(socket.rooms);
+        sessionId = rooms.find((room) => room !== socket.id);
+
+        if (!sessionId) {
+          socket.emit('error', 'No active session found');
+          return;
+        }
+
+        websocketLogger.info({ sessionId }, 'Stop generation requested');
+
+        // Get the active strategy and abort it
+        const strategy = activeGenerations.get(sessionId);
+        if (strategy) {
+          // AbortController.abort() is idempotent - safe to call multiple times
+          strategy.abort();
+          websocketLogger.info({ sessionId }, 'Abort requested');
+        } else {
+          // Not necessarily an error - generation may have just completed naturally
+          websocketLogger.info({ sessionId }, 'No active generation found (may have completed)');
+        }
+      } catch (error) {
+        websocketLogger.error({ error, sessionId }, 'Error stopping generation');
+        socket.emit('error', sanitizeError(error));
+      }
     });
 
     socket.on('start_app', async (payload) => {
@@ -285,8 +323,11 @@ export function setupWebSocket(httpServer: HTTPServer) {
     });
 
     socket.on('clear_workspace', () => {
-      console.log('Clearing workspace');
-      // TODO: Implement clear logic
+      console.log('[WebSocket] Clearing workspace for client:', socket.id);
+
+      // Clear workspace just resets client-side UI state
+      // Files on disk remain intact for persistence
+      socket.emit('workspace_cleared');
     });
 
     socket.on('disconnect', () => {

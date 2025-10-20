@@ -191,6 +191,7 @@ export interface GenerationMetrics {
   sessionId: string;
   strategy?: string;
   model?: string;
+  status?: 'completed' | 'cancelled' | 'failed';
   totalTokens: number;
   inputTokens: number;
   outputTokens: number;
@@ -211,6 +212,7 @@ export interface ServerToClientEvents {
   tool_result: (result: ToolResult) => void;
   file_updated: (data: FileUpdate) => void;
   generation_complete: (metrics: GenerationMetrics) => void;
+  workspace_cleared: () => void;
 
   // App execution events
   app_status: (data: AppInfo) => void;

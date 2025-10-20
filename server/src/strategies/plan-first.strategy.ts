@@ -113,6 +113,7 @@ ${getPlanFirstImplementationGuidelines()}`;
         model: this.model,
         system: this.getPlanningPrompt(),
         prompt,
+        abortSignal: this.getAbortSignal(),
       });
 
       const plan = planResult.text;
@@ -142,6 +143,7 @@ Implement the application following this plan exactly. Create all files as speci
         experimental_context: { sessionId, io },
         stopWhen: stepCountIs(MAX_TOOL_CALLS),
         onStepFinish: this.createOnStepFinishHandler(io),
+        abortSignal: this.getAbortSignal(),
       });
 
       // Process stream and get implementation metrics

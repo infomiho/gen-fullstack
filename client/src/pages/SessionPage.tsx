@@ -18,6 +18,7 @@ import { SessionSidebar } from '../components/SessionSidebar';
 import { Timeline } from '../components/Timeline';
 import { useSessionData } from '../hooks/useSessionData';
 import { useWebSocket } from '../hooks/useWebSocket';
+import { useAppStore, useGenerationStore } from '../stores';
 import { focus, padding, spacing, transitions, typography } from '../lib/design-tokens';
 
 const SERVER_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
@@ -204,6 +205,18 @@ function SessionPage() {
       hasSubscribedRef.current = false;
     };
   }, [socket, sessionId]);
+
+  // Cleanup stores when sessionId changes to prevent memory leaks
+  // This ensures each session has fresh state without accumulating data from previous sessions
+  // biome-ignore lint/correctness/useExhaustiveDependencies: sessionId is intentionally included to reset stores when navigating between sessions
+  useEffect(() => {
+    return () => {
+      // Reset generation store to clear messages, tool calls, files
+      useGenerationStore.getState().reset();
+      // Reset app store to clear logs and build events
+      useAppStore.getState().reset();
+    };
+  }, [sessionId]); // Reset when session changes
 
   return (
     <div className="grid h-screen grid-rows-[auto_1fr] bg-white">

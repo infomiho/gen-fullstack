@@ -73,6 +73,7 @@ ${getNaiveImplementationSteps()}`;
         experimental_context: { sessionId, io },
         stopWhen: stepCountIs(MAX_TOOL_CALLS),
         onStepFinish: this.createOnStepFinishHandler(io),
+        abortSignal: this.getAbortSignal(),
       });
 
       // Process stream and calculate metrics

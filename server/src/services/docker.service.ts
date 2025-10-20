@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import type { AppInfo, AppLog, AppStatus, BuildEvent } from '@gen-fullstack/shared';
 import type { Container, ContainerCreateOptions } from 'dockerode';
 import Docker from 'dockerode';
+import { dockerLogger } from '../lib/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,14 +36,14 @@ function isValidSocketPath(socketPath: string): boolean {
     const isAllowed = allowedPrefixes.some((prefix) => realPath.startsWith(prefix));
 
     if (!isAllowed) {
-      console.warn(`[Docker] Socket path rejected (not in allowed locations): ${realPath}`);
+      dockerLogger.warn({ realPath }, 'Socket path rejected (not in allowed locations)');
       return false;
     }
 
     // Verify it's actually a socket, not a regular file
     const stats = fs.statSync(realPath);
     if (!stats.isSocket()) {
-      console.warn(`[Docker] Path exists but is not a socket: ${realPath}`);
+      dockerLogger.warn({ realPath }, 'Path exists but is not a socket');
       return false;
     }
 
@@ -61,10 +62,10 @@ function getDockerSocketPath(): string {
   if (dockerHost?.startsWith('unix://')) {
     const socketPath = dockerHost.replace('unix://', '');
     if (isValidSocketPath(socketPath)) {
-      console.log(`[Docker] Using validated socket from DOCKER_HOST: ${socketPath}`);
+      dockerLogger.info({ socketPath }, 'Using validated socket from DOCKER_HOST');
       return socketPath;
     }
-    console.warn(`[Docker] DOCKER_HOST socket invalid: ${socketPath}`);
+    dockerLogger.warn({ socketPath }, 'DOCKER_HOST socket invalid');
   }
 
   if (os.platform() === 'darwin') {
@@ -72,28 +73,31 @@ function getDockerSocketPath(): string {
     const colimaHome = process.env.COLIMA_HOME || path.join(os.homedir(), '.colima');
     const colimaSocket = path.join(colimaHome, 'default/docker.sock');
     if (isValidSocketPath(colimaSocket)) {
-      console.log(`[Docker] Using Colima socket: ${colimaSocket}`);
+      dockerLogger.info({ socketPath: colimaSocket }, 'Using Colima socket');
       return colimaSocket;
     }
 
     // 3. Check for Docker Desktop for Mac
     const dockerDesktopSocket = path.join(os.homedir(), '.docker/run/docker.sock');
     if (isValidSocketPath(dockerDesktopSocket)) {
-      console.log(`[Docker] Using Docker Desktop socket: ${dockerDesktopSocket}`);
+      dockerLogger.info({ socketPath: dockerDesktopSocket }, 'Using Docker Desktop socket');
       return dockerDesktopSocket;
     }
 
     // 4. Check standard socket (might be symlinked)
     if (isValidSocketPath('/var/run/docker.sock')) {
-      console.log('[Docker] Using standard socket: /var/run/docker.sock');
+      dockerLogger.info('Using standard socket: /var/run/docker.sock');
       return '/var/run/docker.sock';
     }
 
-    console.warn('[Docker] No valid Docker socket found on macOS. Tried:');
-    console.warn(`  - DOCKER_HOST: ${dockerHost || 'not set'}`);
-    console.warn(`  - Colima: ${colimaSocket}`);
-    console.warn(`  - Docker Desktop: ${dockerDesktopSocket}`);
-    console.warn('  - Standard: /var/run/docker.sock');
+    dockerLogger.warn(
+      {
+        dockerHost: dockerHost || 'not set',
+        colimaSocket,
+        dockerDesktopSocket,
+      },
+      'No valid Docker socket found on macOS',
+    );
   }
 
   // Linux default - validate it too
@@ -118,6 +122,12 @@ const RESOURCE_LIMITS = {
   nanoCPUs: 1000000000, // 1 CPU core
   diskQuota: 100 * 1024 * 1024, // 100MB disk (not enforced on all systems)
 };
+
+// Container limits to prevent resource exhaustion
+const MAX_CONCURRENT_CONTAINERS = parseInt(
+  process.env.MAX_CONTAINERS || '20', // Default to 20 containers max
+  10,
+);
 
 // Timeouts
 const TIMEOUTS = {
@@ -221,6 +231,61 @@ function determineLogLevel(message: string): 'error' | 'warn' | 'info' {
 export class DockerService extends EventEmitter {
   private containers = new Map<string, ContainerInfo>();
   private imageBuilt = false;
+  private consecutiveFailures = 0;
+  private circuitBreakerOpen = false;
+  private circuitBreakerResetTimeout?: NodeJS.Timeout;
+
+  private static readonly CIRCUIT_BREAKER_THRESHOLD = 5; // Open after 5 consecutive failures
+  private static readonly CIRCUIT_BREAKER_RESET_MS = 60 * 1000; // Try again after 1 minute
+
+  /**
+   * Check if circuit breaker is open and throw error if so
+   */
+  private checkCircuitBreaker(): void {
+    if (this.circuitBreakerOpen) {
+      throw new Error(
+        'Docker service temporarily unavailable due to repeated failures. ' +
+          'Please wait a moment and try again.',
+      );
+    }
+  }
+
+  /**
+   * Record a successful Docker operation (reset failure counter)
+   */
+  private recordSuccess(): void {
+    this.consecutiveFailures = 0;
+    this.circuitBreakerOpen = false;
+    if (this.circuitBreakerResetTimeout) {
+      clearTimeout(this.circuitBreakerResetTimeout);
+      this.circuitBreakerResetTimeout = undefined;
+    }
+  }
+
+  /**
+   * Record a failed Docker operation and open circuit breaker if threshold reached
+   */
+  private recordFailure(): void {
+    this.consecutiveFailures++;
+
+    if (this.consecutiveFailures >= DockerService.CIRCUIT_BREAKER_THRESHOLD) {
+      this.circuitBreakerOpen = true;
+      dockerLogger.error(
+        {
+          consecutiveFailures: this.consecutiveFailures,
+          resetMs: DockerService.CIRCUIT_BREAKER_RESET_MS,
+        },
+        'Circuit breaker opened',
+      );
+
+      // Auto-reset circuit breaker after timeout
+      this.circuitBreakerResetTimeout = setTimeout(() => {
+        dockerLogger.info('Circuit breaker reset - attempting to recover');
+        this.consecutiveFailures = 0;
+        this.circuitBreakerOpen = false;
+      }, DockerService.CIRCUIT_BREAKER_RESET_MS);
+    }
+  }
 
   /**
    * Store a log entry with retention management
@@ -279,12 +344,12 @@ export class DockerService extends EventEmitter {
       const imageExists = images.some((img) => img.RepoTags?.includes(`${RUNNER_IMAGE}:latest`));
 
       if (imageExists) {
-        console.log(`[Docker] Runner image ${RUNNER_IMAGE} already exists`);
+        dockerLogger.info({ image: RUNNER_IMAGE }, 'Runner image already exists');
         this.imageBuilt = true;
         return;
       }
 
-      console.log(`[Docker] Building runner image ${RUNNER_IMAGE}...`);
+      dockerLogger.info({ image: RUNNER_IMAGE }, 'Building runner image');
 
       const stream = await docker.buildImage(
         {
@@ -303,16 +368,16 @@ export class DockerService extends EventEmitter {
           (err, res) => (err ? reject(err) : resolve(res)),
           (event) => {
             if (event.stream) {
-              console.log(`[Docker] ${event.stream.trim()}`);
+              dockerLogger.debug(event.stream.trim());
             }
           },
         );
       });
 
-      console.log(`[Docker] Runner image ${RUNNER_IMAGE} built successfully`);
+      dockerLogger.info({ image: RUNNER_IMAGE }, 'Runner image built successfully');
       this.imageBuilt = true;
     } catch (error) {
-      console.error('[Docker] Failed to build runner image:', error);
+      dockerLogger.error({ error }, 'Failed to build runner image');
       throw new Error(`Failed to build Docker runner image: ${error}`);
     }
   }
@@ -436,6 +501,18 @@ export class DockerService extends EventEmitter {
    */
   async createContainer(sessionId: string, workingDir: string): Promise<AppInfo> {
     try {
+      // Check circuit breaker first
+      this.checkCircuitBreaker();
+
+      // Check container limit before creating new ones
+      if (this.containers.size >= MAX_CONCURRENT_CONTAINERS) {
+        throw new Error(
+          `Container limit reached (${MAX_CONCURRENT_CONTAINERS}). ` +
+            `Please stop some running containers before starting new ones. ` +
+            `Increase MAX_CONTAINERS environment variable if needed.`,
+        );
+      }
+
       this.emitLog(sessionId, 'system', 'Creating container...');
       await this.buildRunnerImage();
       await this.cleanupExistingContainer(sessionId);
@@ -498,6 +575,9 @@ export class DockerService extends EventEmitter {
 
       this.emitLog(sessionId, 'system', 'Container created successfully');
 
+      // Record successful operation
+      this.recordSuccess();
+
       return {
         sessionId,
         containerId,
@@ -509,6 +589,8 @@ export class DockerService extends EventEmitter {
       };
     } catch (error) {
       console.error('[Docker] Failed to create container:', error);
+      // Record failure for circuit breaker
+      this.recordFailure();
       throw new Error(`Failed to create Docker container: ${error}`);
     }
   }
@@ -1168,9 +1250,15 @@ export class DockerService extends EventEmitter {
   }
 
   /**
-   * Cleanup all containers
+   * Cleanup all containers and circuit breaker timeout
    */
   async cleanup(): Promise<void> {
+    // Clear circuit breaker timeout to prevent memory leak
+    if (this.circuitBreakerResetTimeout) {
+      clearTimeout(this.circuitBreakerResetTimeout);
+      this.circuitBreakerResetTimeout = undefined;
+    }
+
     const promises = Array.from(this.containers.keys()).map((sessionId) =>
       this.destroyContainer(sessionId),
     );

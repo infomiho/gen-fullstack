@@ -19,8 +19,10 @@ export const sessions = sqliteTable('sessions', {
   prompt: text('prompt').notNull(),
   // Strategy must be one of: 'naive', 'plan-first', 'template'
   strategy: text('strategy').$type<'naive' | 'plan-first' | 'template'>().notNull(),
-  // Status must be one of: 'pending', 'generating', 'completed', 'failed'
-  status: text('status').$type<'pending' | 'generating' | 'completed' | 'failed'>().notNull(),
+  // Status must be one of: 'pending', 'generating', 'completed', 'failed', 'cancelled'
+  status: text('status')
+    .$type<'pending' | 'generating' | 'completed' | 'failed' | 'cancelled'>()
+    .notNull(),
   createdAt: integer('created_at', { mode: 'timestamp_ms' })
     .notNull()
     .default(sql`(unixepoch() * 1000)`),
