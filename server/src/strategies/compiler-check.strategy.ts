@@ -144,22 +144,56 @@ ${getNaiveImplementationSteps()}`;
   /**
    * Parse Prisma error messages from stderr
    *
+   * Handles multi-line error blocks by capturing error lines and their context.
+   * Prisma errors typically follow patterns like:
+   * - "Error: <message>"
+   * - Lines containing "error" (case insensitive)
+   * - Indented context lines following error headers
+   *
    * @param stderr - Standard error output from Prisma CLI
-   * @returns Array of error messages
+   * @returns Array of error messages (may include multi-line errors)
    */
   private parsePrismaErrors(stderr: string): string[] {
     const errors: string[] = [];
-
-    // Prisma errors typically contain "Error:" prefix
     const lines = stderr.split('\n');
+
+    let inErrorBlock = false;
+    let currentError: string[] = [];
+
     for (const line of lines) {
       const trimmed = line.trim();
-      if (trimmed.startsWith('Error:') || trimmed.includes('error')) {
-        errors.push(trimmed);
+
+      // Start of an error block
+      if (trimmed.startsWith('Error:') || /error/i.test(trimmed)) {
+        // Save previous error block if exists
+        if (currentError.length > 0) {
+          errors.push(currentError.join('\n'));
+        }
+
+        // Start new error block
+        currentError = [trimmed];
+        inErrorBlock = true;
+      }
+      // Continue error block if we're in one and line is indented (context)
+      else if (inErrorBlock && line.startsWith(' ') && trimmed) {
+        currentError.push(trimmed);
+      }
+      // End of error block (empty line or non-indented line)
+      else if (inErrorBlock && !line.startsWith(' ')) {
+        if (currentError.length > 0) {
+          errors.push(currentError.join('\n'));
+          currentError = [];
+        }
+        inErrorBlock = false;
       }
     }
 
-    // If no specific errors found, return the full stderr
+    // Don't forget the last error block
+    if (currentError.length > 0) {
+      errors.push(currentError.join('\n'));
+    }
+
+    // If no specific errors found, return the full stderr as fallback
     if (errors.length === 0 && stderr.trim()) {
       errors.push(stderr.trim());
     }
@@ -216,15 +250,9 @@ ${getNaiveImplementationSteps()}`;
     const errors: TypeScriptError[] = [];
 
     // TypeScript format: "file(line,col): error TSxxxx: message"
-    // or: "file:line:col - error TSxxxx: message"
-    const regex = /([^:(]+)\((\d+),(\d+)\):\s*error\s+(TS\d+):\s*(.+)/g;
-    const regex2 = /([^:]+):(\d+):(\d+)\s*-\s*error\s+(TS\d+):\s*(.+)/g;
-
-    let match: RegExpExecArray | null;
-
-    // Try format 1: file(line,col): error TSxxxx: message
-    match = regex.exec(output);
-    while (match !== null) {
+    // Use [^\n]+ instead of .+ to avoid matching across lines
+    const regex1 = /([^:(]+)\((\d+),(\d+)\):\s*error\s+(TS\d+):\s*([^\n]+)/g;
+    for (const match of output.matchAll(regex1)) {
       errors.push({
         file: `${workspace}/${match[1].trim()}`,
         line: Number.parseInt(match[2], 10),
@@ -232,12 +260,11 @@ ${getNaiveImplementationSteps()}`;
         code: match[4],
         message: match[5].trim(),
       });
-      match = regex.exec(output);
     }
 
-    // Try format 2: file:line:col - error TSxxxx: message
-    match = regex2.exec(output);
-    while (match !== null) {
+    // TypeScript format: "file:line:col - error TSxxxx: message"
+    const regex2 = /([^:]+):(\d+):(\d+)\s*-\s*error\s+(TS\d+):\s*([^\n]+)/g;
+    for (const match of output.matchAll(regex2)) {
       errors.push({
         file: `${workspace}/${match[1].trim()}`,
         line: Number.parseInt(match[2], 10),
@@ -245,7 +272,6 @@ ${getNaiveImplementationSteps()}`;
         code: match[4],
         message: match[5].trim(),
       });
-      match = regex2.exec(output);
     }
 
     return errors;
@@ -423,13 +449,19 @@ ${getNaiveImplementationSteps()}`;
         totalSteps,
       );
 
+      // Validate compiler-specific metrics before adding
+      const validatedCompilerIterations =
+        Number.isInteger(tsIteration) && tsIteration >= 0 ? tsIteration : 0;
+      const validatedErrorCount =
+        Number.isInteger(tsErrors.length) && tsErrors.length >= 0 ? tsErrors.length : 0;
+
       // Add compiler-specific metrics
       const finalMetrics: GenerationMetrics = {
         ...baseMetrics,
-        compilerIterations: tsIteration,
+        compilerIterations: validatedCompilerIterations,
         schemaValidationPassed,
         typeCheckPassed,
-        totalCompilerErrors: tsErrors.length,
+        totalCompilerErrors: validatedErrorCount,
       };
 
       // Log completion
