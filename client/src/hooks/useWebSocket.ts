@@ -4,6 +4,7 @@ import type {
   BuildEvent,
   FileUpdate,
   GenerationMetrics,
+  ImplementedStrategyType,
   LLMMessage,
   ToolCall,
   ToolResult,
@@ -28,7 +29,7 @@ interface UseWebSocketReturn {
   appLogs: AppLog[];
   buildEvents: BuildEvent[];
   // Generation functions
-  startGeneration: (prompt: string, strategy: string) => void;
+  startGeneration: (prompt: string, strategy: ImplementedStrategyType) => void;
   stopGeneration: () => void;
   clearMessages: () => void;
   // App execution functions
@@ -276,7 +277,7 @@ export function useWebSocket(navigate?: NavigateFunction): UseWebSocketReturn {
   }, [setSocket, setConnected, notifyTruncation, notifyConnectionError, navigate]);
 
   const startGeneration = useCallback(
-    (prompt: string, strategy: string) => {
+    (prompt: string, strategy: ImplementedStrategyType) => {
       if (socket) {
         useGenerationStore.getState().reset();
         useGenerationStore.getState().setGenerating(true);

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
+import type { ImplementedStrategyType } from '@gen-fullstack/shared';
 import { PromptInput } from '../components/PromptInput';
 import { StrategySelector } from '../components/StrategySelector';
 import { useWebSocket } from '../hooks/useWebSocket';
@@ -32,7 +33,7 @@ interface SessionListItem {
 function HomePage() {
   const navigate = useNavigate();
   const { isConnected, startGeneration, isGenerating } = useWebSocket(navigate);
-  const [strategy, setStrategy] = useState('naive');
+  const [strategy, setStrategy] = useState<ImplementedStrategyType>('naive');
   const [sessions, setSessions] = useState<SessionListItem[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(true);
 

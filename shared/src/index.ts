@@ -12,12 +12,77 @@ import { MAX_FILE_SIZE } from './constants.js';
 export * from './constants.js';
 
 // ============================================================================
+// Strategy Types
+// ============================================================================
+
+export const STRATEGY_TYPES = [
+  'naive',
+  'plan-first',
+  'template',
+  'compiler-check',
+  'building-blocks',
+] as const;
+export type StrategyType = (typeof STRATEGY_TYPES)[number];
+
+export interface StrategyMetadata {
+  value: StrategyType;
+  label: string;
+  description: string;
+  implemented: boolean;
+}
+
+export const STRATEGIES: readonly StrategyMetadata[] = [
+  {
+    value: 'naive',
+    label: 'Naive Approach',
+    description: 'Direct prompt to code',
+    implemented: true,
+  },
+  {
+    value: 'plan-first',
+    label: 'Plan First',
+    description: 'Generate high-level plan before coding',
+    implemented: true,
+  },
+  {
+    value: 'template',
+    label: 'With Template',
+    description: 'Start with pre-built template',
+    implemented: true,
+  },
+  {
+    value: 'compiler-check',
+    label: 'Compiler Checks',
+    description: 'Self-correct with TypeScript errors',
+    implemented: false,
+  },
+  {
+    value: 'building-blocks',
+    label: 'Building Blocks',
+    description: 'Use higher-level components',
+    implemented: false,
+  },
+] as const;
+
+/**
+ * Get only implemented strategies for UI and validation
+ */
+export const IMPLEMENTED_STRATEGIES = STRATEGIES.filter((s) => s.implemented);
+
+/**
+ * Type-safe type for implemented strategies only
+ */
+export type ImplementedStrategyType = (typeof IMPLEMENTED_STRATEGIES)[number]['value'];
+
+// ============================================================================
 // WebSocket Event Schemas
 // ============================================================================
 
 export const StartGenerationSchema = z.object({
   prompt: z.string().min(1),
-  strategy: z.enum(['naive', 'plan-first', 'template', 'compiler-check', 'building-blocks']),
+  strategy: z
+    .enum(['naive', 'plan-first', 'template'])
+    .describe('Only implemented strategies are allowed'),
 });
 
 export type StartGenerationPayload = z.infer<typeof StartGenerationSchema>;

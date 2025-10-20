@@ -152,13 +152,8 @@ export function setupWebSocket(httpServer: HTTPServer) {
           case 'template':
             strategy = new TemplateStrategy();
             break;
-          case 'compiler-check':
-          case 'building-blocks':
-            // These strategies not yet implemented, use NaiveStrategy for now
-            // TODO: Implement compiler-check and building-blocks strategies in Phase 5
-            strategy = new NaiveStrategy();
-            break;
           default:
+            // This should never happen due to Zod validation, but TypeScript requires exhaustive checking
             throw new Error(`Unknown strategy: ${validated.strategy}`);
         }
 

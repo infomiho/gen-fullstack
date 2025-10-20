@@ -1,15 +1,18 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { STRATEGIES } from '@gen-fullstack/shared';
 import { expect, fn, userEvent, within } from '@storybook/test';
 import { StrategySelector } from './StrategySelector';
 
 /**
  * StrategySelector allows users to choose different code generation strategies.
- * Strategies include:
- * - Naive: Direct prompt-to-code generation
- * - Plan First: Generate plan before implementation
- * - With Template: Start from pre-built template
- * - Compiler Checks: Self-correct with TypeScript errors
- * - Building Blocks: Use higher-level components
+ * Implemented strategies:
+ * - Naive: Direct prompt-to-code generation ✅
+ * - Plan First: Generate plan before implementation ✅
+ * - With Template: Start from pre-built template ✅
+ *
+ * Coming soon:
+ * - Compiler Checks: Self-correct with TypeScript errors 🚧
+ * - Building Blocks: Use higher-level components 🚧
  */
 const meta: Meta<typeof StrategySelector> = {
   title: 'Components/StrategySelector',
@@ -21,8 +24,8 @@ const meta: Meta<typeof StrategySelector> = {
   argTypes: {
     value: {
       control: 'select',
-      options: ['naive', 'plan-first', 'template', 'compiler-check', 'building-blocks'],
-      description: 'Currently selected strategy',
+      options: ['naive', 'plan-first', 'template'],
+      description: 'Currently selected strategy (only implemented strategies)',
     },
     disabled: {
       control: 'boolean',
@@ -68,33 +71,40 @@ export const Disabled: Story = {
 };
 
 /**
- * All strategies for comparison
+ * All implemented strategies for comparison
  */
 export const AllStrategies: Story = {
-  render: () => (
-    <div className="space-y-4">
-      <div>
-        <h3 className="font-semibold mb-2">Naive</h3>
-        <StrategySelector value="naive" onChange={() => {}} />
+  render: () => {
+    const implementedStrategies = STRATEGIES.filter((s) => s.implemented);
+    return (
+      <div className="space-y-4">
+        {implementedStrategies.map((strategy) => (
+          <div key={strategy.value}>
+            <h3 className="font-semibold mb-2">{strategy.label}</h3>
+            <StrategySelector value={strategy.value} onChange={() => {}} />
+          </div>
+        ))}
       </div>
-      <div>
-        <h3 className="font-semibold mb-2">Plan First</h3>
-        <StrategySelector value="plan-first" onChange={() => {}} />
-      </div>
-      <div>
-        <h3 className="font-semibold mb-2">With Template</h3>
-        <StrategySelector value="template" onChange={() => {}} />
-      </div>
-      <div>
-        <h3 className="font-semibold mb-2">Compiler Checks</h3>
-        <StrategySelector value="compiler-check" onChange={() => {}} />
-      </div>
-      <div>
-        <h3 className="font-semibold mb-2">Building Blocks</h3>
-        <StrategySelector value="building-blocks" onChange={() => {}} />
-      </div>
-    </div>
-  ),
+    );
+  },
+};
+
+/**
+ * Shows disabled (unimplemented) strategies - they appear grayed out and cannot be selected
+ */
+export const WithDisabledStrategies: Story = {
+  args: {
+    value: 'naive',
+    onChange: fn(),
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'Unimplemented strategies (Compiler Checks, Building Blocks) appear with "(Coming Soon)" and are disabled.',
+      },
+    },
+  },
 };
 
 /**

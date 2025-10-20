@@ -1,37 +1,14 @@
 import { useId } from 'react';
+import { IMPLEMENTED_STRATEGIES, type ImplementedStrategyType } from '@gen-fullstack/shared';
 import { focus, input, spacing, typography } from '../lib/design-tokens';
 
 interface StrategySelectorProps {
-  value: string;
-  onChange: (strategy: string) => void;
+  value: ImplementedStrategyType;
+  onChange: (strategy: ImplementedStrategyType) => void;
   disabled?: boolean;
   id?: string;
   label?: string;
 }
-
-const strategies = [
-  { value: 'naive', label: 'Naive Approach', description: 'Direct prompt to code' },
-  {
-    value: 'plan-first',
-    label: 'Plan First',
-    description: 'Generate high-level plan before coding',
-  },
-  {
-    value: 'template',
-    label: 'With Template',
-    description: 'Start with pre-built template',
-  },
-  {
-    value: 'compiler-check',
-    label: 'Compiler Checks',
-    description: 'Self-correct with TypeScript errors',
-  },
-  {
-    value: 'building-blocks',
-    label: 'Building Blocks',
-    description: 'Use higher-level components',
-  },
-];
 
 export function StrategySelector({ value, onChange, disabled, id, label }: StrategySelectorProps) {
   const generatedId = useId();
@@ -47,11 +24,11 @@ export function StrategySelector({ value, onChange, disabled, id, label }: Strat
       <select
         id={selectId}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => onChange(e.target.value as ImplementedStrategyType)}
         disabled={disabled}
         className={`${input.select} ${focus.ring}`}
       >
-        {strategies.map((strategy) => (
+        {IMPLEMENTED_STRATEGIES.map((strategy) => (
           <option key={strategy.value} value={strategy.value}>
             {strategy.label} - {strategy.description}
           </option>

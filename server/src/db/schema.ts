@@ -10,12 +10,17 @@ import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 /**
  * Sessions table - stores generation session metadata
+ *
+ * Note: TypeScript enums provide compile-time safety. Runtime validation
+ * is enforced by Zod schemas in the WebSocket layer.
  */
 export const sessions = sqliteTable('sessions', {
   id: text('id').primaryKey(),
   prompt: text('prompt').notNull(),
-  strategy: text('strategy').notNull(),
-  status: text('status').notNull(), // 'pending' | 'generating' | 'completed' | 'failed'
+  // Strategy must be one of: 'naive', 'plan-first', 'template'
+  strategy: text('strategy').$type<'naive' | 'plan-first' | 'template'>().notNull(),
+  // Status must be one of: 'pending', 'generating', 'completed', 'failed'
+  status: text('status').$type<'pending' | 'generating' | 'completed' | 'failed'>().notNull(),
   createdAt: integer('created_at', { mode: 'timestamp_ms' })
     .notNull()
     .default(sql`(unixepoch() * 1000)`),

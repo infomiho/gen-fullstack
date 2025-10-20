@@ -1,4 +1,5 @@
-import type { AppInfo } from '@gen-fullstack/shared';
+import type { AppInfo, ImplementedStrategyType } from '@gen-fullstack/shared';
+import { IMPLEMENTED_STRATEGIES } from '@gen-fullstack/shared';
 import { AppControls } from './AppControls';
 import { StrategySelector } from './StrategySelector';
 import { padding, spacing, typography } from '../lib/design-tokens';
@@ -28,6 +29,13 @@ interface SessionSidebarProps {
 }
 
 /**
+ * Type guard to check if a strategy is implemented
+ */
+function isImplementedStrategy(strategy: string): strategy is ImplementedStrategyType {
+  return IMPLEMENTED_STRATEGIES.some((s) => s.value === strategy);
+}
+
+/**
  * SessionSidebar component
  *
  * Displays the left sidebar for a session page with:
@@ -48,16 +56,17 @@ export function SessionSidebar({
   stopApp,
   onStartClick,
 }: SessionSidebarProps) {
+  // Ensure strategy is a valid implemented strategy, fallback to 'naive' for legacy sessions
+  const strategy: ImplementedStrategyType = isImplementedStrategy(sessionData.session.strategy)
+    ? sessionData.session.strategy
+    : 'naive';
+
   return (
     <div className={`border-r ${padding.panel} overflow-y-auto`}>
       <div className={spacing.controls}>
         <div>
           <h2 className={`mb-3 ${typography.header}`}>Strategy</h2>
-          <StrategySelector
-            value={sessionData.session.strategy}
-            onChange={() => {}}
-            disabled={true}
-          />
+          <StrategySelector value={strategy} onChange={() => {}} disabled={true} />
         </div>
 
         <div>
