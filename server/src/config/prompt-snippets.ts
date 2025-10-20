@@ -559,10 +559,15 @@ YOUR TASK: ${task}
 
 ${TOOL_CAPABILITIES}
 
-Focus only on fixing the specific errors mentioned. Do not make unnecessary changes.
+IMPORTANT WORKFLOW:
+1. Read the error list carefully - each error shows the FULL FILE PATH (e.g., "server/src/index.ts:42:10")
+2. DO NOT use listFiles - the error messages already provide the full paths
+3. For each error, use writeFile to fix it - DO NOT just read files without writing fixes
+4. Make ONE targeted writeFile call per file that needs fixing
+5. Focus ONLY on the specific errors mentioned
 
 Common ${errorType} issues to fix:
 ${commonIssues.map((issue) => `- ${issue}`).join('\n')}
 
-Make minimal, targeted changes to fix the errors.`;
+CRITICAL: You MUST use writeFile to fix errors. Reading files without writing changes does not fix anything!`;
 }
