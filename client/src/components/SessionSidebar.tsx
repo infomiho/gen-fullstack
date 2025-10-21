@@ -1,8 +1,6 @@
-import type { AppInfo, ImplementedStrategyType } from '@gen-fullstack/shared';
-import { IMPLEMENTED_STRATEGIES } from '@gen-fullstack/shared';
+import type { AppInfo } from '@gen-fullstack/shared';
 import { AppControls } from './AppControls';
-import { StrategySelector } from './StrategySelector';
-import { padding, spacing, typography } from '../lib/design-tokens';
+import { padding, radius, spacing, typography } from '../lib/design-tokens';
 
 interface SessionData {
   session: {
@@ -30,17 +28,33 @@ interface SessionSidebarProps {
 }
 
 /**
- * Type guard to check if a strategy is implemented
+ * ConfigBadge component - displays enabled/disabled status with color
+ *
+ * @param enabled - Whether the feature is enabled
+ * @param label - The label to display (e.g., "Planning", "Compiler Checks")
  */
-function isImplementedStrategy(strategy: string): strategy is ImplementedStrategyType {
-  return IMPLEMENTED_STRATEGIES.some((s) => s.value === strategy);
+function ConfigBadge({ enabled, label }: { enabled: boolean; label: string }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className={typography.bodySecondary}>{label}:</span>
+      <span
+        className={`inline-flex items-center px-2 py-0.5 ${radius.sm} text-xs font-medium ${
+          enabled
+            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+            : 'bg-gray-100 text-gray-700 border border-gray-200'
+        }`}
+      >
+        {enabled ? 'Enabled' : 'Disabled'}
+      </span>
+    </div>
+  );
 }
 
 /**
  * SessionSidebar component
  *
  * Displays the left sidebar for a session page with:
- * - Strategy selector (readonly)
+ * - Configuration display with color indicators
  * - Prompt display
  * - Disconnection warning (for active sessions)
  * - Completion metrics (tokens, cost, duration, steps)
@@ -57,16 +71,12 @@ export function SessionSidebar({
   stopApp,
   onStartClick,
 }: SessionSidebarProps) {
-  // Ensure strategy is a valid implemented strategy, fallback to 'naive' for legacy sessions
-  const strategy: ImplementedStrategyType = isImplementedStrategy(sessionData.session.strategy)
-    ? sessionData.session.strategy
-    : 'naive';
-
   // Parse capability config
   let capabilityConfig: {
     inputMode?: string;
     planning?: boolean;
     compilerChecks?: boolean;
+    maxIterations?: number;
   } | null = null;
   try {
     capabilityConfig = JSON.parse(sessionData.session.capabilityConfig);
@@ -77,34 +87,32 @@ export function SessionSidebar({
   return (
     <div className={`border-r ${padding.panel} overflow-y-auto`}>
       <div className={spacing.controls}>
-        <div>
-          <h2 className={`mb-3 ${typography.header}`}>Strategy</h2>
-          <StrategySelector value={strategy} onChange={() => {}} disabled={true} />
-        </div>
-
         {/* Capability Configuration */}
         {capabilityConfig && (
           <div>
             <h3 className={`mb-3 ${typography.header}`}>Configuration</h3>
-            <div className={`${typography.caption} space-y-1`}>
-              <div className="flex justify-between">
-                <span>Input Mode:</span>
-                <span className="font-medium">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className={typography.bodySecondary}>Input Mode:</span>
+                <span
+                  className={`inline-flex items-center px-2 py-0.5 ${radius.sm} text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200`}
+                >
                   {capabilityConfig.inputMode === 'template' ? 'Template' : 'Naive'}
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span>Planning:</span>
-                <span className="font-medium">
-                  {capabilityConfig.planning ? 'Enabled' : 'Disabled'}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Compiler Checks:</span>
-                <span className="font-medium">
-                  {capabilityConfig.compilerChecks ? 'Enabled' : 'Disabled'}
-                </span>
-              </div>
+              <ConfigBadge enabled={capabilityConfig.planning || false} label="Planning" />
+              <ConfigBadge
+                enabled={capabilityConfig.compilerChecks || false}
+                label="Compiler Checks"
+              />
+              {capabilityConfig.maxIterations !== undefined && (
+                <div className="flex items-center justify-between">
+                  <span className={typography.bodySecondary}>Max Iterations:</span>
+                  <span className={`${typography.body} font-mono`}>
+                    {capabilityConfig.maxIterations}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         )}
