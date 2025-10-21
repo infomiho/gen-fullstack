@@ -94,7 +94,7 @@ export function AppControls({
       </div>
 
       <div>
-        <h3 className={typography.header}>App Execution</h3>
+        <h3 className={typography.label}>App Execution</h3>
       </div>
 
       {/* Status Display */}

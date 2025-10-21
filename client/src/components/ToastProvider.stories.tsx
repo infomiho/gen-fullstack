@@ -4,7 +4,8 @@ import { ToastProvider, useToast } from './ToastProvider';
 
 /**
  * ToastProvider enables toast notifications throughout the app using Radix UI.
- * Toasts auto-dismiss after 5 seconds and support success, error, and info types.
+ * Redesigned with minimal color approach inspired by shadcn/ui Sonner.
+ * Toasts auto-dismiss after 5 seconds and support success, error, warning, and info types.
  */
 const meta: Meta<typeof ToastProvider> = {
   title: 'Components/ToastProvider',
@@ -32,16 +33,16 @@ function ToastDemo() {
   return (
     <div className="space-y-4 p-8">
       <h3 className="font-semibold mb-4">Click buttons to show toasts</h3>
-      <div className="flex gap-3">
+      <div className="flex flex-wrap gap-3">
         <button
           type="button"
           onClick={() => {
             setCount((c) => c + 1);
             showToast('Success!', `Operation completed successfully (${count + 1})`, 'success');
           }}
-          className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
+          className="px-4 py-2 bg-gray-900 text-white rounded hover:bg-gray-800 transition-colors"
         >
-          Show Success Toast
+          Success
         </button>
 
         <button
@@ -50,9 +51,20 @@ function ToastDemo() {
             setCount((c) => c + 1);
             showToast('Error!', `Something went wrong (${count + 1})`, 'error');
           }}
-          className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+          className="px-4 py-2 bg-gray-900 text-white rounded hover:bg-gray-800 transition-colors"
         >
-          Show Error Toast
+          Error
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setCount((c) => c + 1);
+            showToast('Warning', `Please review this carefully (${count + 1})`, 'warning');
+          }}
+          className="px-4 py-2 bg-gray-900 text-white rounded hover:bg-gray-800 transition-colors"
+        >
+          Warning
         </button>
 
         <button
@@ -61,15 +73,16 @@ function ToastDemo() {
             setCount((c) => c + 1);
             showToast('Info', `Here's some information (${count + 1})`, 'info');
           }}
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+          className="px-4 py-2 bg-gray-900 text-white rounded hover:bg-gray-800 transition-colors"
         >
-          Show Info Toast
+          Info
         </button>
       </div>
 
       <div className="mt-4 text-sm text-gray-600">
-        <p>Toasts will auto-dismiss after 5 seconds</p>
-        <p>You can also swipe them to dismiss manually</p>
+        <p>• Minimal color design with icon-based differentiation</p>
+        <p>• Auto-dismiss after 5 seconds</p>
+        <p>• Swipe right to dismiss manually</p>
       </div>
     </div>
   );

@@ -6,9 +6,17 @@ interface PromptInputProps {
   onSubmit: (prompt: string) => void;
   disabled?: boolean;
   id?: string;
+  submitButtonClassName?: string;
+  submitButtonText?: string;
 }
 
-export function PromptInput({ onSubmit, disabled, id }: PromptInputProps) {
+export function PromptInput({
+  onSubmit,
+  disabled,
+  id,
+  submitButtonClassName,
+  submitButtonText = 'Generate',
+}: PromptInputProps) {
   const [prompt, setPrompt] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -33,10 +41,13 @@ export function PromptInput({ onSubmit, disabled, id }: PromptInputProps) {
       <button
         type="submit"
         disabled={disabled || !prompt.trim()}
-        className={`w-full flex items-center justify-center gap-2 rounded border border-gray-900 bg-gray-900 px-4 py-2 text-sm font-medium text-white ${transitions.colors} hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:border-gray-300 ${focus.ring}`}
+        className={
+          submitButtonClassName ||
+          `w-full flex items-center justify-center gap-2 rounded border border-gray-900 bg-gray-900 px-4 py-2 text-sm font-medium text-white ${transitions.colors} hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:border-gray-300 ${focus.ring}`
+        }
       >
         <Send size={14} />
-        Generate
+        {submitButtonText}
       </button>
     </form>
   );

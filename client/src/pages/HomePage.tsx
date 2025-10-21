@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import type { CapabilityConfig } from '@gen-fullstack/shared';
-import { CapabilityBuilder } from '../components/CapabilityBuilder';
+import { CapabilitySection } from '../components/CapabilitySection';
 import { PromptInput } from '../components/PromptInput';
 import { StatusBadge } from '../components/StatusBadge';
 import { useWebSocket } from '../hooks/useWebSocket';
-import { focus, radius, spacing, transitions, typography } from '../lib/design-tokens';
+import { card, spacing, typography } from '../lib/design-tokens';
 
 const SERVER_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
@@ -42,7 +42,6 @@ function HomePage() {
     compilerChecks: false,
     maxIterations: 3,
   });
-  const [model, setModel] = useState<'gpt-5' | 'gpt-5-mini' | 'gpt-5-nano'>('gpt-5-mini');
 
   const [sessions, setSessions] = useState<SessionListItem[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(true);
@@ -68,7 +67,7 @@ function HomePage() {
   }, []);
 
   const handleGenerate = (prompt: string) => {
-    startGeneration(prompt, capabilityConfig, model);
+    startGeneration(prompt, capabilityConfig, 'gpt-5-mini');
   };
 
   const formatDate = (dateString: string) => {
@@ -98,23 +97,9 @@ function HomePage() {
         {/* Generation form */}
         <div className="mb-16">
           <div className={`${spacing.sections}`}>
-            {/* Configuration header */}
-            <div className="mb-4">
-              <h2 className={typography.header}>Configuration</h2>
-            </div>
-
-            {/* Capability Builder */}
-            <CapabilityBuilder
-              value={capabilityConfig}
-              onChange={setCapabilityConfig}
-              model={model}
-              onModelChange={setModel}
-              disabled={isGenerating}
-            />
-
             {/* Prompt input */}
             <div>
-              <label htmlFor="prompt-textarea" className={`block mb-3 ${typography.header}`}>
+              <label htmlFor="prompt-textarea" className={`block mb-3 ${typography.sectionHeader}`}>
                 What do you want to build?
               </label>
               {/* biome-ignore lint/correctness/useUniqueElementIds: Static ID is intentional for label accessibility - HomePage renders once per page */}
@@ -124,12 +109,19 @@ function HomePage() {
                 disabled={isGenerating || !isConnected}
               />
             </div>
+
+            {/* Capability Section */}
+            <CapabilitySection
+              config={capabilityConfig}
+              onConfigChange={setCapabilityConfig}
+              disabled={isGenerating}
+            />
           </div>
         </div>
 
         {/* Previous sessions */}
         <div>
-          <h3 className={`mb-4 ${typography.header}`}>
+          <h3 className={`mb-4 ${typography.sectionHeader}`}>
             Previous Sessions
             {sessions.length > 0 && (
               <span className={`ml-2 ${typography.caption}`}>({sessions.length})</span>
@@ -141,7 +133,7 @@ function HomePage() {
               <p className={`${typography.body} text-gray-500`}>Loading sessions...</p>
             </div>
           ) : sessions.length === 0 ? (
-            <div className={`text-center py-12 border border-dashed ${radius.md}`}>
+            <div className="text-center py-12 border border-dashed border-gray-200 rounded-lg">
               <p className={`${typography.body} text-gray-500 mb-2`}>No previous sessions yet</p>
               <p className={`${typography.caption} text-gray-400`}>
                 Start by creating your first application above
@@ -150,11 +142,7 @@ function HomePage() {
           ) : (
             <div className="space-y-3">
               {sessions.map((session) => (
-                <Link
-                  key={session.id}
-                  to={`/${session.id}`}
-                  className={`block p-4 border ${radius.md} hover:border-gray-400 ${transitions.colors} ${focus.ring}`}
-                >
+                <Link key={session.id} to={`/${session.id}`} className={card.link}>
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <p className={`${typography.body} text-gray-900 truncate mb-1`}>

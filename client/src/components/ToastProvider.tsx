@@ -2,16 +2,16 @@
  * ToastProvider - Toast notifications using Radix UI
  *
  * Provides toast notifications throughout the app
- * Bolt.new uses similar pattern for user feedback
+ * Redesigned with minimal color approach inspired by shadcn/ui Sonner
  */
 
 import * as Toast from '@radix-ui/react-toast';
-import { X } from 'lucide-react';
+import { CircleCheck, Info, OctagonX, TriangleAlert, X } from 'lucide-react';
 import { createContext, type ReactNode, useContext, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { focus, radius, transitions, typography } from '../lib/design-tokens';
 
-type ToastType = 'success' | 'error' | 'info';
+type ToastType = 'success' | 'error' | 'info' | 'warning';
 
 interface ToastMessage {
   id: string;
@@ -35,87 +35,76 @@ export function useToast() {
 }
 
 /**
- * Get background and border classes for toast type
+ * Get icon and color for toast type
+ * Uses subtle, icon-based differentiation rather than bright backgrounds
  */
-function getToastBgClasses(type: ToastType): string {
-  switch (type) {
-    case 'success':
-      return 'bg-green-50 border-green-200';
-    case 'error':
-      return 'bg-red-50 border-red-200';
-    case 'info':
-      return 'bg-blue-50 border-blue-200';
-  }
-}
-
-/**
- * Get text color classes for toast type
- */
-function getToastTextClasses(type: ToastType): {
-  title: string;
-  description: string;
-  close: string;
-} {
+function getToastIcon(type: ToastType): { icon: React.ReactNode; iconColor: string } {
   switch (type) {
     case 'success':
       return {
-        title: 'text-green-900',
-        description: 'text-green-700',
-        close: 'text-green-700',
+        icon: <CircleCheck className="h-4 w-4" />,
+        iconColor: 'text-green-600',
       };
     case 'error':
       return {
-        title: 'text-red-900',
-        description: 'text-red-700',
-        close: 'text-red-700',
+        icon: <OctagonX className="h-4 w-4" />,
+        iconColor: 'text-red-600',
+      };
+    case 'warning':
+      return {
+        icon: <TriangleAlert className="h-4 w-4" />,
+        iconColor: 'text-amber-600',
       };
     case 'info':
       return {
-        title: 'text-blue-900',
-        description: 'text-blue-700',
-        close: 'text-blue-700',
+        icon: <Info className="h-4 w-4" />,
+        iconColor: 'text-blue-600',
       };
   }
 }
 
 /**
  * Individual toast item component
+ * Uses minimal color with icon-based state differentiation
  */
 function ToastItem({ toast, onRemove }: { toast: ToastMessage; onRemove: (id: string) => void }) {
-  const bgClasses = getToastBgClasses(toast.type);
-  const textClasses = getToastTextClasses(toast.type);
+  const { icon, iconColor } = getToastIcon(toast.type);
 
   return (
     <Toast.Root
       key={toast.id}
       className={`
-        ${radius.md} border p-4 shadow-lg
+        ${radius.md} border border-gray-200 bg-white p-4 shadow-lg
         data-[state=open]:animate-in data-[state=closed]:animate-out
         data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)]
         data-[swipe=cancel]:translate-x-0
         data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)]
         data-[state=open]:slide-in-from-top-full data-[state=closed]:fade-out-80
         ${transitions.all}
-        ${bgClasses}
       `}
       onOpenChange={(open) => !open && onRemove(toast.id)}
     >
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex-1">
-          <Toast.Title className={`${typography.label} font-medium ${textClasses.title}`}>
+      <div className="flex items-start gap-3">
+        {/* Icon with subtle color */}
+        <div className={`flex-shrink-0 ${iconColor}`}>{icon}</div>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          <Toast.Title className={`${typography.label} font-medium text-gray-900`}>
             {toast.title}
           </Toast.Title>
           {toast.description && (
-            <Toast.Description className={`mt-1 ${typography.caption} ${textClasses.description}`}>
+            <Toast.Description className={`mt-1 ${typography.caption} text-gray-600`}>
               {toast.description}
             </Toast.Description>
           )}
         </div>
+
+        {/* Close button */}
         <Toast.Close
           className={`
             ${focus.ring} ${radius.sm} ${transitions.colors}
-            p-1 hover:bg-black/10
-            ${textClasses.close}
+            flex-shrink-0 p-1 hover:bg-gray-100 text-gray-500 hover:text-gray-700
           `}
           aria-label="Close"
         >

@@ -166,6 +166,7 @@ export const Default: Story = {
 - Include multiple variants showing different states
 - Document props with JSDoc comments
 - Use `satisfies` operator for type safety
+- When using custom `render` functions in stories, always provide minimal required `args` (e.g., `args: { id: "" }` for a component that requires `id`)
 
 ## Recent Changes
 

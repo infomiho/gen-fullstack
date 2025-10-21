@@ -11,6 +11,15 @@ import { z } from 'zod';
  */
 
 // ============================================================================
+// Template Constants
+// ============================================================================
+
+/**
+ * Default template name for full-stack applications
+ */
+export const DEFAULT_TEMPLATE_NAME = 'vite-fullstack-base' as const;
+
+// ============================================================================
 // Input Mode (Mutually Exclusive)
 // ============================================================================
 
@@ -178,7 +187,7 @@ export const strategyToCapabilityConfig: Record<string, CapabilityConfig> = {
   template: {
     inputMode: 'template',
     templateOptions: {
-      templateName: 'vite-fullstack-base',
+      templateName: DEFAULT_TEMPLATE_NAME,
     },
     planning: false,
     compilerChecks: false,
@@ -255,7 +264,7 @@ export const CAPABILITY_PRESETS: readonly CapabilityPreset[] = [
     config: {
       inputMode: 'template',
       templateOptions: {
-        templateName: 'vite-fullstack-base',
+        templateName: DEFAULT_TEMPLATE_NAME,
       },
       planning: false,
       compilerChecks: false,
@@ -269,7 +278,7 @@ export const CAPABILITY_PRESETS: readonly CapabilityPreset[] = [
     config: {
       inputMode: 'template',
       templateOptions: {
-        templateName: 'vite-fullstack-base',
+        templateName: DEFAULT_TEMPLATE_NAME,
       },
       planning: true,
       compilerChecks: false,
@@ -283,7 +292,7 @@ export const CAPABILITY_PRESETS: readonly CapabilityPreset[] = [
     config: {
       inputMode: 'template',
       templateOptions: {
-        templateName: 'vite-fullstack-base',
+        templateName: DEFAULT_TEMPLATE_NAME,
       },
       planning: false,
       compilerChecks: true,
@@ -297,7 +306,7 @@ export const CAPABILITY_PRESETS: readonly CapabilityPreset[] = [
     config: {
       inputMode: 'template',
       templateOptions: {
-        templateName: 'vite-fullstack-base',
+        templateName: DEFAULT_TEMPLATE_NAME,
       },
       planning: true,
       compilerChecks: true,

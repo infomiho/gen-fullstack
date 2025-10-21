@@ -41,7 +41,7 @@ export function LogViewer({ logs }: LogViewerProps) {
   return (
     <div className={spacing.controls}>
       <div className="flex items-center justify-between">
-        <h3 className={typography.header}>Container Logs</h3>
+        <h3 className={typography.label}>Container Logs</h3>
         <div className="flex items-center gap-2">
           {/* Filter Buttons */}
           <div className="flex gap-1">

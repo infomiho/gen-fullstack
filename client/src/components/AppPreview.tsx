@@ -38,7 +38,7 @@ export function AppPreview({ appStatus }: AppPreviewProps) {
         }
       >
         <div className="flex items-center justify-between">
-          <h3 className={typography.header}>App Preview</h3>
+          <h3 className={typography.label}>App Preview</h3>
           {isRunning && url && (
             <PreviewControls
               onReload={handleReload}
