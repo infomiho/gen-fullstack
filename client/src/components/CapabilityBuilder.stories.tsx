@@ -33,7 +33,11 @@ function InteractiveWrapper({ initialConfig }: { initialConfig: CapabilityConfig
   );
 }
 
-export const QuickStart = () => <InteractiveWrapper initialConfig={{ inputMode: 'naive' }} />;
+export const QuickStart = () => (
+  <InteractiveWrapper
+    initialConfig={{ inputMode: 'naive', planning: false, compilerChecks: false, maxIterations: 3 }}
+  />
+);
 
 export const SelfCorrecting = () => (
   <InteractiveWrapper
@@ -41,6 +45,7 @@ export const SelfCorrecting = () => (
       inputMode: 'naive',
       compilerChecks: true,
       maxIterations: 3,
+      planning: false,
     }}
   />
 );
@@ -63,6 +68,9 @@ export const TemplateMode = () => (
       templateOptions: {
         templateName: 'vite-fullstack-base',
       },
+      planning: false,
+      compilerChecks: false,
+      maxIterations: 3,
     }}
   />
 );
@@ -72,13 +80,15 @@ export const CompilerChecks = () => (
     initialConfig={{
       inputMode: 'naive',
       compilerChecks: true,
+      planning: false,
+      maxIterations: 3,
     }}
   />
 );
 
 export const Disabled: Story = {
   args: {
-    value: { inputMode: 'naive' },
+    value: { inputMode: 'naive', planning: false, compilerChecks: false, maxIterations: 3 },
     onChange: () => {},
     model: 'gpt-5-mini',
     onModelChange: () => {},

@@ -87,6 +87,9 @@ describe('Capability Orchestrator - Advanced Integration', () => {
 
       const config: CapabilityConfig = {
         inputMode: 'naive',
+        planning: false,
+        compilerChecks: false,
+        maxIterations: 3,
       };
 
       const sessionId = `test-error-gen-${Date.now()}`;
@@ -120,6 +123,8 @@ describe('Capability Orchestrator - Advanced Integration', () => {
       const config: CapabilityConfig = {
         inputMode: 'naive',
         planning: true,
+        compilerChecks: false,
+        maxIterations: 3,
       };
 
       const sessionId = `test-error-planning-${Date.now()}`;
@@ -150,6 +155,8 @@ describe('Capability Orchestrator - Advanced Integration', () => {
       const config: CapabilityConfig = {
         inputMode: 'naive',
         compilerChecks: true,
+        planning: false,
+        maxIterations: 3,
       };
 
       const sessionId = `test-error-validation-${Date.now()}`;
@@ -182,6 +189,9 @@ describe('Capability Orchestrator - Advanced Integration', () => {
         templateOptions: {
           templateName: 'nonexistent-template',
         },
+        planning: false,
+        compilerChecks: false,
+        maxIterations: 3,
       };
 
       const sessionId = `test-error-template-${Date.now()}`;
@@ -210,6 +220,8 @@ describe('Capability Orchestrator - Advanced Integration', () => {
       const config: CapabilityConfig = {
         inputMode: 'naive',
         planning: true,
+        compilerChecks: false,
+        maxIterations: 3,
       };
 
       const sessionId = `test-tokens-planning-${Date.now()}`;
@@ -237,6 +249,9 @@ describe('Capability Orchestrator - Advanced Integration', () => {
     it('should correctly calculate cost based on model pricing', async () => {
       const config: CapabilityConfig = {
         inputMode: 'naive',
+        planning: false,
+        compilerChecks: false,
+        maxIterations: 3,
       };
 
       const sessionId = `test-cost-${Date.now()}`;
@@ -262,6 +277,8 @@ describe('Capability Orchestrator - Advanced Integration', () => {
       const config: CapabilityConfig = {
         inputMode: 'naive',
         compilerChecks: true,
+        planning: false,
+        maxIterations: 3,
       };
 
       const sessionId = `test-tokens-validation-${Date.now()}`;
@@ -319,6 +336,9 @@ describe('Capability Orchestrator - Advanced Integration', () => {
     it('should abort before any capability starts', async () => {
       const config: CapabilityConfig = {
         inputMode: 'naive',
+        planning: false,
+        compilerChecks: false,
+        maxIterations: 3,
       };
 
       const sessionId = `test-abort-immediate-${Date.now()}`;
@@ -365,6 +385,8 @@ describe('Capability Orchestrator - Advanced Integration', () => {
       const config: CapabilityConfig = {
         inputMode: 'naive',
         planning: true,
+        compilerChecks: false,
+        maxIterations: 3,
       };
 
       const sessionId = `test-abort-planning-${Date.now()}`;
@@ -395,6 +417,9 @@ describe('Capability Orchestrator - Advanced Integration', () => {
     it('should handle multiple abort calls idempotently', async () => {
       const config: CapabilityConfig = {
         inputMode: 'naive',
+        planning: false,
+        compilerChecks: false,
+        maxIterations: 3,
       };
 
       const sessionId = `test-abort-multiple-${Date.now()}`;
@@ -427,6 +452,7 @@ describe('Capability Orchestrator - Advanced Integration', () => {
         inputMode: 'naive',
         planning: true,
         compilerChecks: true,
+        maxIterations: 3,
       };
 
       const sessionId = `test-abort-chain-${Date.now()}`;
@@ -457,6 +483,8 @@ describe('Capability Orchestrator - Advanced Integration', () => {
       const config: CapabilityConfig = {
         inputMode: 'naive',
         compilerChecks: true,
+        planning: false,
+        maxIterations: 3,
       };
 
       const sessionId = `test-context-sandbox-${Date.now()}`;
@@ -493,6 +521,7 @@ describe('Capability Orchestrator - Advanced Integration', () => {
         inputMode: 'naive',
         compilerChecks: true,
         maxIterations: 1,
+        planning: false,
       };
 
       const sessionId = `test-context-validation-${Date.now()}`;
@@ -518,6 +547,9 @@ describe('Capability Orchestrator - Advanced Integration', () => {
     it('should report accurate step counts', async () => {
       const config: CapabilityConfig = {
         inputMode: 'naive',
+        planning: false,
+        compilerChecks: false,
+        maxIterations: 3,
       };
 
       const sessionId = `test-steps-${Date.now()}`;
@@ -541,6 +573,9 @@ describe('Capability Orchestrator - Advanced Integration', () => {
     it('should report accurate duration', async () => {
       const config: CapabilityConfig = {
         inputMode: 'naive',
+        planning: false,
+        compilerChecks: false,
+        maxIterations: 3,
       };
 
       const sessionId = `test-duration-${Date.now()}`;
@@ -568,6 +603,8 @@ describe('Capability Orchestrator - Advanced Integration', () => {
       const config: CapabilityConfig = {
         inputMode: 'naive',
         compilerChecks: true,
+        planning: false,
+        maxIterations: 3,
       };
 
       const sessionId = `test-validation-metrics-${Date.now()}`;

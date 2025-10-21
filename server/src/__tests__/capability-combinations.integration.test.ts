@@ -79,6 +79,9 @@ describe('Capability Combinations Integration', () => {
     it('should execute only code generation capability', async () => {
       const config: CapabilityConfig = {
         inputMode: 'naive',
+        planning: false,
+        compilerChecks: false,
+        maxIterations: 3,
       };
 
       const sessionId = `test-naive-${Date.now()}`;
@@ -107,6 +110,8 @@ describe('Capability Combinations Integration', () => {
       const config: CapabilityConfig = {
         inputMode: 'naive',
         planning: true,
+        compilerChecks: false,
+        maxIterations: 3,
       };
 
       const sessionId = `test-planning-${Date.now()}`;
@@ -137,6 +142,9 @@ describe('Capability Combinations Integration', () => {
         templateOptions: {
           templateName: 'vite-fullstack-base',
         },
+        planning: false,
+        compilerChecks: false,
+        maxIterations: 3,
       };
 
       const sessionId = `test-template-${Date.now()}`;
@@ -168,6 +176,8 @@ describe('Capability Combinations Integration', () => {
       const config: CapabilityConfig = {
         inputMode: 'naive',
         compilerChecks: true,
+        planning: false,
+        maxIterations: 3,
       };
 
       const sessionId = `test-validation-${Date.now()}`;
@@ -206,6 +216,7 @@ describe('Capability Combinations Integration', () => {
         inputMode: 'naive',
         compilerChecks: true,
         maxIterations: 2,
+        planning: false,
       };
 
       const sessionId = `test-compiler-check-${Date.now()}`;
@@ -300,6 +311,7 @@ describe('Capability Combinations Integration', () => {
         },
         compilerChecks: true,
         maxIterations: 2,
+        planning: false,
       };
 
       const sessionId = `test-template-validation-${Date.now()}`;
@@ -344,6 +356,8 @@ describe('Capability Combinations Integration', () => {
       const config: CapabilityConfig = {
         inputMode: 'naive',
         compilerChecks: true,
+        planning: false,
+        maxIterations: 3,
       };
 
       const sessionId = `test-context-validation-${Date.now()}`;
@@ -369,6 +383,9 @@ describe('Capability Combinations Integration', () => {
     it('should handle abort during capability execution', async () => {
       const config: CapabilityConfig = {
         inputMode: 'naive',
+        planning: false,
+        compilerChecks: false,
+        maxIterations: 3,
       };
 
       const sessionId = `test-abort-${Date.now()}`;

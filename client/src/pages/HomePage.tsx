@@ -37,6 +37,9 @@ function HomePage() {
   // Capability mode state
   const [capabilityConfig, setCapabilityConfig] = useState<CapabilityConfig>({
     inputMode: 'naive',
+    planning: false,
+    compilerChecks: false,
+    maxIterations: 3,
   });
   const [model, setModel] = useState<'gpt-5' | 'gpt-5-mini' | 'gpt-5-nano'>('gpt-5-mini');
 

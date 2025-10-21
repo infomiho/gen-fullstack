@@ -194,7 +194,12 @@ describe('WebSocket Handler Edge Cases', () => {
 
       // Start generation to populate activeGenerations
       clientSocket.emit('start_generation', {
-        config: { inputMode: 'naive' as const },
+        config: {
+          inputMode: 'naive' as const,
+          planning: false,
+          compilerChecks: false,
+          maxIterations: 3,
+        },
         model: 'gpt-5-mini' as const,
         prompt: 'Test prompt',
       });
@@ -240,7 +245,12 @@ describe('WebSocket Handler Edge Cases', () => {
     it('should handle abort after natural completion', async () => {
       // Start generation
       clientSocket.emit('start_generation', {
-        config: { inputMode: 'naive' as const },
+        config: {
+          inputMode: 'naive' as const,
+          planning: false,
+          compilerChecks: false,
+          maxIterations: 3,
+        },
         model: 'gpt-5-mini' as const,
         prompt: 'Test prompt',
       });
@@ -329,7 +339,12 @@ describe('WebSocket Handler Edge Cases', () => {
       // Trigger validation error with invalid payload
       clientSocket.emit('start_generation', {
         prompt: '', // Empty prompt should fail validation
-        config: { inputMode: 'naive' as const },
+        config: {
+          inputMode: 'naive' as const,
+          planning: false,
+          compilerChecks: false,
+          maxIterations: 3,
+        },
         model: 'gpt-5-mini' as const,
       });
 
@@ -353,7 +368,12 @@ describe('WebSocket Handler Edge Cases', () => {
 
       // Start generation
       clientSocket.emit('start_generation', {
-        config: { inputMode: 'naive' as const },
+        config: {
+          inputMode: 'naive' as const,
+          planning: false,
+          compilerChecks: false,
+          maxIterations: 3,
+        },
         model: 'gpt-5-mini' as const,
         prompt: 'Test prompt',
       });
@@ -433,17 +453,32 @@ describe('WebSocket Handler Edge Cases', () => {
 
       // Start 3 generations concurrently
       clientSocket.emit('start_generation', {
-        config: { inputMode: 'naive' as const },
+        config: {
+          inputMode: 'naive' as const,
+          planning: false,
+          compilerChecks: false,
+          maxIterations: 3,
+        },
         model: 'gpt-5-mini' as const,
         prompt: 'Test prompt 1',
       });
       clientSocket.emit('start_generation', {
-        config: { inputMode: 'naive' as const },
+        config: {
+          inputMode: 'naive' as const,
+          planning: false,
+          compilerChecks: false,
+          maxIterations: 3,
+        },
         model: 'gpt-5-mini' as const,
         prompt: 'Test prompt 2',
       });
       clientSocket.emit('start_generation', {
-        config: { inputMode: 'naive' as const },
+        config: {
+          inputMode: 'naive' as const,
+          planning: false,
+          compilerChecks: false,
+          maxIterations: 3,
+        },
         model: 'gpt-5-mini' as const,
         prompt: 'Test prompt 3',
       });
