@@ -193,11 +193,17 @@ export interface BuildEvent {
 // Generation Metrics
 // ============================================================================
 
+// ============================================================================
+// Generation Status
+// ============================================================================
+
+export type GenerationStatus = 'completed' | 'cancelled' | 'failed';
+
 export interface GenerationMetrics {
   sessionId: string;
   strategy?: string;
   model: string; // Required - always know which model was used
-  status?: 'completed' | 'cancelled' | 'failed';
+  status?: GenerationStatus;
   totalTokens: number;
   inputTokens: number;
   outputTokens: number;
@@ -230,8 +236,9 @@ export interface ServerToClientEvents {
   app_log: (log: AppLog) => void;
   build_event: (event: BuildEvent) => void;
 
-  // Error events
+  // Error and warning events
   error: (message: string) => void;
+  warning: (message: string) => void;
 }
 
 // ============================================================================

@@ -5,9 +5,11 @@ import type {
   CapabilityResult,
   ClientToServerEvents,
   GenerationMetrics,
+  GenerationStatus,
   ServerToClientEvents,
 } from '../types/index.js';
 import { createLogger } from '../lib/logger.js';
+import { getErrorMessage, isAbortError } from '../lib/error-utils.js';
 import { initializeSandbox } from '../services/filesystem.service.js';
 import type { ModelName } from '../services/llm.service.js';
 import { databaseService } from '../services/database.service.js';
@@ -34,6 +36,12 @@ import {
  * - Updates database with final metrics
  */
 export class CapabilityOrchestrator {
+  // Constants
+  private static readonly DEFAULT_TOOL_CALL_LIMIT = 20;
+  private static readonly ERROR_FIXING_TOOL_CALLS_PER_ITERATION = 5;
+  private static readonly DEFAULT_MAX_ITERATIONS = 3;
+  private static readonly DEFAULT_TEMPLATE_NAME = 'vite-fullstack-base';
+
   private modelName: ModelName;
   private io: SocketIOServer<ClientToServerEvents, ServerToClientEvents>;
   private logger: ReturnType<typeof createLogger>;
@@ -83,8 +91,6 @@ export class CapabilityOrchestrator {
     config: CapabilityConfig,
     sessionId: string,
   ): Promise<GenerationMetrics> {
-    const startTime = Date.now();
-
     this.logger.info(
       {
         sessionId,
@@ -109,22 +115,17 @@ export class CapabilityOrchestrator {
       );
 
       // Initialize and execute
-      const context = this.initializeContext(sessionId, prompt, sandboxPath, startTime);
-      const executionResult = await this.executePipeline(
-        capabilities,
-        context,
-        sessionId,
-        startTime,
-      );
+      const context = this.initializeContext(sessionId, prompt, sandboxPath);
+      const executionResult = await this.executePipeline(capabilities, context);
 
       if (executionResult) {
         return executionResult; // Early return on failure
       }
 
       // Success path
-      return await this.finalizeGeneration(context, sessionId, startTime);
+      return await this.finalizeGeneration(context);
     } catch (error) {
-      return await this.handleGenerationError(error, sessionId, startTime);
+      return await this.handleGenerationError(error, sessionId);
     }
   }
 
@@ -135,7 +136,6 @@ export class CapabilityOrchestrator {
     sessionId: string,
     prompt: string,
     sandboxPath: string,
-    startTime: number,
   ): CapabilityContext {
     return {
       sessionId,
@@ -148,7 +148,7 @@ export class CapabilityOrchestrator {
       },
       cost: 0,
       toolCalls: 0,
-      startTime,
+      startTime: Date.now(),
       abortSignal: this.abortController.signal,
     };
   }
@@ -160,51 +160,44 @@ export class CapabilityOrchestrator {
   private async executePipeline(
     capabilities: BaseCapability[],
     context: CapabilityContext,
-    sessionId: string,
-    startTime: number,
   ): Promise<GenerationMetrics | undefined> {
     for (const capability of capabilities) {
       // Check for abort
       if (this.isAborted()) {
-        this.logger.info({ sessionId }, 'Generation aborted during capability execution');
+        this.logger.info(
+          { sessionId: context.sessionId },
+          'Generation aborted during capability execution',
+        );
         break;
       }
 
       // Skip if capability can be skipped
       if (capability.canSkip(context)) {
-        this.logger.info({ sessionId, capability: capability.getName() }, 'Skipping capability');
+        this.logger.info(
+          { sessionId: context.sessionId, capability: capability.getName() },
+          'Skipping capability',
+        );
         continue;
       }
 
       // Validate and execute capability
-      const validationError = this.validateCapability(capability, context, sessionId);
+      const validationError = this.validateCapability(capability, context);
       if (validationError) {
-        return await this.handleCapabilityError(
-          capability,
-          validationError,
-          context,
-          sessionId,
-          startTime,
-          true,
-        );
+        return await this.handleValidationError(capability, validationError, context);
       }
 
-      this.logger.info({ sessionId, capability: capability.getName() }, 'Executing capability');
+      this.logger.info(
+        { sessionId: context.sessionId, capability: capability.getName() },
+        'Executing capability',
+      );
 
       const result = await capability.execute(context);
       this.updateContextFromResult(context, result);
 
       // Check if capability failed
       if (!result.success) {
-        const errorMsg = result.error || 'Capability failed without error message';
-        return await this.handleCapabilityError(
-          capability,
-          errorMsg,
-          context,
-          sessionId,
-          startTime,
-          false,
-        );
+        const errorMsg = result.error ?? 'Capability failed without error message';
+        return await this.handleExecutionError(capability, errorMsg, context);
       }
     }
 
@@ -218,15 +211,14 @@ export class CapabilityOrchestrator {
   private validateCapability(
     capability: BaseCapability,
     context: CapabilityContext,
-    sessionId: string,
   ): string | undefined {
     try {
       capability.validateContext(context);
       return undefined;
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
+      const errorMsg = getErrorMessage(error);
       this.logger.error(
-        { sessionId, capability: capability.getName(), error: errorMsg },
+        { sessionId: context.sessionId, capability: capability.getName(), error: errorMsg },
         'Context validation failed',
       );
       return errorMsg;
@@ -235,92 +227,110 @@ export class CapabilityOrchestrator {
 
   /**
    * Update context with capability execution results
+   * @mutates context - Modifies context in place for performance
    */
-  private updateContextFromResult(context: CapabilityContext, result: CapabilityResult): void {
-    // Update token usage
-    if (result.tokensUsed) {
-      context.tokens.input += result.tokensUsed.input;
-      context.tokens.output += result.tokensUsed.output;
-      context.tokens.total = context.tokens.input + context.tokens.output;
-    }
+  private updateContextFromResult(
+    mutableContext: CapabilityContext,
+    result: CapabilityResult,
+  ): void {
+    // Update token usage with nullish coalescing
+    mutableContext.tokens.input += result.tokensUsed?.input ?? 0;
+    mutableContext.tokens.output += result.tokensUsed?.output ?? 0;
+    mutableContext.tokens.total = mutableContext.tokens.input + mutableContext.tokens.output;
 
-    if (result.cost) {
-      context.cost += result.cost;
-    }
-
-    if (result.toolCalls) {
-      context.toolCalls += result.toolCalls;
-    }
+    mutableContext.cost += result.cost ?? 0;
+    mutableContext.toolCalls += result.toolCalls ?? 0;
 
     // Merge context updates (explicit fields only for type safety)
-    if (result.contextUpdates) {
-      if (result.contextUpdates.plan !== undefined) {
-        context.plan = result.contextUpdates.plan;
-      }
-      if (result.contextUpdates.templateFiles !== undefined) {
-        context.templateFiles = result.contextUpdates.templateFiles;
-      }
-      if (result.contextUpdates.validation !== undefined) {
-        context.validation = result.contextUpdates.validation;
-      }
-      if (result.contextUpdates.refinementIterations !== undefined) {
-        context.refinementIterations = result.contextUpdates.refinementIterations;
-      }
+    if (result.contextUpdates?.plan !== undefined) {
+      mutableContext.plan = result.contextUpdates.plan;
+    }
+    if (result.contextUpdates?.templateFiles !== undefined) {
+      mutableContext.templateFiles = result.contextUpdates.templateFiles;
+    }
+    if (result.contextUpdates?.validation !== undefined) {
+      mutableContext.validation = result.contextUpdates.validation;
+    }
+    if (result.contextUpdates?.refinementIterations !== undefined) {
+      mutableContext.refinementIterations = result.contextUpdates.refinementIterations;
     }
   }
 
   /**
-   * Handle capability validation or execution error
+   * Handle capability validation error
    */
-  private async handleCapabilityError(
+  private async handleValidationError(
     capability: BaseCapability,
     errorMsg: string,
     context: CapabilityContext,
-    sessionId: string,
-    startTime: number,
-    isValidationError: boolean,
   ): Promise<GenerationMetrics> {
-    const errorType = isValidationError ? 'context validation' : 'execution';
     this.logger.error(
-      { sessionId, capability: capability.getName(), error: errorMsg },
-      `Capability ${errorType} failed`,
+      { sessionId: context.sessionId, capability: capability.getName(), error: errorMsg },
+      'Capability context validation failed',
     );
 
-    const errorPrefix = isValidationError ? 'context validation failed' : 'failed';
-    this.io.to(sessionId).emit('error', `${capability.getName()} ${errorPrefix}: ${errorMsg}`);
+    this.io
+      .to(context.sessionId)
+      .emit('error', `${capability.getName()} context validation failed: ${errorMsg}`);
 
-    const duration = Date.now() - startTime;
-    const metrics = this.buildMetrics(context, duration, 'failed');
+    const metrics = this.buildMetrics(context, 'failed');
+    const dbSuccess = await this.updateDatabase(context.sessionId, metrics, 'failed', errorMsg);
 
-    await this.updateDatabase(sessionId, metrics, 'failed', errorMsg);
-    this.emitComplete(sessionId, metrics, 'failed');
+    if (!dbSuccess) {
+      this.io.to(context.sessionId).emit('warning', 'Metrics may not be persisted');
+    }
 
+    this.emitComplete(context.sessionId, metrics, 'failed');
+    return metrics;
+  }
+
+  /**
+   * Handle capability execution error
+   */
+  private async handleExecutionError(
+    capability: BaseCapability,
+    errorMsg: string,
+    context: CapabilityContext,
+  ): Promise<GenerationMetrics> {
+    this.logger.error(
+      { sessionId: context.sessionId, capability: capability.getName(), error: errorMsg },
+      'Capability execution failed',
+    );
+
+    this.io.to(context.sessionId).emit('error', `${capability.getName()} failed: ${errorMsg}`);
+
+    const metrics = this.buildMetrics(context, 'failed');
+    const dbSuccess = await this.updateDatabase(context.sessionId, metrics, 'failed', errorMsg);
+
+    if (!dbSuccess) {
+      this.io.to(context.sessionId).emit('warning', 'Metrics may not be persisted');
+    }
+
+    this.emitComplete(context.sessionId, metrics, 'failed');
     return metrics;
   }
 
   /**
    * Finalize generation with success or cancellation
    */
-  private async finalizeGeneration(
-    context: CapabilityContext,
-    sessionId: string,
-    startTime: number,
-  ): Promise<GenerationMetrics> {
-    const duration = Date.now() - startTime;
-    const status = this.isAborted() ? 'cancelled' : 'completed';
-    const metrics = this.buildMetrics(context, duration, status);
+  private async finalizeGeneration(context: CapabilityContext): Promise<GenerationMetrics> {
+    const status: GenerationStatus = this.isAborted() ? 'cancelled' : 'completed';
+    const metrics = this.buildMetrics(context, status);
 
     this.logger.info(
       {
-        sessionId,
+        sessionId: context.sessionId,
         metrics,
       },
       `Generation ${status}`,
     );
 
-    await this.updateDatabase(sessionId, metrics, status);
-    this.emitComplete(sessionId, metrics, status);
+    const dbSuccess = await this.updateDatabase(context.sessionId, metrics, status);
+    if (!dbSuccess) {
+      this.io.to(context.sessionId).emit('warning', 'Metrics may not be persisted');
+    }
 
+    this.emitComplete(context.sessionId, metrics, status);
     return metrics;
   }
 
@@ -330,12 +340,11 @@ export class CapabilityOrchestrator {
   private async handleGenerationError(
     error: unknown,
     sessionId: string,
-    startTime: number,
   ): Promise<GenerationMetrics> {
-    const duration = Date.now() - startTime;
+    const duration = Date.now();
 
     // Check if error is due to abort (cancellation)
-    if (error instanceof Error && (error.name === 'AbortError' || this.isAborted())) {
+    if (isAbortError(error) || this.isAborted()) {
       const metrics = this.createEmptyMetrics(sessionId, duration);
       await this.updateDatabase(sessionId, metrics, 'cancelled');
       this.emitComplete(sessionId, metrics, 'cancelled');
@@ -343,15 +352,19 @@ export class CapabilityOrchestrator {
     }
 
     // Regular error handling
-    const errorMsg = error instanceof Error ? error.message : String(error);
+    const errorMsg = getErrorMessage(error);
     this.logger.error({ error, sessionId }, 'Generation failed with error');
 
     this.io.to(sessionId).emit('error', errorMsg);
 
     const metrics = this.createEmptyMetrics(sessionId, duration);
-    await this.updateDatabase(sessionId, metrics, 'failed', errorMsg);
-    this.emitComplete(sessionId, metrics, 'failed');
+    const dbSuccess = await this.updateDatabase(sessionId, metrics, 'failed', errorMsg);
 
+    if (!dbSuccess) {
+      this.io.to(sessionId).emit('warning', 'Metrics may not be persisted');
+    }
+
+    this.emitComplete(sessionId, metrics, 'failed');
     return metrics;
   }
 
@@ -394,7 +407,7 @@ export class CapabilityOrchestrator {
           new TemplateCapability(
             this.modelName,
             this.io,
-            config.templateOptions?.templateName || 'vite-fullstack-base',
+            config.templateOptions?.templateName ?? CapabilityOrchestrator.DEFAULT_TEMPLATE_NAME,
           ),
         );
         capabilities.push(
@@ -402,22 +415,27 @@ export class CapabilityOrchestrator {
             this.modelName,
             this.io,
             config.planning ? 'template-plan-based' : 'template',
-            20,
+            CapabilityOrchestrator.DEFAULT_TOOL_CALL_LIMIT,
           ),
         );
         break;
 
-      default:
-        // Naive mode
+      case 'naive':
         capabilities.push(
           new CodeGenerationCapability(
             this.modelName,
             this.io,
             config.planning ? 'plan-based' : 'naive',
-            20,
+            CapabilityOrchestrator.DEFAULT_TOOL_CALL_LIMIT,
           ),
         );
         break;
+
+      default: {
+        // Exhaustiveness check - TypeScript will error if new modes are added
+        const _exhaustive: never = config.inputMode;
+        throw new Error(`Unknown input mode: ${String(_exhaustive)}`);
+      }
     }
 
     // Step 3: Compiler checks (if enabled)
@@ -433,8 +451,8 @@ export class CapabilityOrchestrator {
       // Then error fixing
       capabilities.push(
         new ErrorFixingCapability(this.modelName, this.io, {
-          maxIterations: config.maxIterations ?? 3,
-          toolCallsPerIteration: 5,
+          maxIterations: config.maxIterations ?? CapabilityOrchestrator.DEFAULT_MAX_ITERATIONS,
+          toolCallsPerIteration: CapabilityOrchestrator.ERROR_FIXING_TOOL_CALLS_PER_ITERATION,
         }),
       );
     }
@@ -445,11 +463,9 @@ export class CapabilityOrchestrator {
   /**
    * Build final generation metrics from context
    */
-  private buildMetrics(
-    context: CapabilityContext,
-    duration: number,
-    status: 'completed' | 'cancelled' | 'failed',
-  ): GenerationMetrics {
+  private buildMetrics(context: CapabilityContext, status: GenerationStatus): GenerationMetrics {
+    const duration = this.calculateDuration(context);
+
     const metrics: GenerationMetrics = {
       sessionId: context.sessionId,
       model: this.modelName,
@@ -477,14 +493,22 @@ export class CapabilityOrchestrator {
   }
 
   /**
+   * Calculate duration from context start time
+   */
+  private calculateDuration(context: CapabilityContext): number {
+    return Date.now() - context.startTime;
+  }
+
+  /**
    * Update database with final metrics
+   * @returns True if update succeeded, false if it failed
    */
   private async updateDatabase(
     sessionId: string,
     metrics: GenerationMetrics,
-    status: 'completed' | 'cancelled' | 'failed',
+    status: GenerationStatus,
     errorMessage?: string,
-  ): Promise<void> {
+  ): Promise<boolean> {
     try {
       await databaseService.updateSession(sessionId, {
         status,
@@ -497,8 +521,10 @@ export class CapabilityOrchestrator {
         stepCount: metrics.steps,
         ...(errorMessage && { errorMessage }),
       });
+      return true;
     } catch (error) {
       this.logger.error({ error, sessionId }, 'Failed to update database');
+      return false;
     }
   }
 
@@ -508,7 +534,7 @@ export class CapabilityOrchestrator {
   private emitComplete(
     sessionId: string,
     metrics: GenerationMetrics,
-    status: 'completed' | 'cancelled' | 'failed',
+    status: GenerationStatus,
   ): void {
     this.io.to(sessionId).emit('generation_complete', {
       ...metrics,
