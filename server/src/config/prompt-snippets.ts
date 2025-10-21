@@ -370,11 +370,20 @@ body {
  * Important guidelines shared across strategies
  */
 export const IMPORTANT_GUIDELINES = `IMPORTANT GUIDELINES:
-- DO NOT run npm install or prisma migrate (run automatically)
+- DO NOT run npm install or prisma migrate (these run automatically after you finish)
+- You CAN and SHOULD edit package.json files to add dependencies your code needs
+  → If your code imports 'socket.io', add it to server/package.json dependencies
+  → If your code imports 'react-router-dom', add it to client/package.json dependencies
 - Write complete file contents (no placeholders or "..." in code)
 - Use proper TypeScript types everywhere
 - All API calls from client go to /api/* (proxied to Express)
 - **The app MUST be styled** - Use modern CSS with proper spacing, colors, and layout
+
+TYPESCRIPT CONFIGURATION:
+- Use "strict": true for type safety
+- DO NOT include "noUnusedLocals" or "noUnusedParameters" in tsconfig.json
+  → These cause false positives during development (unused imports, variables in progress)
+- React 19 uses automatic JSX transform, so "jsx": "react-jsx" is correct (no React import needed)
 
 ERROR HANDLING:
 Express 5 auto-catches async errors, but handle specific cases:

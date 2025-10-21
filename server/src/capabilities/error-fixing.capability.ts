@@ -331,10 +331,10 @@ export class ErrorFixingCapability extends BaseCapability {
     const systemPrompt = createFixPrompt(
       'Prisma schema validation',
       'A Prisma schema was generated but has validation errors.',
-      'Fix ONLY the errors in prisma/schema.prisma.',
+      'Fix the errors in prisma/schema.prisma. IMPORTANT: Prisma relation errors often require adding corresponding fields to BOTH models in the relationship. For example, if GameSession.host references Player with @relation("SessionHost"), you must add a hostedSessions field to Player with the same relation name.',
       [
         'Invalid field types',
-        'Missing relation fields',
+        'Missing relation fields - requires adding opposite relation field to related model',
         'Incorrect syntax',
         'Invalid model names or constraints',
       ],
@@ -415,20 +415,34 @@ export class ErrorFixingCapability extends BaseCapability {
 1. DO NOT delete working code to fix import errors
 2. DO NOT replace Express/Prisma implementations with stubs
 3. For "Cannot find module" errors (TS2307):
-   - Dependencies are already installed
+   - Check if the package is listed in package.json - if NOT, add it to dependencies
+   - You CAN edit package.json to add missing dependencies
    - Check if the import path is correct
-   - Verify the package is listed in package.json
    - DO NOT remove the import or delete the code using it
 4. For type errors: Add proper type annotations or fix type mismatches
 5. For config errors: Update tsconfig.json if needed
 
+**ERROR PRIORITY LEVELS:**
+- HIGH PRIORITY (fix first): Errors that prevent compilation
+  → TS2307 (Cannot find module) - missing dependencies or wrong paths
+  → TS2304 (Cannot find name) - undefined variables
+  → TS2322 (Type mismatch) - incorrect types that break functionality
+- MEDIUM PRIORITY: Type safety issues
+  → TS7006 (implicit any) - add types if straightforward
+- LOW PRIORITY: Development warnings (fix if easy, otherwise skip)
+  → TS6133 (unused variables) - often false positives during development
+  → Unused imports in React 19 (React import not needed with new JSX transform)
+
+Focus on HIGH priority errors first. If you reach tool call limits, it's OK to leave MEDIUM/LOW errors unfixed.
+
 Focus on minimal, surgical fixes that preserve all functionality.`,
       [
-        'Missing imports or incorrect import paths',
+        'Missing dependencies in package.json (add them)',
+        'Incorrect import paths',
         'Incorrect types from Prisma Client (@prisma/client)',
         'Props type mismatches in React components',
         'Async/await issues',
-        'Missing type annotations (implicit any)',
+        'Missing type annotations (implicit any) - lower priority',
       ],
     );
 
