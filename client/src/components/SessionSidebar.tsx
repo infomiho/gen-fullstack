@@ -8,6 +8,7 @@ interface SessionData {
   session: {
     prompt: string;
     strategy: string;
+    capabilityConfig: string; // JSON string of CapabilityConfig
     status: 'generating' | 'completed' | 'failed';
     totalTokens?: number;
     cost?: string;
@@ -61,6 +62,18 @@ export function SessionSidebar({
     ? sessionData.session.strategy
     : 'naive';
 
+  // Parse capability config
+  let capabilityConfig: {
+    inputMode?: string;
+    planning?: boolean;
+    compilerChecks?: boolean;
+  } | null = null;
+  try {
+    capabilityConfig = JSON.parse(sessionData.session.capabilityConfig);
+  } catch {
+    // Ignore parse errors for legacy sessions
+  }
+
   return (
     <div className={`border-r ${padding.panel} overflow-y-auto`}>
       <div className={spacing.controls}>
@@ -68,6 +81,33 @@ export function SessionSidebar({
           <h2 className={`mb-3 ${typography.header}`}>Strategy</h2>
           <StrategySelector value={strategy} onChange={() => {}} disabled={true} />
         </div>
+
+        {/* Capability Configuration */}
+        {capabilityConfig && (
+          <div>
+            <h3 className={`mb-3 ${typography.header}`}>Configuration</h3>
+            <div className={`${typography.caption} space-y-1`}>
+              <div className="flex justify-between">
+                <span>Input Mode:</span>
+                <span className="font-medium">
+                  {capabilityConfig.inputMode === 'template' ? 'Template' : 'Naive'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>Planning:</span>
+                <span className="font-medium">
+                  {capabilityConfig.planning ? 'Enabled' : 'Disabled'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>Compiler Checks:</span>
+                <span className="font-medium">
+                  {capabilityConfig.compilerChecks ? 'Enabled' : 'Disabled'}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div>
           <h3 className={`mb-3 ${typography.header}`}>Prompt</h3>

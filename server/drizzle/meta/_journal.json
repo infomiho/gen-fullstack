@@ -15,6 +15,20 @@
       "when": 1760531583769,
       "tag": "0001_sweet_nekra",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1761055175862,
+      "tag": "0002_nifty_mercury",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1761059471908,
+      "tag": "0003_remove_legacy_strategy",
+      "breakpoints": true
     }
   ]
 }

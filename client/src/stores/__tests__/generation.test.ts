@@ -508,6 +508,7 @@ describe('useGenerationStore', () => {
 
       const metrics: GenerationMetrics = {
         sessionId: 'test-session-456',
+        model: 'gpt-5-mini',
         totalTokens: 100,
         inputTokens: 50,
         outputTokens: 50,

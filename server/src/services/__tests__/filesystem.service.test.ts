@@ -124,8 +124,16 @@ describe('Filesystem Service', () => {
       expect(content).toBe('Nested content');
     });
 
-    it('should throw error for non-existent files', async () => {
-      await expect(readFile(sessionId, 'nonexistent.txt')).rejects.toThrow('File not found');
+    it('should throw ENOENT error with code property for non-existent files', async () => {
+      try {
+        await readFile(sessionId, 'nonexistent.txt');
+        expect.fail('Should have thrown an error');
+      } catch (err) {
+        expect(err).toBeInstanceOf(Error);
+        expect((err as NodeJS.ErrnoException).code).toBe('ENOENT');
+        expect((err as Error).message).toContain('File not found');
+        expect((err as Error).message).toContain('nonexistent.txt');
+      }
     });
 
     it('should reject path traversal attempts', async () => {

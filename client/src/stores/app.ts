@@ -3,6 +3,7 @@ import { MAX_LOGS } from '@gen-fullstack/shared';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
+import { truncateArray } from '../lib/array-utils.js';
 
 /**
  * App Execution Store
@@ -62,18 +63,13 @@ export const useAppStore = create<AppStore>()(
 
       checkAndTruncateLogs: () => {
         // Use single set() call for atomicity - prevents race conditions
-        let truncated = false;
-        let count = 0;
+        let result = { truncated: false, count: 0 };
 
         set((draft) => {
-          if (draft.appLogs.length > MAX_LOGS) {
-            count = draft.appLogs.length - MAX_LOGS;
-            draft.appLogs.splice(0, count);
-            truncated = true;
-          }
+          result = truncateArray(draft.appLogs, MAX_LOGS);
         });
 
-        return { truncated, count };
+        return result;
       },
     })),
     { name: 'AppStore' },

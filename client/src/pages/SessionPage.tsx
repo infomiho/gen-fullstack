@@ -31,6 +31,7 @@ interface SessionData {
     id: string;
     prompt: string;
     strategy: string;
+    capabilityConfig: string; // JSON string of CapabilityConfig
     status: 'generating' | 'completed' | 'failed';
     createdAt: Date;
     updatedAt?: Date;

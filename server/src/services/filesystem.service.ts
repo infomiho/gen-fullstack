@@ -122,7 +122,16 @@ export async function readFile(sessionId: string, filePath: string): Promise<str
     return content;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      throw new Error(`File not found: ${filePath}`);
+      // Create a new error object that preserves all errno exception properties
+      // This follows immutability principles and preserves the original error context
+      const originalError = error as NodeJS.ErrnoException;
+      const enhancedError = new Error(`File not found: ${filePath}`) as NodeJS.ErrnoException;
+      enhancedError.code = 'ENOENT';
+      enhancedError.errno = originalError.errno;
+      enhancedError.path = originalError.path;
+      enhancedError.syscall = originalError.syscall;
+      enhancedError.stack = originalError.stack; // Preserve original stack trace
+      throw enhancedError;
     }
     throw error;
   }

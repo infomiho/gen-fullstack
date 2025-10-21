@@ -11,6 +11,9 @@ import { MAX_FILE_SIZE } from './constants.js';
 // Re-export constants
 export * from './constants.js';
 
+// Re-export capability types
+export * from './capabilities.js';
+
 // ============================================================================
 // Strategy Types
 // ============================================================================
@@ -78,11 +81,14 @@ export type ImplementedStrategyType = (typeof IMPLEMENTED_STRATEGIES)[number]['v
 // WebSocket Event Schemas
 // ============================================================================
 
+// Import CapabilityConfigSchema
+import { CapabilityConfigSchema } from './capabilities.js';
+
+// Capability-based generation payload
 export const StartGenerationSchema = z.object({
   prompt: z.string().min(1),
-  strategy: z
-    .enum(['naive', 'plan-first', 'template', 'compiler-check'])
-    .describe('Only implemented strategies are allowed'),
+  config: CapabilityConfigSchema,
+  model: z.enum(['gpt-5', 'gpt-5-mini', 'gpt-5-nano']).optional().default('gpt-5-mini'),
 });
 
 export type StartGenerationPayload = z.infer<typeof StartGenerationSchema>;
@@ -190,7 +196,7 @@ export interface BuildEvent {
 export interface GenerationMetrics {
   sessionId: string;
   strategy?: string;
-  model?: string;
+  model: string; // Required - always know which model was used
   status?: 'completed' | 'cancelled' | 'failed';
   totalTokens: number;
   inputTokens: number;

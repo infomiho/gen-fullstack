@@ -1,0 +1,1 @@
+ALTER TABLE `sessions` ADD `capability_config` text;

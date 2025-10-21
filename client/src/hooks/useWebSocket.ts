@@ -2,9 +2,9 @@ import type {
   AppInfo,
   AppLog,
   BuildEvent,
+  CapabilityConfig,
   FileUpdate,
   GenerationMetrics,
-  ImplementedStrategyType,
   LLMMessage,
   ToolCall,
   ToolResult,
@@ -28,8 +28,12 @@ interface UseWebSocketReturn {
   appStatus: AppInfo | null;
   appLogs: AppLog[];
   buildEvents: BuildEvent[];
-  // Generation functions
-  startGeneration: (prompt: string, strategy: ImplementedStrategyType) => void;
+  // Generation functions (capability-based)
+  startGeneration: (
+    prompt: string,
+    config: CapabilityConfig,
+    model?: 'gpt-5' | 'gpt-5-mini' | 'gpt-5-nano',
+  ) => void;
   stopGeneration: () => void;
   clearMessages: () => void;
   // App execution functions
@@ -277,11 +281,11 @@ export function useWebSocket(navigate?: NavigateFunction): UseWebSocketReturn {
   }, [setSocket, setConnected, notifyTruncation, notifyConnectionError, navigate]);
 
   const startGeneration = useCallback(
-    (prompt: string, strategy: ImplementedStrategyType) => {
+    (prompt: string, config: CapabilityConfig, model?: 'gpt-5' | 'gpt-5-mini' | 'gpt-5-nano') => {
       if (socket) {
         useGenerationStore.getState().reset();
         useGenerationStore.getState().setGenerating(true);
-        socket.emit('start_generation', { prompt, strategy });
+        socket.emit('start_generation', { prompt, config, model });
       }
     },
     [socket],

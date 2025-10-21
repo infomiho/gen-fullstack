@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import Database from 'better-sqlite3';
 import { and, desc, eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import { getEnv } from '../config/env.js';
 import { databaseLogger } from '../lib/logger.js';
 import {
@@ -58,6 +59,12 @@ class DatabaseService {
 
   /**
    * Initialize database with schema (run migrations)
+   *
+   * Uses Drizzle's built-in migrate() function which handles:
+   * - Migration tracking table creation (__drizzle_migrations)
+   * - Atomic migration application
+   * - Concurrent execution safety
+   * - Proper ordering and idempotency
    */
   async initialize(): Promise<void> {
     if (this.initialized) {
@@ -65,60 +72,16 @@ class DatabaseService {
     }
 
     try {
-      // Check if tables already exist
-      const tablesExist = this.sqlite
-        .prepare(
-          "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('sessions', 'timeline_items', 'files')",
-        )
-        .all();
+      // Use Drizzle's built-in migration system
+      // This automatically creates __drizzle_migrations table and applies pending migrations
+      const migrationsFolder = path.join(__dirname, '../../drizzle');
 
-      const needsInitialMigration = tablesExist.length !== 3;
+      await migrate(this.db, { migrationsFolder });
 
-      // Run initial migration if needed
-      if (needsInitialMigration) {
-        const migrationPath = path.join(__dirname, '../../drizzle/0000_cuddly_sersi.sql');
-        if (fs.existsSync(migrationPath)) {
-          const migrationSQL = fs.readFileSync(migrationPath, 'utf8');
-          this.sqlite.exec(migrationSQL);
-          databaseLogger.info('Initial migration applied successfully');
-        }
-      }
-
-      // Check if message_id column exists (migration 0001)
-      const columnCheck = this.sqlite
-        .prepare(
-          "SELECT COUNT(*) as count FROM pragma_table_info('timeline_items') WHERE name='message_id'",
-        )
-        .get() as { count: number };
-
-      if (columnCheck.count === 0) {
-        const migration0001Path = path.join(__dirname, '../../drizzle/0001_sweet_nekra.sql');
-        if (fs.existsSync(migration0001Path)) {
-          const migrationSQL = fs.readFileSync(migration0001Path, 'utf8');
-          this.sqlite.exec(migrationSQL);
-          databaseLogger.info('Migration 0001 (message_id) applied successfully');
-        }
-      }
-
-      // Check if unique message_id index exists (migration 0002)
-      const indexCheck = this.sqlite
-        .prepare(
-          "SELECT COUNT(*) as count FROM sqlite_master WHERE type='index' AND name='timeline_items_session_message_idx'",
-        )
-        .get() as { count: number };
-
-      if (indexCheck.count === 0) {
-        const migration0002Path = path.join(__dirname, '../../drizzle/0002_unique_message_id.sql');
-        if (fs.existsSync(migration0002Path)) {
-          const migrationSQL = fs.readFileSync(migration0002Path, 'utf8');
-          this.sqlite.exec(migrationSQL);
-          databaseLogger.info('Migration 0002 (unique message_id) applied successfully');
-        }
-      }
-
+      databaseLogger.info({ migrationsFolder }, 'Database migrations completed');
       this.initialized = true;
     } catch (error) {
-      databaseLogger.error({ error }, 'Failed to initialize');
+      databaseLogger.error({ error }, 'Failed to initialize database');
       throw error;
     }
   }

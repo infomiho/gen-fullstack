@@ -9,6 +9,7 @@ import { MAX_MESSAGES } from '@gen-fullstack/shared';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
+import { truncateArray } from '../lib/array-utils.js';
 
 /**
  * Generation Store
@@ -127,26 +128,26 @@ export const useGenerationStore = create<GenerationStore>()(
 
         set((draft) => {
           // Check messages
-          if (draft.messages.length > MAX_MESSAGES) {
-            count = draft.messages.length - MAX_MESSAGES;
-            draft.messages.splice(0, count);
+          const messagesResult = truncateArray(draft.messages, MAX_MESSAGES);
+          if (messagesResult.truncated) {
             truncated = true;
+            count = messagesResult.count;
             type = 'messages';
           }
 
           // Check tool calls
-          if (draft.toolCalls.length > MAX_MESSAGES) {
-            count = draft.toolCalls.length - MAX_MESSAGES;
-            draft.toolCalls.splice(0, count);
+          const toolCallsResult = truncateArray(draft.toolCalls, MAX_MESSAGES);
+          if (toolCallsResult.truncated) {
             truncated = true;
+            count = toolCallsResult.count;
             type = 'toolCalls';
           }
 
           // Check tool results
-          if (draft.toolResults.length > MAX_MESSAGES) {
-            count = draft.toolResults.length - MAX_MESSAGES;
-            draft.toolResults.splice(0, count);
+          const toolResultsResult = truncateArray(draft.toolResults, MAX_MESSAGES);
+          if (toolResultsResult.truncated) {
             truncated = true;
+            count = toolResultsResult.count;
             type = 'toolResults';
           }
         });

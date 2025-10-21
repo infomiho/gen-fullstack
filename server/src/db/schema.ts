@@ -13,14 +13,15 @@ import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
  *
  * Note: TypeScript enums provide compile-time safety. Runtime validation
  * is enforced by Zod schemas in the WebSocket layer.
+ *
+ * Migration tracking is handled automatically by Drizzle ORM via the
+ * __drizzle_migrations table (no need to define it in schema).
  */
 export const sessions = sqliteTable('sessions', {
   id: text('id').primaryKey(),
   prompt: text('prompt').notNull(),
-  // Strategy must be one of: 'naive', 'plan-first', 'template', 'compiler-check'
-  strategy: text('strategy')
-    .$type<'naive' | 'plan-first' | 'template' | 'compiler-check'>()
-    .notNull(),
+  // Capability-based configuration (JSON) - describes which capabilities to run
+  capabilityConfig: text('capability_config').notNull(),
   // Status must be one of: 'pending', 'generating', 'completed', 'failed', 'cancelled'
   status: text('status')
     .$type<'pending' | 'generating' | 'completed' | 'failed' | 'cancelled'>()

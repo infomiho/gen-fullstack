@@ -17,6 +17,11 @@ import pino from 'pino';
  */
 const logger = pino({
   level: process.env.LOG_LEVEL || 'info',
+  serializers: {
+    // Use 'error' key to match codebase convention (not 'err')
+    // This ensures error objects are properly serialized in logs
+    error: pino.stdSerializers.err,
+  },
   ...(process.env.NODE_ENV !== 'production' && {
     transport: {
       target: 'pino-pretty',

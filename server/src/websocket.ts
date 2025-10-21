@@ -9,10 +9,7 @@ import { websocketLogger } from './lib/logger.js';
 import { databaseService } from './services/database.service.js';
 import { getSandboxPath, writeFile } from './services/filesystem.service.js';
 import { processService } from './services/process.service.js';
-import { CompilerCheckStrategy } from './strategies/compiler-check.strategy.js';
-import { NaiveStrategy } from './strategies/naive.strategy.js';
-import { PlanFirstStrategy } from './strategies/plan-first.strategy.js';
-import { TemplateStrategy } from './strategies/template.strategy.js';
+import { CapabilityOrchestrator } from './orchestrator/capability-orchestrator.js';
 import type { ClientToServerEvents, ServerToClientEvents } from './types/index.js';
 import {
   AppActionSchema,
@@ -66,24 +63,6 @@ function sanitizeError(error: unknown): string {
 }
 
 /**
- * Create strategy instance based on type
- */
-function createStrategy(
-  strategyType: 'naive' | 'plan-first' | 'template' | 'compiler-check',
-): NaiveStrategy | PlanFirstStrategy | TemplateStrategy | CompilerCheckStrategy {
-  switch (strategyType) {
-    case 'naive':
-      return new NaiveStrategy();
-    case 'plan-first':
-      return new PlanFirstStrategy();
-    case 'template':
-      return new TemplateStrategy();
-    case 'compiler-check':
-      return new CompilerCheckStrategy();
-  }
-}
-
-/**
  * Handle session creation failure
  */
 async function handleGenerationError(sessionId: string | null, error: unknown): Promise<void> {
@@ -115,10 +94,7 @@ export function setupWebSocket(httpServer: HTTPServer) {
   });
 
   // Track active generations for cancellation support
-  const activeGenerations = new Map<
-    string,
-    NaiveStrategy | PlanFirstStrategy | TemplateStrategy | CompilerCheckStrategy
-  >();
+  const activeGenerations = new Map<string, CapabilityOrchestrator>();
 
   /**
    * Apply rate limiting to a handler
@@ -169,7 +145,7 @@ export function setupWebSocket(httpServer: HTTPServer) {
 
       try {
         const validated = StartGenerationSchema.parse(payload);
-        websocketLogger.info({ strategy: validated.strategy }, 'Starting generation');
+        websocketLogger.info({ config: validated.config }, 'Starting generation');
 
         sessionId = uuidv4();
 
@@ -179,19 +155,19 @@ export function setupWebSocket(httpServer: HTTPServer) {
         await databaseService.createSession({
           id: sessionId,
           prompt: validated.prompt,
-          strategy: validated.strategy,
+          capabilityConfig: JSON.stringify(validated.config),
           status: 'generating',
         });
 
         socket.emit('session_started', { sessionId });
 
-        const strategy = createStrategy(validated.strategy);
+        const orchestrator = new CapabilityOrchestrator(validated.model, io);
 
         // Track active generation for cancellation support
-        activeGenerations.set(sessionId, strategy);
+        activeGenerations.set(sessionId, orchestrator);
 
         try {
-          await strategy.generateApp(validated.prompt, io, sessionId);
+          await orchestrator.generateApp(validated.prompt, validated.config, sessionId);
         } finally {
           // Always remove from active generations when done
           activeGenerations.delete(sessionId);

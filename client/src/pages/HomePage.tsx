@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import type { ImplementedStrategyType } from '@gen-fullstack/shared';
+import type { CapabilityConfig } from '@gen-fullstack/shared';
+import { CapabilityBuilder } from '../components/CapabilityBuilder';
 import { PromptInput } from '../components/PromptInput';
-import { StrategySelector } from '../components/StrategySelector';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { focus, radius, spacing, transitions, typography } from '../lib/design-tokens';
 
@@ -33,7 +33,13 @@ interface SessionListItem {
 function HomePage() {
   const navigate = useNavigate();
   const { isConnected, startGeneration, isGenerating } = useWebSocket(navigate);
-  const [strategy, setStrategy] = useState<ImplementedStrategyType>('naive');
+
+  // Capability mode state
+  const [capabilityConfig, setCapabilityConfig] = useState<CapabilityConfig>({
+    inputMode: 'naive',
+  });
+  const [model, setModel] = useState<'gpt-5' | 'gpt-5-mini' | 'gpt-5-nano'>('gpt-5-mini');
+
   const [sessions, setSessions] = useState<SessionListItem[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(true);
 
@@ -58,7 +64,7 @@ function HomePage() {
   }, []);
 
   const handleGenerate = (prompt: string) => {
-    startGeneration(prompt, strategy);
+    startGeneration(prompt, capabilityConfig, model);
   };
 
   const formatDate = (dateString: string) => {
@@ -101,19 +107,19 @@ function HomePage() {
         {/* Generation form */}
         <div className="mb-16">
           <div className={`${spacing.sections}`}>
-            {/* Strategy selector */}
-            <div>
-              <label htmlFor="strategy-select" className={`block mb-3 ${typography.header}`}>
-                Strategy
-              </label>
-              {/* biome-ignore lint/correctness/useUniqueElementIds: Static ID is intentional for label accessibility - HomePage renders once per page */}
-              <StrategySelector
-                id="strategy-select"
-                value={strategy}
-                onChange={setStrategy}
-                disabled={isGenerating}
-              />
+            {/* Configuration header */}
+            <div className="mb-4">
+              <h2 className={typography.header}>Configuration</h2>
             </div>
+
+            {/* Capability Builder */}
+            <CapabilityBuilder
+              value={capabilityConfig}
+              onChange={setCapabilityConfig}
+              model={model}
+              onModelChange={setModel}
+              disabled={isGenerating}
+            />
 
             {/* Prompt input */}
             <div>
