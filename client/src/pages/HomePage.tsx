@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router';
 import type { CapabilityConfig } from '@gen-fullstack/shared';
 import { CapabilityBuilder } from '../components/CapabilityBuilder';
 import { PromptInput } from '../components/PromptInput';
+import { StatusBadge } from '../components/StatusBadge';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { focus, radius, spacing, transitions, typography } from '../lib/design-tokens';
 
@@ -83,19 +84,6 @@ function HomePage() {
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
     return date.toLocaleDateString();
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-gray-100 text-gray-700';
-      case 'generating':
-        return 'bg-blue-100 text-blue-700';
-      case 'failed':
-        return 'bg-red-100 text-red-700';
-      default:
-        return 'bg-gray-100 text-gray-600';
-    }
   };
 
   return (
@@ -183,11 +171,7 @@ function HomePage() {
                       </div>
                     </div>
                     <div>
-                      <span
-                        className={`px-2 py-0.5 rounded text-xs font-medium ${getStatusColor(session.status)}`}
-                      >
-                        {session.status}
-                      </span>
+                      <StatusBadge status={session.status} />
                     </div>
                   </div>
                 </Link>
