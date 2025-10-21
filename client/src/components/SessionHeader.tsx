@@ -1,5 +1,6 @@
 import { Link } from 'react-router';
 import { padding, transitions, typography } from '../lib/design-tokens';
+import { StatusBadge } from './StatusBadge';
 
 interface SessionHeaderProps {
   sessionId: string | undefined;
@@ -38,23 +39,7 @@ export function SessionHeader({
           <span className={typography.caption}>Session: {sessionId}</span>
         </div>
         <div className="flex items-center gap-3">
-          <div
-            className={`px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1.5 ${
-              status === 'completed'
-                ? 'bg-gray-100 text-gray-700'
-                : status === 'generating'
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'bg-red-100 text-red-700'
-            }`}
-          >
-            {showLiveBadge && (
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
-              </span>
-            )}
-            {showLiveBadge ? 'Live' : status}
-          </div>
+          <StatusBadge status={status} variant="session" showLiveIndicator={showLiveBadge} />
           <div className="flex items-center gap-1.5">
             <div
               className={`h-1.5 w-1.5 rounded-full ${isConnected ? 'bg-gray-900' : 'bg-gray-300'}`}

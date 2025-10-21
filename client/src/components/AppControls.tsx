@@ -1,6 +1,8 @@
 import type { AppInfo } from '@gen-fullstack/shared';
 import { CirclePlay, Square } from 'lucide-react';
-import { button, padding, spacing, typography } from '../lib/design-tokens';
+import { button, spacing, typography } from '../lib/design-tokens';
+import { Alert } from './Alert';
+import { StatusBadge } from './StatusBadge';
 
 interface AppControlsProps {
   currentSessionId: string | null;
@@ -75,24 +77,6 @@ export function AppControls({
     };
   };
 
-  // Status badge color
-  const getStatusColor = () => {
-    switch (status) {
-      case 'running':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'failed':
-        return 'bg-red-100 text-red-800 border-red-200';
-      case 'creating':
-      case 'installing':
-      case 'starting':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'stopped':
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-      default:
-        return 'bg-gray-100 text-gray-600 border-gray-200';
-    }
-  };
-
   const buttonConfig = getButtonConfig();
 
   return (
@@ -116,11 +100,7 @@ export function AppControls({
       {/* Status Display */}
       <div className="flex items-center gap-3">
         <span className={typography.label}>Status:</span>
-        <span
-          className={`inline-flex items-center ${padding.compact} rounded border ${getStatusColor()} ${typography.caption} uppercase font-medium`}
-        >
-          {status}
-        </span>
+        <StatusBadge status={status} variant="app" uppercase={true} />
         {appStatus?.clientUrl && status === 'running' && (
           <a
             href={appStatus.clientUrl}
@@ -134,11 +114,7 @@ export function AppControls({
       </div>
 
       {/* Error Display */}
-      {appStatus?.error && (
-        <div className="rounded border border-red-200 bg-red-50 p-3">
-          <p className="text-sm text-red-800">{appStatus.error}</p>
-        </div>
-      )}
+      {appStatus?.error && <Alert variant="error">{appStatus.error}</Alert>}
 
       {/* Single Control Button */}
       <button
