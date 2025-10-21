@@ -68,7 +68,7 @@ export function CapabilityBuilder({
         break;
       case 'comprehensive':
         onChange({
-          inputMode: 'naive',
+          inputMode: 'template',
           planning: true,
           compilerChecks: true,
           maxIterations: 3,

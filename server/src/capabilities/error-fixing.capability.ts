@@ -85,140 +85,194 @@ export class ErrorFixingCapability extends BaseCapability {
   }
 
   async execute(context: CapabilityContext): Promise<CapabilityResult> {
-    const { sessionId, validation } = context;
+    const { validation } = context;
 
     if (!validation) {
-      return {
-        success: true,
-        toolCalls: 0,
-        contextUpdates: {
-          refinementIterations: 0,
-        },
-      };
+      return this.createSkippedResult();
     }
 
-    let totalInputTokens = 0;
-    let totalOutputTokens = 0;
-    let totalCost = 0;
-    let totalToolCalls = 0;
-    let iterationCount = 0;
-
-    // Track updated validation state (do NOT mutate context directly)
-    let schemaValidationPassed = validation.schemaValidationPassed ?? true;
-    let typeCheckPassed = validation.typeCheckPassed ?? true;
-    let remainingErrors = validation.errors ?? [];
+    const metrics = this.createMetricsTracker();
+    const validationState = this.initializeValidationState(validation);
 
     try {
-      // ==================== FIX SCHEMA ERRORS ====================
+      // Fix schema errors if needed
       if (validation.schemaValidationPassed === false) {
-        this.emitStatus('Fixing Prisma schema errors...', context);
-
-        const fixResult = await this.fixSchemaErrors(context);
-
-        totalInputTokens += fixResult.tokensUsed?.input ?? 0;
-        totalOutputTokens += fixResult.tokensUsed?.output ?? 0;
-        totalCost += fixResult.cost ?? 0;
-        totalToolCalls += fixResult.toolCalls ?? 0;
-
-        if (fixResult.success) {
-          // Update local validation state (will be returned via contextUpdates)
-          schemaValidationPassed = true;
-        }
+        await this.handleSchemaErrors(context, metrics, validationState);
       }
 
-      // ==================== FIX TYPESCRIPT ERRORS ====================
-      if (
-        validation.typeCheckPassed === false &&
-        validation.errors &&
-        validation.errors.length > 0
-      ) {
-        let tsErrors = validation.errors;
-
-        while (tsErrors.length > 0 && iterationCount < this.maxIterations) {
-          iterationCount++;
-
-          this.emitStatus(
-            `Fixing TypeScript errors (iteration ${iterationCount}/${this.maxIterations}, ${tsErrors.length} error${tsErrors.length === 1 ? '' : 's'})...`,
-            context,
-          );
-
-          const fixResult = await this.fixTypeScriptErrors(context, tsErrors);
-
-          totalInputTokens += fixResult.tokensUsed?.input ?? 0;
-          totalOutputTokens += fixResult.tokensUsed?.output ?? 0;
-          totalCost += fixResult.cost ?? 0;
-          totalToolCalls += fixResult.toolCalls ?? 0;
-
-          // Re-validate TypeScript
-          const newErrors = await this.validateTypeScript(sessionId);
-          tsErrors = newErrors;
-
-          if (tsErrors.length === 0) {
-            this.emitStatus('✅ All TypeScript errors fixed', context);
-            // Update local validation state (will be returned via contextUpdates)
-            typeCheckPassed = true;
-            remainingErrors = [];
-            break;
-          } else if (iterationCount >= this.maxIterations) {
-            this.emitStatus(
-              `⚠️ Reached max iterations (${this.maxIterations}). ${tsErrors.length} error${tsErrors.length === 1 ? '' : 's'} remaining.`,
-              context,
-            );
-            // Update local validation state (will be returned via contextUpdates)
-            remainingErrors = tsErrors;
-          }
-        }
+      // Fix TypeScript errors if needed
+      if (this.hasTypeScriptErrors(validation)) {
+        await this.handleTypeScriptErrors(context, metrics, validationState);
       }
 
-      this.logger.info(
-        {
-          sessionId,
-          iterations: iterationCount,
-          totalInputTokens,
-          totalOutputTokens,
-          totalCost,
-          totalToolCalls,
-        },
-        'Error fixing completed',
+      return this.createSuccessResult(context, metrics, validationState);
+    } catch (error) {
+      return this.createErrorResult(context, error, metrics, validationState);
+    }
+  }
+
+  private createSkippedResult(): CapabilityResult {
+    return {
+      success: true,
+      toolCalls: 0,
+      contextUpdates: {
+        refinementIterations: 0,
+      },
+    };
+  }
+
+  private createMetricsTracker() {
+    return {
+      totalInputTokens: 0,
+      totalOutputTokens: 0,
+      totalCost: 0,
+      totalToolCalls: 0,
+      iterationCount: 0,
+    };
+  }
+
+  private initializeValidationState(validation: CapabilityContext['validation']) {
+    return {
+      schemaValidationPassed: validation?.schemaValidationPassed ?? true,
+      typeCheckPassed: validation?.typeCheckPassed ?? true,
+      remainingErrors: validation?.errors ?? [],
+    };
+  }
+
+  private hasTypeScriptErrors(validation: CapabilityContext['validation']): boolean {
+    return (
+      validation?.typeCheckPassed === false &&
+      validation.errors !== undefined &&
+      validation.errors.length > 0
+    );
+  }
+
+  private async handleSchemaErrors(
+    context: CapabilityContext,
+    metrics: ReturnType<typeof this.createMetricsTracker>,
+    validationState: ReturnType<typeof this.initializeValidationState>,
+  ) {
+    this.emitStatus('Fixing Prisma schema errors...', context);
+    const fixResult = await this.fixSchemaErrors(context);
+
+    this.updateMetrics(metrics, fixResult);
+
+    if (fixResult.success) {
+      validationState.schemaValidationPassed = true;
+    }
+  }
+
+  private async handleTypeScriptErrors(
+    context: CapabilityContext,
+    metrics: ReturnType<typeof this.createMetricsTracker>,
+    validationState: ReturnType<typeof this.initializeValidationState>,
+  ) {
+    const { sessionId, validation } = context;
+    let tsErrors = validation?.errors ?? [];
+
+    while (tsErrors.length > 0 && metrics.iterationCount < this.maxIterations) {
+      metrics.iterationCount++;
+
+      this.emitStatus(
+        `Fixing TypeScript errors (iteration ${metrics.iterationCount}/${this.maxIterations}, ${tsErrors.length} error${tsErrors.length === 1 ? '' : 's'})...`,
+        context,
       );
 
-      return {
-        success: true,
-        tokensUsed: {
-          input: totalInputTokens,
-          output: totalOutputTokens,
-        },
-        cost: totalCost,
-        toolCalls: totalToolCalls,
-        contextUpdates: {
-          refinementIterations: iterationCount,
-          // Return updated validation state (do NOT mutate context directly)
-          validation: {
-            schemaValidationPassed,
-            typeCheckPassed,
-            errors: remainingErrors,
-          },
-        },
-      };
-    } catch (error) {
-      const errorMessage = `Error fixing capability failed: ${error instanceof Error ? error.message : String(error)}`;
-      this.logger.error({ error, sessionId }, errorMessage);
+      const fixResult = await this.fixTypeScriptErrors(context, tsErrors);
+      this.updateMetrics(metrics, fixResult);
 
-      return {
-        success: false,
-        error: errorMessage,
-        toolCalls: totalToolCalls,
-        contextUpdates: {
-          refinementIterations: iterationCount,
-          // Return updated validation state even on error
-          validation: {
-            schemaValidationPassed,
-            typeCheckPassed,
-            errors: remainingErrors,
-          },
-        },
-      };
+      // Re-validate TypeScript
+      tsErrors = await this.validateTypeScript(sessionId);
+
+      if (tsErrors.length === 0) {
+        this.emitStatus('✅ All TypeScript errors fixed', context);
+        validationState.typeCheckPassed = true;
+        validationState.remainingErrors = [];
+        break;
+      }
+
+      if (metrics.iterationCount >= this.maxIterations) {
+        this.emitStatus(
+          `⚠️ Reached max iterations (${this.maxIterations}). ${tsErrors.length} error${tsErrors.length === 1 ? '' : 's'} remaining.`,
+          context,
+        );
+        validationState.remainingErrors = tsErrors;
+      }
     }
+  }
+
+  private updateMetrics(
+    metrics: ReturnType<typeof this.createMetricsTracker>,
+    fixResult: {
+      tokensUsed?: { input: number; output: number };
+      cost?: number;
+      toolCalls?: number;
+    },
+  ) {
+    metrics.totalInputTokens += fixResult.tokensUsed?.input ?? 0;
+    metrics.totalOutputTokens += fixResult.tokensUsed?.output ?? 0;
+    metrics.totalCost += fixResult.cost ?? 0;
+    metrics.totalToolCalls += fixResult.toolCalls ?? 0;
+  }
+
+  private createSuccessResult(
+    context: CapabilityContext,
+    metrics: ReturnType<typeof this.createMetricsTracker>,
+    validationState: ReturnType<typeof this.initializeValidationState>,
+  ): CapabilityResult {
+    this.logger.info(
+      {
+        sessionId: context.sessionId,
+        iterations: metrics.iterationCount,
+        totalInputTokens: metrics.totalInputTokens,
+        totalOutputTokens: metrics.totalOutputTokens,
+        totalCost: metrics.totalCost,
+        totalToolCalls: metrics.totalToolCalls,
+      },
+      'Error fixing completed',
+    );
+
+    return {
+      success: true,
+      tokensUsed: {
+        input: metrics.totalInputTokens,
+        output: metrics.totalOutputTokens,
+      },
+      cost: metrics.totalCost,
+      toolCalls: metrics.totalToolCalls,
+      contextUpdates: {
+        refinementIterations: metrics.iterationCount,
+        validation: {
+          schemaValidationPassed: validationState.schemaValidationPassed,
+          typeCheckPassed: validationState.typeCheckPassed,
+          errors: validationState.remainingErrors,
+        },
+      },
+    };
+  }
+
+  private createErrorResult(
+    context: CapabilityContext,
+    error: unknown,
+    metrics: ReturnType<typeof this.createMetricsTracker>,
+    validationState: ReturnType<typeof this.initializeValidationState>,
+  ): CapabilityResult {
+    const errorMessage = `Error fixing capability failed: ${error instanceof Error ? error.message : String(error)}`;
+    this.logger.error({ error, sessionId: context.sessionId }, errorMessage);
+
+    return {
+      success: false,
+      error: errorMessage,
+      toolCalls: metrics.totalToolCalls,
+      contextUpdates: {
+        refinementIterations: metrics.iterationCount,
+        validation: {
+          schemaValidationPassed: validationState.schemaValidationPassed,
+          typeCheckPassed: validationState.typeCheckPassed,
+          errors: validationState.remainingErrors,
+        },
+      },
+    };
   }
 
   /**
