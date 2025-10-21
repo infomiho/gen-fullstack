@@ -9,6 +9,7 @@ import { BaseCapability } from './base.capability.js';
 import type { ModelName } from '../services/llm.service.js';
 import { parsePrismaErrors } from '../lib/prisma-error-parser.js';
 import type { TypeScriptError } from '../lib/typescript-error-parser.js';
+import { getErrorMessage } from '../lib/error-utils.js';
 
 /**
  * Schema validation result
@@ -82,7 +83,11 @@ export class ValidationCapability extends BaseCapability {
       this.emitStatus('Installing dependencies...', context);
 
       const { executeCommand } = await import('../services/command.service.js');
-      const installResult = await executeCommand(sessionId, 'npm install', 120000);
+      const installResult = await executeCommand(
+        sessionId,
+        'npm install',
+        BaseCapability.INSTALL_TIMEOUT_MS,
+      );
 
       if (!installResult.success) {
         const errorMsg = `Dependency installation failed: ${installResult.stderr.substring(0, 200)}`;
@@ -153,7 +158,7 @@ export class ValidationCapability extends BaseCapability {
         },
       };
     } catch (error) {
-      const errorMessage = `Validation capability failed: ${error instanceof Error ? error.message : String(error)}`;
+      const errorMessage = `Validation capability failed: ${getErrorMessage(error)}`;
       this.logger.error({ error, sessionId }, errorMessage);
 
       return {
@@ -178,7 +183,11 @@ export class ValidationCapability extends BaseCapability {
     const { executeCommand } = await import('../services/command.service.js');
 
     // First, validate the schema
-    const validateResult = await executeCommand(sessionId, 'npx prisma validate', 60000);
+    const validateResult = await executeCommand(
+      sessionId,
+      'npx prisma validate',
+      BaseCapability.COMMAND_TIMEOUT_MS,
+    );
 
     if (!validateResult.success) {
       const errors = parsePrismaErrors(validateResult.stderr);
@@ -186,7 +195,11 @@ export class ValidationCapability extends BaseCapability {
     }
 
     // If validation succeeds, generate the Prisma client
-    const generateResult = await executeCommand(sessionId, 'npx prisma generate', 60000);
+    const generateResult = await executeCommand(
+      sessionId,
+      'npx prisma generate',
+      BaseCapability.COMMAND_TIMEOUT_MS,
+    );
 
     if (!generateResult.success) {
       const errors = parsePrismaErrors(generateResult.stderr);

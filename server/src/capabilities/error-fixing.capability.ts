@@ -16,6 +16,27 @@ import {
 } from '../lib/typescript-error-parser.js';
 import { tools } from '../tools/index.js';
 import { calculateCost } from '../services/llm.service.js';
+import { getErrorMessage } from '../lib/error-utils.js';
+
+/**
+ * Metrics tracker for error fixing iterations
+ */
+interface MetricsTracker {
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalCost: number;
+  totalToolCalls: number;
+  iterationCount: number;
+}
+
+/**
+ * Validation state during error fixing
+ */
+interface ValidationState {
+  schemaValidationPassed: boolean;
+  typeCheckPassed: boolean;
+  remainingErrors: TypeScriptError[];
+}
 
 /**
  * Error Fixing Capability
@@ -42,8 +63,9 @@ export class ErrorFixingCapability extends BaseCapability {
     } = {},
   ) {
     super(modelName, io);
-    this.maxIterations = options.maxIterations ?? 3;
-    this.toolCallsPerIteration = options.toolCallsPerIteration ?? 5;
+    this.maxIterations = options.maxIterations ?? BaseCapability.DEFAULT_MAX_ITERATIONS;
+    this.toolCallsPerIteration =
+      options.toolCallsPerIteration ?? BaseCapability.TOOL_CALLS_PER_FIX_ITERATION;
   }
 
   getName(): string {
@@ -121,7 +143,7 @@ export class ErrorFixingCapability extends BaseCapability {
     };
   }
 
-  private createMetricsTracker() {
+  private createMetricsTracker(): MetricsTracker {
     return {
       totalInputTokens: 0,
       totalOutputTokens: 0,
@@ -131,7 +153,7 @@ export class ErrorFixingCapability extends BaseCapability {
     };
   }
 
-  private initializeValidationState(validation: CapabilityContext['validation']) {
+  private initializeValidationState(validation: CapabilityContext['validation']): ValidationState {
     return {
       schemaValidationPassed: validation?.schemaValidationPassed ?? true,
       typeCheckPassed: validation?.typeCheckPassed ?? true,
@@ -149,8 +171,8 @@ export class ErrorFixingCapability extends BaseCapability {
 
   private async handleSchemaErrors(
     context: CapabilityContext,
-    metrics: ReturnType<typeof this.createMetricsTracker>,
-    validationState: ReturnType<typeof this.initializeValidationState>,
+    metrics: MetricsTracker,
+    validationState: ValidationState,
   ) {
     this.emitStatus('Fixing Prisma schema errors...', context);
     const fixResult = await this.fixSchemaErrors(context);
@@ -164,8 +186,8 @@ export class ErrorFixingCapability extends BaseCapability {
 
   private async handleTypeScriptErrors(
     context: CapabilityContext,
-    metrics: ReturnType<typeof this.createMetricsTracker>,
-    validationState: ReturnType<typeof this.initializeValidationState>,
+    metrics: MetricsTracker,
+    validationState: ValidationState,
   ) {
     const { sessionId, validation } = context;
     let tsErrors = validation?.errors ?? [];
@@ -202,7 +224,7 @@ export class ErrorFixingCapability extends BaseCapability {
   }
 
   private updateMetrics(
-    metrics: ReturnType<typeof this.createMetricsTracker>,
+    metrics: MetricsTracker,
     fixResult: {
       tokensUsed?: { input: number; output: number };
       cost?: number;
@@ -217,8 +239,8 @@ export class ErrorFixingCapability extends BaseCapability {
 
   private createSuccessResult(
     context: CapabilityContext,
-    metrics: ReturnType<typeof this.createMetricsTracker>,
-    validationState: ReturnType<typeof this.initializeValidationState>,
+    metrics: MetricsTracker,
+    validationState: ValidationState,
   ): CapabilityResult {
     this.logger.info(
       {
@@ -254,10 +276,10 @@ export class ErrorFixingCapability extends BaseCapability {
   private createErrorResult(
     context: CapabilityContext,
     error: unknown,
-    metrics: ReturnType<typeof this.createMetricsTracker>,
-    validationState: ReturnType<typeof this.initializeValidationState>,
+    metrics: MetricsTracker,
+    validationState: ValidationState,
   ): CapabilityResult {
-    const errorMessage = `Error fixing capability failed: ${error instanceof Error ? error.message : String(error)}`;
+    const errorMessage = `Error fixing capability failed: ${getErrorMessage(error)}`;
     this.logger.error({ error, sessionId: context.sessionId }, errorMessage);
 
     return {
@@ -283,7 +305,11 @@ export class ErrorFixingCapability extends BaseCapability {
 
     // Get current schema errors
     const { executeCommand } = await import('../services/command.service.js');
-    const validateResult = await executeCommand(sessionId, 'npx prisma validate', 60000);
+    const validateResult = await executeCommand(
+      sessionId,
+      'npx prisma validate',
+      BaseCapability.COMMAND_TIMEOUT_MS,
+    );
 
     if (validateResult.success) {
       // Schema is already valid
@@ -340,12 +366,16 @@ export class ErrorFixingCapability extends BaseCapability {
     const cost = calculateCost(this.modelName, inputTokens, outputTokens);
 
     // Re-validate
-    const retryResult = await executeCommand(sessionId, 'npx prisma validate', 60000);
+    const retryResult = await executeCommand(
+      sessionId,
+      'npx prisma validate',
+      BaseCapability.COMMAND_TIMEOUT_MS,
+    );
     const success = retryResult.success;
 
     if (success) {
       // Generate Prisma client
-      await executeCommand(sessionId, 'npx prisma generate', 60000);
+      await executeCommand(sessionId, 'npx prisma generate', BaseCapability.COMMAND_TIMEOUT_MS);
       this.emitStatus('✅ Schema validation passed', context);
     } else {
       this.emitStatus('⚠️ Schema still has errors after fix attempt', context);
@@ -444,31 +474,5 @@ Focus on minimal, surgical fixes that preserve all functionality.`,
   private async validateTypeScript(sessionId: string): Promise<TypeScriptError[]> {
     const { validateTypeScript } = await import('../lib/typescript-validator.js');
     return validateTypeScript(sessionId);
-  }
-
-  /**
-   * Create onStepFinish handler for tool call tracking
-   */
-  private createOnStepFinishHandler(sessionId: string) {
-    // biome-ignore lint/suspicious/noExplicitAny: AI SDK types
-    return ({ toolCalls, toolResults }: { toolCalls: any[]; toolResults: any[] }) => {
-      for (const toolCall of toolCalls) {
-        const toolInput =
-          typeof toolCall.input === 'object' && toolCall.input !== null
-            ? (toolCall.input as Record<string, unknown>)
-            : {};
-
-        this.emitToolCall(toolCall.toolCallId, toolCall.toolName, toolInput, sessionId);
-      }
-
-      for (const toolResult of toolResults) {
-        const result =
-          typeof toolResult.output === 'string'
-            ? toolResult.output
-            : JSON.stringify(toolResult.output);
-
-        this.emitToolResult(toolResult.toolCallId, toolResult.toolName, result, sessionId);
-      }
-    };
   }
 }

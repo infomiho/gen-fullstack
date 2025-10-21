@@ -2,6 +2,7 @@ import { generateText } from 'ai';
 import type { CapabilityContext, CapabilityResult } from '../types/index.js';
 import { BaseCapability } from './base.capability.js';
 import { calculateCost } from '../services/llm.service.js';
+import { getErrorMessage } from '../lib/error-utils.js';
 
 /**
  * Planning Capability
@@ -113,7 +114,7 @@ Provide a brief markdown plan with the 4 sections above. Be direct and concise.`
         },
       };
     } catch (error) {
-      const errorMessage = `Planning capability failed: ${error instanceof Error ? error.message : String(error)}`;
+      const errorMessage = `Planning capability failed: ${getErrorMessage(error)}`;
       this.logger.error({ error, sessionId }, errorMessage);
 
       return {

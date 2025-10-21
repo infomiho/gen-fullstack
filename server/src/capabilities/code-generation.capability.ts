@@ -20,6 +20,7 @@ import {
 } from '../config/prompt-snippets.js';
 import { tools } from '../tools/index.js';
 import { calculateCost } from '../services/llm.service.js';
+import { getErrorMessage } from '../lib/error-utils.js';
 
 /**
  * Code Generation Mode
@@ -48,7 +49,7 @@ export class CodeGenerationCapability extends BaseCapability {
     modelName: ModelName,
     io: SocketIOServer<ClientToServerEvents, ServerToClientEvents>,
     mode: CodeGenerationMode = 'naive',
-    maxToolCalls: number = 20,
+    maxToolCalls: number = BaseCapability.DEFAULT_TOOL_CALL_LIMIT,
   ) {
     super(modelName, io);
     this.mode = mode;
@@ -63,11 +64,23 @@ export class CodeGenerationCapability extends BaseCapability {
    * Build system prompt based on generation mode
    */
   private getSystemPrompt(_context: CapabilityContext): string {
-    const basePrompt = SYSTEM_PROMPT_INTRO;
-
     switch (this.mode) {
       case 'naive':
-        return `${basePrompt}
+        return this.getNaiveSystemPrompt();
+      case 'template':
+        return this.getTemplateSystemPrompt();
+      case 'plan-based':
+        return this.getPlanBasedSystemPrompt();
+      case 'template-plan-based':
+        return this.getTemplatePlanBasedSystemPrompt();
+    }
+  }
+
+  /**
+   * Get system prompt for naive mode
+   */
+  private getNaiveSystemPrompt(): string {
+    return `${SYSTEM_PROMPT_INTRO}
 
 ${DOMAIN_SPECIFIC_WARNING}
 
@@ -78,9 +91,13 @@ ${ARCHITECTURE_DESCRIPTION}
 ${FILE_STRUCTURE}
 
 ${getNaiveImplementationSteps()}`;
+  }
 
-      case 'template':
-        return `${basePrompt}
+  /**
+   * Get system prompt for template mode
+   */
+  private getTemplateSystemPrompt(): string {
+    return `${SYSTEM_PROMPT_INTRO}
 
 A complete full-stack template has been pre-loaded into your workspace.
 
@@ -125,9 +142,13 @@ ${FILE_STRUCTURE}
 ${getTemplateImplementationGuidelines()}
 
 IMPORTANT: All configuration is done. DO NOT read package.json, tsconfig.json, vite.config.ts, or other config files. Start implementing features immediately.`;
+  }
 
-      case 'plan-based':
-        return `${basePrompt}
+  /**
+   * Get system prompt for plan-based mode
+   */
+  private getPlanBasedSystemPrompt(): string {
+    return `${SYSTEM_PROMPT_INTRO}
 
 You will be implementing an architectural plan that has already been created.
 
@@ -140,9 +161,13 @@ ${ARCHITECTURE_DESCRIPTION}
 ${FILE_STRUCTURE}
 
 ${getPlanFirstImplementationGuidelines()}`;
+  }
 
-      case 'template-plan-based':
-        return `${basePrompt}
+  /**
+   * Get system prompt for template-plan-based mode
+   */
+  private getTemplatePlanBasedSystemPrompt(): string {
+    return `${SYSTEM_PROMPT_INTRO}
 
 A complete full-stack template has been pre-loaded into your workspace.
 You will be implementing an architectural plan that has already been created.
@@ -182,7 +207,6 @@ ${FILE_STRUCTURE}
 ${getTemplateImplementationGuidelines()}
 
 IMPORTANT: All configuration is done. DO NOT read package.json, tsconfig.json, vite.config.ts, or other config files. Start implementing features immediately according to the plan.`;
-    }
   }
 
   /**
@@ -285,7 +309,7 @@ Implement the application following this plan exactly. Create all files as speci
         toolCalls: toolCallCount,
       };
     } catch (error) {
-      const errorMessage = `Code generation capability failed: ${error instanceof Error ? error.message : String(error)}`;
+      const errorMessage = `Code generation capability failed: ${getErrorMessage(error)}`;
       this.logger.error({ error, sessionId, mode: this.mode }, errorMessage);
 
       return {
@@ -294,32 +318,5 @@ Implement the application following this plan exactly. Create all files as speci
         toolCalls: 0,
       };
     }
-  }
-
-  /**
-   * Create an onStepFinish handler for streamText calls
-   */
-  private createOnStepFinishHandler(sessionId: string) {
-    // biome-ignore lint/suspicious/noExplicitAny: AI SDK onStepFinish callback types are not strictly typed
-    return ({ toolCalls, toolResults }: { toolCalls: any[]; toolResults: any[] }) => {
-      // Emit tool calls with all data
-      for (const toolCall of toolCalls) {
-        const toolInput =
-          typeof toolCall.input === 'object' && toolCall.input !== null
-            ? (toolCall.input as Record<string, unknown>)
-            : {};
-
-        this.emitToolCall(toolCall.toolCallId, toolCall.toolName, toolInput, sessionId);
-      }
-
-      for (const toolResult of toolResults) {
-        const result =
-          typeof toolResult.output === 'string'
-            ? toolResult.output
-            : JSON.stringify(toolResult.output);
-
-        this.emitToolResult(toolResult.toolCallId, toolResult.toolName, result, sessionId);
-      }
-    };
   }
 }

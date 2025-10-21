@@ -9,6 +9,8 @@ import type {
 import { createLogger } from '../lib/logger.js';
 import { getModel, type ModelName } from '../services/llm.service.js';
 import { databaseService } from '../services/database.service.js';
+import { toToolInput, toToolResult } from '../lib/tool-utils.js';
+import { randomUUID } from 'node:crypto';
 
 /**
  * Base class for all capabilities in the composable generation system
@@ -23,6 +25,13 @@ import { databaseService } from '../services/database.service.js';
  * - Updates context for next capability
  */
 export abstract class BaseCapability {
+  // Constants
+  protected static readonly DEFAULT_TOOL_CALL_LIMIT = 20;
+  protected static readonly DEFAULT_MAX_ITERATIONS = 3;
+  protected static readonly TOOL_CALLS_PER_FIX_ITERATION = 5;
+  protected static readonly COMMAND_TIMEOUT_MS = 60000; // 60 seconds
+  protected static readonly INSTALL_TIMEOUT_MS = 120000; // 2 minutes
+
   protected model: LanguageModel;
   protected modelName: ModelName;
   protected io: SocketIOServer<ClientToServerEvents, ServerToClientEvents>;
@@ -48,6 +57,7 @@ export abstract class BaseCapability {
    *
    * @param context - Current generation context
    * @returns Result with success status, token usage, and context updates
+   * @mutates context - Updates are merged by orchestrator via contextUpdates in result
    */
   abstract execute(context: CapabilityContext): Promise<CapabilityResult>;
 
@@ -83,10 +93,10 @@ export abstract class BaseCapability {
   private currentMessageRole: 'user' | 'assistant' | 'system' | null = null;
 
   /**
-   * Generate a unique message ID
+   * Generate a unique message ID using crypto-safe UUID
    */
   private generateMessageId(): string {
-    return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    return `msg-${randomUUID()}`;
   }
 
   // ============================================================================
@@ -114,20 +124,18 @@ export abstract class BaseCapability {
       this.currentMessageRole = role;
     }
 
-    if (this.currentMessageId) {
-      this.io.to(sessionId).emit('llm_message', {
-        id: this.currentMessageId,
-        role,
-        content,
-        timestamp,
-      });
-    }
+    if (!this.currentMessageId) return;
 
-    if (this.currentMessageId) {
-      databaseService
-        .upsertMessage(sessionId, this.currentMessageId, role, content, new Date(timestamp))
-        .catch((err) => this.logger.error({ err, sessionId }, 'Failed to upsert message'));
-    }
+    this.io.to(sessionId).emit('llm_message', {
+      id: this.currentMessageId,
+      role,
+      content,
+      timestamp,
+    });
+
+    databaseService
+      .upsertMessage(sessionId, this.currentMessageId, role, content, new Date(timestamp))
+      .catch((err) => this.logger.error({ err, sessionId }, 'Failed to upsert message'));
   }
 
   /**
@@ -226,5 +234,29 @@ export abstract class BaseCapability {
    */
   protected emitStatus(message: string, context: CapabilityContext): void {
     this.emitMessage('system', message, context.sessionId);
+  }
+
+  /**
+   * Create an onStepFinish handler for streamText calls
+   * Handles tool call and result emission with proper type conversion
+   *
+   * @param sessionId - Session identifier
+   * @returns Handler function for AI SDK onStepFinish callback
+   */
+  protected createOnStepFinishHandler(sessionId: string) {
+    // biome-ignore lint/suspicious/noExplicitAny: AI SDK onStepFinish callback types are not strictly typed
+    return ({ toolCalls, toolResults }: { toolCalls: any[]; toolResults: any[] }) => {
+      // Emit tool calls with all data
+      for (const toolCall of toolCalls) {
+        const toolInput = toToolInput(toolCall.input);
+        this.emitToolCall(toolCall.toolCallId, toolCall.toolName, toolInput, sessionId);
+      }
+
+      // Emit tool results
+      for (const toolResult of toolResults) {
+        const result = toToolResult(toolResult.output);
+        this.emitToolResult(toolResult.toolCallId, toolResult.toolName, result, sessionId);
+      }
+    };
   }
 }

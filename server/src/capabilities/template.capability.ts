@@ -8,6 +8,7 @@ import type { Server as SocketIOServer } from 'socket.io';
 import { BaseCapability } from './base.capability.js';
 import type { ModelName } from '../services/llm.service.js';
 import { strategyLogger } from '../lib/logger.js';
+import { getErrorMessage } from '../lib/error-utils.js';
 
 /**
  * Template Capability
@@ -54,7 +55,7 @@ export class TemplateCapability extends BaseCapability {
       try {
         fileCount = await copyTemplateToSandbox(sessionId, this.templateName);
       } catch (error) {
-        const errorMessage = `Failed to copy template '${this.templateName}': ${error instanceof Error ? error.message : String(error)}`;
+        const errorMessage = `Failed to copy template '${this.templateName}': ${getErrorMessage(error)}`;
         this.logger.error({ error, sessionId, templateName: this.templateName }, errorMessage);
 
         return {
@@ -123,7 +124,7 @@ export class TemplateCapability extends BaseCapability {
         },
       };
     } catch (error) {
-      const errorMessage = `Template capability failed: ${error instanceof Error ? error.message : String(error)}`;
+      const errorMessage = `Template capability failed: ${getErrorMessage(error)}`;
       this.logger.error({ error, sessionId, templateName: this.templateName }, errorMessage);
 
       return {
