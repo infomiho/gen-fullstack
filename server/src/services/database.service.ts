@@ -40,12 +40,19 @@ class DatabaseService {
   constructor() {
     // Determine database path
     const env = getEnv();
-    const dbPath = env.DATABASE_URL || path.join(__dirname, '../../data/gen-fullstack.db');
 
-    // Ensure data directory exists
-    const dbDir = path.dirname(dbPath);
-    if (!fs.existsSync(dbDir)) {
-      fs.mkdirSync(dbDir, { recursive: true });
+    // Use in-memory database for tests to avoid polluting production DB
+    const isTest = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
+    const dbPath = isTest
+      ? ':memory:'
+      : env.DATABASE_URL || path.join(__dirname, '../../data/gen-fullstack.db');
+
+    // Ensure data directory exists (skip for in-memory DB)
+    if (dbPath !== ':memory:') {
+      const dbDir = path.dirname(dbPath);
+      if (!fs.existsSync(dbDir)) {
+        fs.mkdirSync(dbDir, { recursive: true });
+      }
     }
 
     // Initialize SQLite connection
@@ -54,7 +61,7 @@ class DatabaseService {
     this.sqlite.pragma('foreign_keys = ON'); // Enable foreign key constraints for cascade deletes
     this.db = drizzle(this.sqlite);
 
-    databaseLogger.info({ dbPath }, 'Connected to SQLite database');
+    databaseLogger.info({ dbPath, isTest }, 'Connected to SQLite database');
   }
 
   /**
