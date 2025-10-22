@@ -155,13 +155,13 @@ export interface FileUpdate {
 // ============================================================================
 
 export type AppStatus =
-  | 'idle'
-  | 'creating'
-  | 'installing'
-  | 'starting'
-  | 'running'
-  | 'failed'
-  | 'stopped';
+  | 'creating' // Container being created
+  | 'installing' // Installing dependencies (npm install + Prisma)
+  | 'starting' // Starting dev servers
+  | 'ready' // Container created and ready for commands (validation, etc.)
+  | 'running' // Dev servers running
+  | 'failed' // Validation or execution failed
+  | 'stopped'; // Container destroyed
 
 export interface AppInfo {
   sessionId: string;

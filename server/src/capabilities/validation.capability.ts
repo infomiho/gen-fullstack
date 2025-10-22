@@ -9,7 +9,7 @@ import { BaseCapability } from './base.capability.js';
 import type { ModelName } from '../services/llm.service.js';
 import { parsePrismaErrors } from '../lib/prisma-error-parser.js';
 import type { TypeScriptError } from '../lib/typescript-error-parser.js';
-import { getErrorMessage } from '../lib/error-utils.js';
+import { getErrorMessage, truncateErrorMessage } from '../lib/error-utils.js';
 
 /**
  * Schema validation result
@@ -79,19 +79,44 @@ export class ValidationCapability extends BaseCapability {
     const errors: TypeScriptError[] = [];
 
     try {
+      // Import Docker service for container execution
+      const { dockerService } = await import('../services/docker.service.js');
+
+      // Verify container exists (should be created by orchestrator)
+      if (!dockerService.hasContainer(sessionId)) {
+        throw new Error(
+          'Docker container not found. Container should be created before validation.',
+        );
+      }
+
       // ==================== DEPENDENCY INSTALLATION ====================
       this.emitStatus('Installing dependencies...', context);
 
-      const { executeCommand } = await import('../services/command.service.js');
-      const installResult = await executeCommand(
+      const installResult = await dockerService.executeCommand(
         sessionId,
         'npm install',
         BaseCapability.INSTALL_TIMEOUT_MS,
       );
 
       if (!installResult.success) {
-        const errorMsg = `Dependency installation failed: ${installResult.stderr.substring(0, 200)}`;
+        const errorMsg = `Dependency installation failed: ${truncateErrorMessage(installResult.stderr)}`;
         this.emitStatus(`⚠️ ${errorMsg}`, context);
+
+        // Send ERROR event to state machine
+        try {
+          const containerInfo = dockerService
+            .listContainers()
+            .find((c) => c.sessionId === sessionId);
+          if (containerInfo?.actor) {
+            containerInfo.actor.send({ type: 'ERROR', error: errorMsg } as any); // XState v5 type inference limitation
+          }
+        } catch (sendError) {
+          // Log but don't fail validation - error event sending is best-effort
+          this.logger.warn(
+            { error: sendError, sessionId },
+            'Failed to send ERROR event to state machine',
+          );
+        }
 
         return {
           success: false,
@@ -113,7 +138,7 @@ export class ValidationCapability extends BaseCapability {
       if (this.validateSchema) {
         this.emitStatus('Validating Prisma schema...', context);
 
-        const schemaResult = await this.validatePrismaSchemaInternal(sessionId);
+        const schemaResult = await this.validatePrismaSchemaInternal(sessionId, dockerService);
         schemaValidationPassed = schemaResult.valid;
 
         if (!schemaResult.valid) {
@@ -131,7 +156,7 @@ export class ValidationCapability extends BaseCapability {
       if (this.validateTypeScript) {
         this.emitStatus('Type checking...', context);
 
-        const tsErrors = await this.validateTypeScriptInternal(sessionId);
+        const tsErrors = await this.validateTypeScriptInternal(sessionId, dockerService);
         typeCheckPassed = tsErrors.length === 0;
 
         if (tsErrors.length > 0) {
@@ -145,6 +170,7 @@ export class ValidationCapability extends BaseCapability {
         }
       }
 
+      // Container stays in 'ready' status after validation
       // Update context with validation results
       return {
         success: true,
@@ -160,6 +186,25 @@ export class ValidationCapability extends BaseCapability {
     } catch (error) {
       const errorMessage = `Validation capability failed: ${getErrorMessage(error)}`;
       this.logger.error({ error, sessionId }, errorMessage);
+
+      // Send ERROR event to state machine
+      try {
+        const { dockerService } = await import('../services/docker.service.js');
+        if (dockerService.hasContainer(sessionId)) {
+          const containerInfo = dockerService
+            .listContainers()
+            .find((c) => c.sessionId === sessionId);
+          if (containerInfo?.actor) {
+            containerInfo.actor.send({ type: 'ERROR', error: errorMessage } as any); // XState v5 type inference limitation
+          }
+        }
+      } catch (sendError) {
+        // Log but don't fail validation - error event sending is best-effort
+        this.logger.warn(
+          { error: sendError, sessionId },
+          'Failed to send ERROR event to state machine',
+        );
+      }
 
       return {
         success: false,
@@ -177,16 +222,17 @@ export class ValidationCapability extends BaseCapability {
   }
 
   /**
-   * Validate Prisma schema and generate client
+   * Validate Prisma schema and generate client (using Docker)
    */
-  private async validatePrismaSchemaInternal(sessionId: string): Promise<SchemaValidationResult> {
-    const { executeCommand } = await import('../services/command.service.js');
-
+  private async validatePrismaSchemaInternal(
+    sessionId: string,
+    dockerService: typeof import('../services/docker.service.js').dockerService,
+  ): Promise<SchemaValidationResult> {
     // First, validate the schema
-    const validateResult = await executeCommand(
+    const validateResult = await dockerService.executeCommand(
       sessionId,
       'npx prisma validate',
-      BaseCapability.COMMAND_TIMEOUT_MS,
+      BaseCapability.VALIDATION_TIMEOUT_MS,
     );
 
     if (!validateResult.success) {
@@ -195,10 +241,10 @@ export class ValidationCapability extends BaseCapability {
     }
 
     // If validation succeeds, generate the Prisma client
-    const generateResult = await executeCommand(
+    const generateResult = await dockerService.executeCommand(
       sessionId,
       'npx prisma generate',
-      BaseCapability.COMMAND_TIMEOUT_MS,
+      BaseCapability.VALIDATION_TIMEOUT_MS,
     );
 
     if (!generateResult.success) {
@@ -210,10 +256,45 @@ export class ValidationCapability extends BaseCapability {
   }
 
   /**
-   * Validate TypeScript in both client and server workspaces
+   * Validate TypeScript in both client and server workspaces (using Docker)
    */
-  private async validateTypeScriptInternal(sessionId: string): Promise<TypeScriptError[]> {
-    const { validateTypeScript } = await import('../lib/typescript-validator.js');
-    return validateTypeScript(sessionId);
+  private async validateTypeScriptInternal(
+    sessionId: string,
+    dockerService: typeof import('../services/docker.service.js').dockerService,
+  ): Promise<TypeScriptError[]> {
+    const { parseTypeScriptErrors } = await import('../lib/typescript-error-parser.js');
+    const errors: TypeScriptError[] = [];
+
+    // Validate server TypeScript
+    const serverResult = await dockerService.executeCommand(
+      sessionId,
+      'npx tsc --noEmit --project server/tsconfig.json',
+      BaseCapability.TYPECHECK_TIMEOUT_MS,
+    );
+
+    if (!serverResult.success) {
+      const serverErrors = parseTypeScriptErrors(
+        serverResult.stdout + '\n' + serverResult.stderr,
+        'server',
+      );
+      errors.push(...serverErrors);
+    }
+
+    // Validate client TypeScript
+    const clientResult = await dockerService.executeCommand(
+      sessionId,
+      'npx tsc --noEmit --project client/tsconfig.json',
+      BaseCapability.TYPECHECK_TIMEOUT_MS,
+    );
+
+    if (!clientResult.success) {
+      const clientErrors = parseTypeScriptErrors(
+        clientResult.stdout + '\n' + clientResult.stderr,
+        'client',
+      );
+      errors.push(...clientErrors);
+    }
+
+    return errors;
   }
 }

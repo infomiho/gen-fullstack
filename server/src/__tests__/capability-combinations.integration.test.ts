@@ -38,6 +38,37 @@ vi.mock('../services/command.service.js', () => ({
     .mockReturnValue(['npm', 'npx', 'node', 'ls', 'cat', 'mkdir', 'rm', 'cp', 'mv']),
 }));
 
+// Mock the Docker service to avoid creating real containers
+vi.mock('../services/docker.service.js', () => ({
+  dockerService: {
+    createContainer: vi.fn().mockResolvedValue({
+      sessionId: 'test-session',
+      status: 'ready',
+      clientPort: 5001,
+      serverPort: 5002,
+      clientUrl: 'http://localhost:5001',
+      serverUrl: 'http://localhost:5002',
+      containerId: 'mock-container-id',
+    }),
+    hasContainer: vi.fn().mockReturnValue(true),
+    executeCommand: vi.fn().mockResolvedValue({
+      success: true,
+      stdout: '',
+      stderr: '',
+      exitCode: 0,
+      executionTime: 100,
+    }),
+    destroyContainer: vi.fn().mockResolvedValue(undefined),
+    updateStatus: vi.fn().mockResolvedValue(undefined),
+    getStatus: vi.fn().mockReturnValue({
+      sessionId: 'test-session',
+      status: 'ready',
+      clientPort: 5001,
+      serverPort: 5002,
+    }),
+  },
+}));
+
 // Mock AI SDK to avoid real LLM calls
 vi.mock('ai', async () => {
   const actual = await vi.importActual<typeof import('ai')>('ai');

@@ -29,8 +29,12 @@ export abstract class BaseCapability {
   protected static readonly DEFAULT_TOOL_CALL_LIMIT = 20;
   protected static readonly DEFAULT_MAX_ITERATIONS = 3;
   protected static readonly TOOL_CALLS_PER_FIX_ITERATION = 5;
-  protected static readonly COMMAND_TIMEOUT_MS = 60000; // 60 seconds
-  protected static readonly INSTALL_TIMEOUT_MS = 120000; // 2 minutes
+
+  // Command timeout constants (in milliseconds)
+  protected static readonly INSTALL_TIMEOUT_MS = 120_000; // 2 minutes - npm install can be slow
+  protected static readonly VALIDATION_TIMEOUT_MS = 90_000; // 1.5 minutes - Prisma schema validation
+  protected static readonly TYPECHECK_TIMEOUT_MS = 120_000; // 2 minutes - TypeScript can be slow on large projects
+  protected static readonly COMMAND_TIMEOUT_MS = 60_000; // 1 minute - default for other commands
 
   protected model: LanguageModel;
   protected modelName: ModelName;

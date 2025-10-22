@@ -8,7 +8,7 @@ import { getEnv } from './config/env.js';
 import { websocketLogger } from './lib/logger.js';
 import { databaseService } from './services/database.service.js';
 import { getSandboxPath, writeFile } from './services/filesystem.service.js';
-import { processService } from './services/process.service.js';
+import { dockerService } from './services/docker.service.js';
 import { CapabilityOrchestrator } from './orchestrator/capability-orchestrator.js';
 import type { ClientToServerEvents, ServerToClientEvents } from './types/index.js';
 import {
@@ -108,20 +108,23 @@ export function setupWebSocket(httpServer: HTTPServer) {
     }
   }
 
-  // Forward process service events to specific session rooms
-  processService.on('app_status', (appInfo: AppInfo) => {
-    if (appInfo.sessionId) {
-      io.to(appInfo.sessionId).emit('app_status', appInfo);
+  // Forward Docker service events to specific session rooms
+  dockerService.on('status_change', (data: Partial<AppInfo>) => {
+    if (data.sessionId && data.status) {
+      const status = dockerService.getStatus(data.sessionId);
+      if (status) {
+        io.to(data.sessionId).emit('app_status', status);
+      }
     }
   });
 
-  processService.on('app_log', (log: AppLog) => {
+  dockerService.on('log', (log: AppLog) => {
     if (log.sessionId) {
       io.to(log.sessionId).emit('app_log', log);
     }
   });
 
-  processService.on('build_event', (event: BuildEvent) => {
+  dockerService.on('build_event', (event: BuildEvent) => {
     if (event.sessionId) {
       io.to(event.sessionId).emit('build_event', event);
     }
@@ -215,20 +218,22 @@ export function setupWebSocket(httpServer: HTTPServer) {
         const { sessionId } = AppActionSchema.parse(payload);
         websocketLogger.info({ sessionId }, 'Starting app');
 
-        const dockerAvailable = await processService.checkDockerAvailability();
-        if (!dockerAvailable) {
-          socket.emit('error', 'Docker is not available. Cannot start app.');
-          socket.emit('app_status', {
-            sessionId,
-            status: 'failed',
-            error: 'Docker not available',
-          });
+        const status = dockerService.getStatus(sessionId);
+
+        // If no container exists, create one
+        if (!status) {
+          websocketLogger.info({ sessionId }, 'No container found, creating new one');
+          const workingDir = getSandboxPath(sessionId);
+          await dockerService.createContainer(sessionId, workingDir);
+        } else if (status.status !== 'ready') {
+          // Container exists but is not in ready state
+          socket.emit('error', `Cannot start app in state: ${status.status}`);
           return;
         }
 
-        const workingDir = getSandboxPath(sessionId);
-
-        await processService.startApp(sessionId, workingDir);
+        // Install dependencies (if not already installed) and start dev servers
+        await dockerService.installDependencies(sessionId);
+        await dockerService.startDevServer(sessionId);
       } catch (error) {
         websocketLogger.error({ error }, 'Failed to start app');
         socket.emit('error', sanitizeError(error));
@@ -239,7 +244,15 @@ export function setupWebSocket(httpServer: HTTPServer) {
       try {
         const { sessionId } = AppActionSchema.parse(payload);
         websocketLogger.info({ sessionId }, 'Stopping app');
-        await processService.stopApp(sessionId);
+
+        const status = dockerService.getStatus(sessionId);
+        if (!status) {
+          socket.emit('error', 'No container found.');
+          return;
+        }
+
+        // Stop dev servers but keep container in ready state
+        await dockerService.stopDevServer(sessionId);
       } catch (error) {
         websocketLogger.error({ error }, 'Failed to stop app');
         socket.emit('error', sanitizeError(error));
@@ -250,7 +263,21 @@ export function setupWebSocket(httpServer: HTTPServer) {
       try {
         const { sessionId } = AppActionSchema.parse(payload);
         websocketLogger.info({ sessionId }, 'Restarting app');
-        await processService.restartApp(sessionId);
+
+        const status = dockerService.getStatus(sessionId);
+        if (!status) {
+          socket.emit('error', 'No container found. Please generate an app first.');
+          return;
+        }
+
+        // Stop dev server (if running) and restart it
+        if (status.status === 'running') {
+          await dockerService.stopDevServer(sessionId);
+        }
+
+        // Container should now be in 'ready' state with dependencies installed
+        // Just start the dev servers again
+        await dockerService.startDevServer(sessionId);
       } catch (error) {
         websocketLogger.error({ error }, 'Failed to restart app');
         socket.emit('error', sanitizeError(error));
@@ -260,23 +287,14 @@ export function setupWebSocket(httpServer: HTTPServer) {
     socket.on('get_app_status', (payload) => {
       try {
         const { sessionId } = AppActionSchema.parse(payload);
-        const appStatus = processService.getAppStatus(sessionId);
+        const appStatus = dockerService.getStatus(sessionId);
         if (appStatus) {
-          socket.emit('app_status', {
-            sessionId: appStatus.sessionId,
-            status: appStatus.status,
-            clientPort: appStatus.clientPort,
-            serverPort: appStatus.serverPort,
-            clientUrl: appStatus.clientUrl,
-            serverUrl: appStatus.serverUrl,
-            error: appStatus.error,
-            containerId: appStatus.containerId,
-          });
+          socket.emit('app_status', appStatus);
         } else {
-          // No app running for this session
+          // No container for this session
           socket.emit('app_status', {
             sessionId,
-            status: 'idle',
+            status: 'stopped',
           });
         }
       } catch (error) {

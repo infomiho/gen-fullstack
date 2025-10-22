@@ -101,8 +101,16 @@ export class CapabilityOrchestrator {
     );
 
     try {
-      // Initialize sandbox and build pipeline
+      // 1. Initialize sandbox on host filesystem
       const sandboxPath = await initializeSandbox(sessionId);
+
+      // 2. Create Docker container immediately (execution sandbox)
+      this.logger.info({ sessionId }, 'Creating Docker container');
+      const { dockerService } = await import('../services/docker.service.js');
+      await dockerService.createContainer(sessionId, sandboxPath);
+      this.logger.info({ sessionId }, 'Docker container created with status: ready');
+
+      // 3. Build capability pipeline
       const capabilities = this.buildPipeline(config);
 
       this.logger.info(
@@ -114,7 +122,7 @@ export class CapabilityOrchestrator {
         'Built capability pipeline',
       );
 
-      // Initialize and execute
+      // 4. Initialize context and execute pipeline
       const context = this.initializeContext(sessionId, prompt, sandboxPath);
       const executionResult = await this.executePipeline(capabilities, context);
 
@@ -122,9 +130,19 @@ export class CapabilityOrchestrator {
         return executionResult; // Early return on failure
       }
 
-      // Success path
+      // Success path - container stays in 'ready' status
       return await this.finalizeGeneration(context);
     } catch (error) {
+      // Cleanup container on error
+      try {
+        const { dockerService } = await import('../services/docker.service.js');
+        if (dockerService.hasContainer(sessionId)) {
+          await dockerService.destroyContainer(sessionId);
+        }
+      } catch (cleanupError) {
+        this.logger.error({ cleanupError, sessionId }, 'Failed to cleanup container after error');
+      }
+
       return await this.handleGenerationError(error, sessionId);
     }
   }
