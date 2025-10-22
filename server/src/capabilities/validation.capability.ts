@@ -222,6 +222,33 @@ export class ValidationCapability extends BaseCapability {
   }
 
   /**
+   * Execute Prisma command with error parsing
+   *
+   * @param sessionId - Session ID for the container
+   * @param command - Prisma command to execute (e.g., 'npx prisma validate')
+   * @param dockerService - Docker service instance
+   * @returns Result with success flag and parsed errors
+   */
+  private async executePrismaCommand(
+    sessionId: string,
+    command: string,
+    dockerService: typeof import('../services/docker.service.js').dockerService,
+  ): Promise<{ success: boolean; errors: string[] }> {
+    const result = await dockerService.executeCommand(
+      sessionId,
+      command,
+      BaseCapability.VALIDATION_TIMEOUT_MS,
+    );
+
+    if (!result.success) {
+      const errors = parsePrismaErrors(result.stderr);
+      return { success: false, errors };
+    }
+
+    return { success: true, errors: [] };
+  }
+
+  /**
    * Validate Prisma schema and generate client (using Docker)
    */
   private async validatePrismaSchemaInternal(
@@ -229,30 +256,56 @@ export class ValidationCapability extends BaseCapability {
     dockerService: typeof import('../services/docker.service.js').dockerService,
   ): Promise<SchemaValidationResult> {
     // First, validate the schema
-    const validateResult = await dockerService.executeCommand(
+    const validateResult = await this.executePrismaCommand(
       sessionId,
       'npx prisma validate',
-      BaseCapability.VALIDATION_TIMEOUT_MS,
+      dockerService,
     );
 
     if (!validateResult.success) {
-      const errors = parsePrismaErrors(validateResult.stderr);
-      return { valid: false, errors };
+      return { valid: false, errors: validateResult.errors };
     }
 
     // If validation succeeds, generate the Prisma client
-    const generateResult = await dockerService.executeCommand(
+    const generateResult = await this.executePrismaCommand(
       sessionId,
       'npx prisma generate',
-      BaseCapability.VALIDATION_TIMEOUT_MS,
+      dockerService,
     );
 
     if (!generateResult.success) {
-      const errors = parsePrismaErrors(generateResult.stderr);
-      return { valid: false, errors };
+      return { valid: false, errors: generateResult.errors };
     }
 
     return { valid: true, errors: [] };
+  }
+
+  /**
+   * Execute TypeScript type check with error parsing
+   *
+   * @param sessionId - Session ID for the container
+   * @param project - Project to type check ('client' or 'server')
+   * @param dockerService - Docker service instance
+   * @returns Array of parsed TypeScript errors
+   */
+  private async executeTypeCheck(
+    sessionId: string,
+    project: 'client' | 'server',
+    dockerService: typeof import('../services/docker.service.js').dockerService,
+  ): Promise<TypeScriptError[]> {
+    const { parseTypeScriptErrors } = await import('../lib/typescript-error-parser.js');
+
+    const result = await dockerService.executeCommand(
+      sessionId,
+      `npx tsc --noEmit --project ${project}/tsconfig.json`,
+      BaseCapability.TYPECHECK_TIMEOUT_MS,
+    );
+
+    if (!result.success) {
+      return parseTypeScriptErrors(result.stdout + '\n' + result.stderr, project);
+    }
+
+    return [];
   }
 
   /**
@@ -262,38 +315,15 @@ export class ValidationCapability extends BaseCapability {
     sessionId: string,
     dockerService: typeof import('../services/docker.service.js').dockerService,
   ): Promise<TypeScriptError[]> {
-    const { parseTypeScriptErrors } = await import('../lib/typescript-error-parser.js');
     const errors: TypeScriptError[] = [];
 
     // Validate server TypeScript
-    const serverResult = await dockerService.executeCommand(
-      sessionId,
-      'npx tsc --noEmit --project server/tsconfig.json',
-      BaseCapability.TYPECHECK_TIMEOUT_MS,
-    );
-
-    if (!serverResult.success) {
-      const serverErrors = parseTypeScriptErrors(
-        serverResult.stdout + '\n' + serverResult.stderr,
-        'server',
-      );
-      errors.push(...serverErrors);
-    }
+    const serverErrors = await this.executeTypeCheck(sessionId, 'server', dockerService);
+    errors.push(...serverErrors);
 
     // Validate client TypeScript
-    const clientResult = await dockerService.executeCommand(
-      sessionId,
-      'npx tsc --noEmit --project client/tsconfig.json',
-      BaseCapability.TYPECHECK_TIMEOUT_MS,
-    );
-
-    if (!clientResult.success) {
-      const clientErrors = parseTypeScriptErrors(
-        clientResult.stdout + '\n' + clientResult.stderr,
-        'client',
-      );
-      errors.push(...clientErrors);
-    }
+    const clientErrors = await this.executeTypeCheck(sessionId, 'client', dockerService);
+    errors.push(...clientErrors);
 
     return errors;
   }
