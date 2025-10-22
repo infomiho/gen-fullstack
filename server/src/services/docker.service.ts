@@ -1114,17 +1114,18 @@ export class DockerService extends EventEmitter {
 
       // Physical Docker container cleanup
       if (containerInfo.container) {
+        const container = containerInfo.container;
         await retryOnConflict(
           () =>
             Promise.race([
-              containerInfo.container!.stop(),
+              container.stop(),
               new Promise((resolve) => setTimeout(resolve, TIMEOUTS.stop)),
             ]),
           `Stop container ${sessionId}`,
         );
 
         await retryOnConflict(
-          () => containerInfo.container!.remove({ force: true }),
+          () => container.remove({ force: true }),
           `Remove container ${sessionId}`,
         );
       }
@@ -1137,8 +1138,9 @@ export class DockerService extends EventEmitter {
       dockerLogger.error({ error, sessionId }, 'Failed to destroy container');
       try {
         if (containerInfo.container) {
+          const container = containerInfo.container;
           await retryOnConflict(
-            () => containerInfo.container!.remove({ force: true }),
+            () => container.remove({ force: true }),
             `Force remove container ${sessionId}`,
           );
           this.containers.delete(sessionId);
