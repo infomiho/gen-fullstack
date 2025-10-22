@@ -39,6 +39,10 @@ export function getToolSummary(
       const { command } = args as { command?: string };
       return command || 'unknown command';
     }
+    case 'requestBlock': {
+      const { blockId } = args as { blockId?: string };
+      return `Asking for ${blockId || 'unknown block'}`;
+    }
     default:
       return 'Click for details';
   }

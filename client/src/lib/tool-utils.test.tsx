@@ -48,6 +48,16 @@ describe('tool-utils', () => {
       expect(result).toBe('unknown command');
     });
 
+    it('formats requestBlock summary', () => {
+      const result = getToolSummary('requestBlock', { blockId: 'auth-password' });
+      expect(result).toBe('Asking for auth-password');
+    });
+
+    it('formats requestBlock with unknown block', () => {
+      const result = getToolSummary('requestBlock', {});
+      expect(result).toBe('Asking for unknown block');
+    });
+
     it('returns default for unknown tool', () => {
       const result = getToolSummary('unknownTool', { foo: 'bar' });
       expect(result).toBe('Click for details');
