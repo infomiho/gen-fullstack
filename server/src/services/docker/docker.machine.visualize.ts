@@ -9,6 +9,7 @@
  * Run with: npx tsx src/services/docker.machine.visualize.ts
  */
 
+import type { Container } from 'dockerode';
 import { createActor } from 'xstate';
 import {
   stateToAppStatus,
@@ -58,7 +59,7 @@ const mockImplementations = {
       log('green', 'ACTOR', 'Container created successfully');
       return {
         containerId: 'mock-container-id',
-        container: {} as any,
+        container: {} as Container,
         clientPort: 5001,
         serverPort: 5002,
       };
@@ -101,11 +102,11 @@ const mockImplementations = {
 // ============================================================================
 
 function printMachineInfo() {
-  console.log('\n' + '='.repeat(80));
-  console.log(colors.bright + colors.cyan + 'Docker Container State Machine' + colors.reset);
-  console.log('='.repeat(80) + '\n');
+  console.log(`\n${'='.repeat(80)}`);
+  console.log(`${colors.bright + colors.cyan}Docker Container State Machine${colors.reset}`);
+  console.log(`${'='.repeat(80)}\n`);
 
-  console.log(colors.bright + 'States:' + colors.reset);
+  console.log(`${colors.bright}States:${colors.reset}`);
   const states = [
     { name: 'idle', desc: 'Initial state, waiting for CREATE event' },
     { name: 'creating', desc: 'Building image, creating container' },
@@ -126,7 +127,7 @@ function printMachineInfo() {
     );
   });
 
-  console.log('\n' + colors.bright + 'Events:' + colors.reset);
+  console.log(`\n${colors.bright}Events:${colors.reset}`);
   const events = [
     { name: 'CREATE', desc: 'Start container creation' },
     { name: 'INSTALL_DEPS', desc: 'Begin dependency installation' },
@@ -144,7 +145,7 @@ function printMachineInfo() {
     );
   });
 
-  console.log('\n' + colors.bright + 'State Flow (Happy Path):' + colors.reset);
+  console.log(`\n${colors.bright}State Flow (Happy Path):${colors.reset}`);
   console.log(
     `  ${colors.green}idle${colors.reset} → ${colors.green}creating${colors.reset} → ${colors.green}ready${colors.reset} → ${colors.green}installing${colors.reset} → ${colors.green}starting${colors.reset} → ${colors.green}waitingForVite${colors.reset} → ${colors.green}checkingHttpReady${colors.reset} → ${colors.green}running${colors.reset}`,
   );
@@ -154,8 +155,8 @@ function printMachineInfo() {
 
 async function simulateLifecycle() {
   console.log('='.repeat(80));
-  console.log(colors.bright + colors.green + 'Simulating Container Lifecycle' + colors.reset);
-  console.log('='.repeat(80) + '\n');
+  console.log(`${colors.bright + colors.green}Simulating Container Lifecycle${colors.reset}`);
+  console.log(`${'='.repeat(80)}\n`);
 
   // Create configured machine with mock implementations
   const machine = createDockerMachine(mockImplementations);
@@ -228,25 +229,25 @@ async function simulateLifecycle() {
 
   await delay(200);
 
-  console.log('\n' + '='.repeat(80));
+  console.log(`\n${'='.repeat(80)}`);
   log('green', 'DONE', 'Lifecycle simulation complete!');
-  console.log('='.repeat(80) + '\n');
+  console.log(`${'='.repeat(80)}\n`);
 }
 
 function printVisualizerInstructions() {
   console.log('='.repeat(80));
-  console.log(colors.bright + colors.cyan + 'Visualize in Stately Studio' + colors.reset);
-  console.log('='.repeat(80) + '\n');
+  console.log(`${colors.bright + colors.cyan}Visualize in Stately Studio${colors.reset}`);
+  console.log(`${'='.repeat(80)}\n`);
 
   console.log('To visualize this state machine in Stately Studio:');
   console.log('');
-  console.log('1. Open: ' + colors.cyan + 'https://stately.ai/viz' + colors.reset);
+  console.log(`1. Open: ${colors.cyan}https://stately.ai/viz${colors.reset}`);
   console.log('2. Click "Import" or paste the machine code');
   console.log('3. View the interactive state chart');
   console.log('4. Simulate transitions by clicking states/events');
   console.log('');
   console.log('The machine definition is in:');
-  console.log('  ' + colors.yellow + 'server/src/services/docker.machine.ts' + colors.reset);
+  console.log(`  ${colors.yellow}server/src/services/docker.machine.ts${colors.reset}`);
   console.log('');
   console.log('You can also use the XState VS Code extension for inline visualization!');
   console.log('');
@@ -269,12 +270,12 @@ async function main() {
   } else {
     console.log('='.repeat(80));
     console.log(
-      colors.yellow + 'To run a simulated lifecycle, add the --simulate flag:' + colors.reset,
+      `${colors.yellow}To run a simulated lifecycle, add the --simulate flag:${colors.reset}`,
     );
     console.log(
-      colors.dim + '  npx tsx src/services/docker.machine.visualize.ts --simulate' + colors.reset,
+      `${colors.dim}  npx tsx src/services/docker.machine.visualize.ts --simulate${colors.reset}`,
     );
-    console.log('='.repeat(80) + '\n');
+    console.log(`${'='.repeat(80)}\n`);
   }
 }
 

@@ -11,7 +11,7 @@
  */
 
 import type { Container } from 'dockerode';
-import { assign, createMachine, fromPromise } from 'xstate';
+import { type Actor, assign, createMachine, fromPromise } from 'xstate';
 import type { AppLog, AppStatus } from '@gen-fullstack/shared';
 
 // ============================================================================
@@ -162,10 +162,15 @@ export const dockerContainerMachine = createMachine(
         invoke: {
           id: 'installDependencies',
           src: 'installDependencies',
-          input: ({ context }) => ({
-            sessionId: context.sessionId,
-            container: context.container!,
-          }),
+          input: ({ context }) => {
+            if (!context.container) {
+              throw new Error('Container is null in installing state');
+            }
+            return {
+              sessionId: context.sessionId,
+              container: context.container,
+            };
+          },
           onDone: {
             target: 'starting',
           },
@@ -183,10 +188,15 @@ export const dockerContainerMachine = createMachine(
         invoke: {
           id: 'startDevServer',
           src: 'startDevServer',
-          input: ({ context }) => ({
-            sessionId: context.sessionId,
-            container: context.container!,
-          }),
+          input: ({ context }) => {
+            if (!context.container) {
+              throw new Error('Container is null in starting state');
+            }
+            return {
+              sessionId: context.sessionId,
+              container: context.container,
+            };
+          },
           onDone: {
             target: 'waitingForVite',
           },
@@ -221,9 +231,12 @@ export const dockerContainerMachine = createMachine(
           input: ({ context }) => {
             const abortController = new AbortController();
             // Store abort controller for cleanup (will be cleaned up on exit)
+            if (!context.clientPort) {
+              throw new Error('Client port is null in checkingHttpReady state');
+            }
             return {
               sessionId: context.sessionId,
-              port: context.clientPort!,
+              port: context.clientPort,
               signal: abortController.signal,
             };
           },
@@ -377,3 +390,13 @@ export function createDockerMachine(implementations: {
     actions: implementations.actions,
   });
 }
+
+// ============================================================================
+// Machine Actor Type
+// ============================================================================
+
+/**
+ * Type for the Docker machine actor
+ * This provides proper typing for actor.send() calls
+ */
+export type DockerMachineActor = Actor<ReturnType<typeof createDockerMachine>>;

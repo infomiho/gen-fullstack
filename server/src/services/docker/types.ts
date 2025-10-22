@@ -15,7 +15,7 @@ import type { dockerContainerMachine } from './docker.machine.js';
 export interface ContainerInfo {
   sessionId: string;
   containerId: string;
-  container: Container;
+  container: Container | null; // Nullable during initialization
   status: AppStatus; // Derived from machine state
   clientPort: number; // Host port mapped to container's Vite port (5173)
   serverPort: number; // Host port mapped to container's Express port (3000)

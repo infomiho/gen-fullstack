@@ -10,6 +10,7 @@ import type { ModelName } from '../services/llm.service.js';
 import { parsePrismaErrors } from '../lib/prisma-error-parser.js';
 import type { TypeScriptError } from '../lib/typescript-error-parser.js';
 import { getErrorMessage, truncateErrorMessage } from '../lib/error-utils.js';
+import type { DockerMachineEvent } from '../services/docker/docker.machine.js';
 
 /**
  * Schema validation result
@@ -90,37 +91,12 @@ export class ValidationCapability extends BaseCapability {
       }
 
       // ==================== DEPENDENCY INSTALLATION ====================
-      this.emitStatus('Installing dependencies...', context);
-
-      const installResult = await dockerService.executeCommand(
-        sessionId,
-        'npm install',
-        BaseCapability.INSTALL_TIMEOUT_MS,
-      );
+      const installResult = await this.installDependencies(sessionId, context, dockerService);
 
       if (!installResult.success) {
-        const errorMsg = `Dependency installation failed: ${truncateErrorMessage(installResult.stderr)}`;
-        this.emitStatus(`⚠️ ${errorMsg}`, context);
-
-        // Send ERROR event to state machine
-        try {
-          const containerInfo = dockerService
-            .listContainers()
-            .find((c) => c.sessionId === sessionId);
-          if (containerInfo?.actor) {
-            containerInfo.actor.send({ type: 'ERROR', error: errorMsg } as any); // XState v5 type inference limitation
-          }
-        } catch (sendError) {
-          // Log but don't fail validation - error event sending is best-effort
-          this.logger.warn(
-            { error: sendError, sessionId },
-            'Failed to send ERROR event to state machine',
-          );
-        }
-
         return {
           success: false,
-          error: errorMsg,
+          error: installResult.error,
           toolCalls: 0,
           contextUpdates: {
             validation: {
@@ -132,43 +108,13 @@ export class ValidationCapability extends BaseCapability {
         };
       }
 
-      this.emitStatus('✅ Dependencies installed successfully', context);
-
       // ==================== SCHEMA VALIDATION ====================
-      if (this.validateSchema) {
-        this.emitStatus('Validating Prisma schema...', context);
-
-        const schemaResult = await this.validatePrismaSchemaInternal(sessionId, dockerService);
-        schemaValidationPassed = schemaResult.valid;
-
-        if (!schemaResult.valid) {
-          this.emitStatus(`⚠️ Schema errors found (${schemaResult.errors.length})`, context);
-
-          // Emit the actual errors to UI for visibility
-          const errorList = schemaResult.errors.map((e, i) => `${i + 1}. ${e}`).join('\n');
-          this.emitStatus(`Prisma Schema Errors:\n${errorList}`, context);
-        } else {
-          this.emitStatus('✅ Schema validation passed', context);
-        }
-      }
+      schemaValidationPassed = await this.performSchemaValidation(sessionId, context, dockerService);
 
       // ==================== TYPESCRIPT VALIDATION ====================
-      if (this.validateTypeScript) {
-        this.emitStatus('Type checking...', context);
-
-        const tsErrors = await this.validateTypeScriptInternal(sessionId, dockerService);
-        typeCheckPassed = tsErrors.length === 0;
-
-        if (tsErrors.length > 0) {
-          this.emitStatus(
-            `⚠️ Found ${tsErrors.length} TypeScript error${tsErrors.length === 1 ? '' : 's'}`,
-            context,
-          );
-          errors.push(...tsErrors);
-        } else {
-          this.emitStatus('✅ Type checking passed', context);
-        }
-      }
+      const tsResult = await this.performTypeScriptValidation(sessionId, context, dockerService);
+      typeCheckPassed = tsResult.passed;
+      errors.push(...tsResult.errors);
 
       // Container stays in 'ready' status after validation
       // Update context with validation results
@@ -195,7 +141,7 @@ export class ValidationCapability extends BaseCapability {
             .listContainers()
             .find((c) => c.sessionId === sessionId);
           if (containerInfo?.actor) {
-            containerInfo.actor.send({ type: 'ERROR', error: errorMessage } as any); // XState v5 type inference limitation
+            containerInfo.actor.send({ type: 'ERROR', error: errorMessage } satisfies DockerMachineEvent);
           }
         }
       } catch (sendError) {
@@ -219,6 +165,107 @@ export class ValidationCapability extends BaseCapability {
         },
       };
     }
+  }
+
+  /**
+   * Perform schema validation
+   */
+  private async performSchemaValidation(
+    sessionId: string,
+    context: CapabilityContext,
+    dockerService: typeof import('../services/docker.service.js').dockerService,
+  ): Promise<boolean> {
+    if (!this.validateSchema) {
+      return true; // Skip if not enabled
+    }
+
+    this.emitStatus('Validating Prisma schema...', context);
+
+    const schemaResult = await this.validatePrismaSchemaInternal(sessionId, dockerService);
+
+    if (!schemaResult.valid) {
+      this.emitStatus(`⚠️ Schema errors found (${schemaResult.errors.length})`, context);
+
+      // Emit the actual errors to UI for visibility
+      const errorList = schemaResult.errors.map((e, i) => `${i + 1}. ${e}`).join('\n');
+      this.emitStatus(`Prisma Schema Errors:\n${errorList}`, context);
+      return false;
+    }
+
+    this.emitStatus('✅ Schema validation passed', context);
+    return true;
+  }
+
+  /**
+   * Perform TypeScript validation
+   */
+  private async performTypeScriptValidation(
+    sessionId: string,
+    context: CapabilityContext,
+    dockerService: typeof import('../services/docker.service.js').dockerService,
+  ): Promise<{ passed: boolean; errors: TypeScriptError[] }> {
+    if (!this.validateTypeScript) {
+      return { passed: true, errors: [] }; // Skip if not enabled
+    }
+
+    this.emitStatus('Type checking...', context);
+
+    const tsErrors = await this.validateTypeScriptInternal(sessionId, dockerService);
+    const passed = tsErrors.length === 0;
+
+    if (tsErrors.length > 0) {
+      this.emitStatus(
+        `⚠️ Found ${tsErrors.length} TypeScript error${tsErrors.length === 1 ? '' : 's'}`,
+        context,
+      );
+    } else {
+      this.emitStatus('✅ Type checking passed', context);
+    }
+
+    return { passed, errors: tsErrors };
+  }
+
+  /**
+   * Install dependencies in Docker container
+   */
+  private async installDependencies(
+    sessionId: string,
+    context: CapabilityContext,
+    dockerService: typeof import('../services/docker.service.js').dockerService,
+  ): Promise<{ success: boolean; error?: string }> {
+    this.emitStatus('Installing dependencies...', context);
+
+    const installResult = await dockerService.executeCommand(
+      sessionId,
+      'npm install',
+      BaseCapability.INSTALL_TIMEOUT_MS,
+    );
+
+    if (!installResult.success) {
+      const errorMsg = `Dependency installation failed: ${truncateErrorMessage(installResult.stderr)}`;
+      this.emitStatus(`⚠️ ${errorMsg}`, context);
+
+      // Send ERROR event to state machine
+      try {
+        const containerInfo = dockerService
+          .listContainers()
+          .find((c) => c.sessionId === sessionId);
+        if (containerInfo?.actor) {
+          containerInfo.actor.send({ type: 'ERROR', error: errorMsg } satisfies DockerMachineEvent);
+        }
+      } catch (sendError) {
+        // Log but don't fail validation - error event sending is best-effort
+        this.logger.warn(
+          { error: sendError, sessionId },
+          'Failed to send ERROR event to state machine',
+        );
+      }
+
+      return { success: false, error: errorMsg };
+    }
+
+    this.emitStatus('✅ Dependencies installed successfully', context);
+    return { success: true };
   }
 
   /**
@@ -302,7 +349,7 @@ export class ValidationCapability extends BaseCapability {
     );
 
     if (!result.success) {
-      return parseTypeScriptErrors(result.stdout + '\n' + result.stderr, project);
+      return parseTypeScriptErrors(`${result.stdout}\n${result.stderr}`, project);
     }
 
     return [];

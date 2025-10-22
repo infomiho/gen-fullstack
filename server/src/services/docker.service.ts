@@ -20,6 +20,7 @@ import {
   type ContainerInfo,
   createDockerMachine,
   createDockerStreamHandler,
+  type DockerMachineActor,
   DOCKERFILE_PATH,
   type dockerContainerMachine,
   getDockerSocketPath,
@@ -58,10 +59,46 @@ export class DockerService extends EventEmitter {
       // Send VITE_READY event to state machine
       const containerInfo = this.containers.get(sessionId);
       if (containerInfo?.actor) {
-        containerInfo.actor.send({ type: 'VITE_READY' } as any);
+        containerInfo.actor.send({ type: 'VITE_READY' });
         dockerLogger.debug({ sessionId }, 'Sent VITE_READY event to state machine');
       }
     });
+  }
+
+  /**
+   * Cleanup machine context timers and abort controllers
+   */
+  private cleanupMachineContext(context: {
+    readyCheckAbort?: AbortController;
+    cleanupTimer?: NodeJS.Timeout;
+    readyCheckInterval?: NodeJS.Timeout;
+  }): void {
+    // Abort HTTP ready checks
+    if (context.readyCheckAbort) {
+      context.readyCheckAbort.abort();
+    }
+
+    // Clear all timers
+    if (context.cleanupTimer) {
+      clearTimeout(context.cleanupTimer);
+    }
+
+    if (context.readyCheckInterval) {
+      clearInterval(context.readyCheckInterval);
+    }
+  }
+
+  /**
+   * Cleanup container streams
+   */
+  private cleanupContainerStreams(containerInfo: ContainerInfo): void {
+    if (containerInfo.streamCleanup) {
+      containerInfo.streamCleanup();
+    }
+
+    if (containerInfo.devServerStreamCleanup) {
+      containerInfo.devServerStreamCleanup();
+    }
   }
 
   /**
@@ -71,7 +108,7 @@ export class DockerService extends EventEmitter {
    * Docker operations back to the service methods. This hybrid approach
    * allows gradual migration while maintaining existing functionality.
    */
-  private createMachineActor(sessionId: string, workingDir: string): Actor<any> {
+  private createMachineActor(sessionId: string, workingDir: string): DockerMachineActor {
     const machine = createDockerMachine({
       actors: {
         // Delegate to existing service methods
@@ -319,33 +356,16 @@ export class DockerService extends EventEmitter {
         },
         cleanupAllResources: () => {
           const containerInfo = this.containers.get(sessionId);
-          if (containerInfo?.actor) {
-            const context = containerInfo.actor.getSnapshot().context;
-            dockerLogger.info({ sessionId: context.sessionId }, 'Cleanup: all resources');
+          if (!containerInfo?.actor) return;
 
-            // Abort HTTP ready checks
-            if (context.readyCheckAbort) {
-              context.readyCheckAbort.abort();
-            }
+          const context = containerInfo.actor.getSnapshot().context;
+          dockerLogger.info({ sessionId: context.sessionId }, 'Cleanup: all resources');
 
-            // Clear all timers
-            if (context.cleanupTimer) {
-              clearTimeout(context.cleanupTimer);
-            }
+          // Cleanup machine context (timers, abort controllers)
+          this.cleanupMachineContext(context);
 
-            if (context.readyCheckInterval) {
-              clearInterval(context.readyCheckInterval);
-            }
-
-            // Cleanup all streams (stored in containerInfo, not context)
-            if (containerInfo.streamCleanup) {
-              containerInfo.streamCleanup();
-            }
-
-            if (containerInfo.devServerStreamCleanup) {
-              containerInfo.devServerStreamCleanup();
-            }
-          }
+          // Cleanup container streams
+          this.cleanupContainerStreams(containerInfo);
         },
       },
     });
@@ -629,7 +649,7 @@ export class DockerService extends EventEmitter {
       const containerInfo: ContainerInfo = {
         sessionId,
         containerId: '',
-        container: null as any,
+        container: null,
         status: 'ready',
         clientPort: 0,
         serverPort: 0,
@@ -647,9 +667,7 @@ export class DockerService extends EventEmitter {
       dockerLogger.info({ sessionId }, 'State machine driving container creation');
 
       // Send CREATE event - machine will handle buildImage, cleanup, create, start
-      // NOTE: `as any` required due to XState v5 type inference limitations
-      // The machine's event types don't properly propagate to Actor.send()
-      actor.send({ type: 'CREATE', sessionId, workingDir } as any);
+      actor.send({ type: 'CREATE', sessionId, workingDir });
 
       // Wait for machine to reach 'ready' state with timeout protection
       await this.waitForMachineState(actor, ['ready'], TIMEOUTS.containerCreation);
@@ -657,12 +675,14 @@ export class DockerService extends EventEmitter {
       // Update containerInfo from machine context
       const snapshot = actor.getSnapshot();
       containerInfo.containerId = snapshot.context.containerId || '';
-      containerInfo.container = snapshot.context.container!;
+      containerInfo.container = snapshot.context.container || null;
       containerInfo.clientPort = snapshot.context.clientPort || 0;
       containerInfo.serverPort = snapshot.context.serverPort || 0;
 
       // Setup log streaming and auto-cleanup
-      this.setupLogStream(sessionId, containerInfo.container);
+      if (containerInfo.container) {
+        this.setupLogStream(sessionId, containerInfo.container);
+      }
       this.setupAutoCleanup(sessionId);
 
       this.logManager.emitLog(sessionId, 'system', 'Container ready for commands');
@@ -791,7 +811,7 @@ export class DockerService extends EventEmitter {
       dockerLogger.info({ sessionId }, 'State machine driving dependency installation');
 
       // Send INSTALL_DEPS event - machine handles npm install, Prisma generate, migrations
-      containerInfo.actor.send({ type: 'INSTALL_DEPS' } as any); // XState v5 type inference limitation
+      containerInfo.actor.send({ type: 'INSTALL_DEPS' });
 
       // Wait for machine to reach installation complete states with timeout protection
       await this.waitForMachineState(
@@ -857,6 +877,10 @@ export class DockerService extends EventEmitter {
     try {
       dockerLogger.debug({ sessionId, command }, 'Executing command in container');
 
+      if (!containerInfo.container) {
+        throw new Error('Container is null - cannot execute command');
+      }
+
       // Create exec instance
       const exec = await containerInfo.container.exec({
         Cmd: ['sh', '-c', command],
@@ -871,9 +895,9 @@ export class DockerService extends EventEmitter {
       // Capture output
       const dataHandler = createDockerStreamHandler(sessionId, (log) => {
         if (log.type === 'stdout') {
-          stdout += log.message + '\n';
+          stdout += `${log.message}\n`;
         } else {
-          stderr += log.message + '\n';
+          stderr += `${log.message}\n`;
         }
       });
 
@@ -949,7 +973,7 @@ export class DockerService extends EventEmitter {
       dockerLogger.info({ sessionId }, 'State machine driving dev server startup');
 
       // Send START_SERVER event - machine handles npm run dev and waits for VITE_READY + HTTP_READY
-      containerInfo.actor.send({ type: 'START_SERVER' } as any); // XState v5 type inference limitation
+      containerInfo.actor.send({ type: 'START_SERVER' });
 
       // Wait for machine to reach 'running' state with timeout protection
       await this.waitForMachineState(containerInfo.actor, ['running'], TIMEOUTS.viteHttpReady);
@@ -1018,7 +1042,7 @@ export class DockerService extends EventEmitter {
       this.logManager.emitLog(sessionId, 'system', 'Stopping dev servers...');
 
       // Send STOP_SERVER event - machine handles cleanup and transitions to 'ready'
-      containerInfo.actor.send({ type: 'STOP_SERVER' } as any); // XState v5 type inference limitation
+      containerInfo.actor.send({ type: 'STOP_SERVER' });
 
       // Wait for machine to reach 'ready' state with timeout protection
       await this.waitForMachineState(containerInfo.actor, ['ready'], TIMEOUTS.stop);
@@ -1082,26 +1106,28 @@ export class DockerService extends EventEmitter {
     try {
       // Send DESTROY event to state machine - cleanup will happen via exit actions
       if (containerInfo.actor) {
-        containerInfo.actor.send({ type: 'DESTROY' } as any); // XState v5 type inference limitation
+        containerInfo.actor.send({ type: 'DESTROY' });
 
         // Wait for machine to reach 'stopped' or 'failed' state with timeout protection
         await this.waitForMachineState(containerInfo.actor, ['stopped', 'failed'], TIMEOUTS.stop);
       }
 
       // Physical Docker container cleanup
-      await retryOnConflict(
-        () =>
-          Promise.race([
-            containerInfo.container.stop(),
-            new Promise((resolve) => setTimeout(resolve, TIMEOUTS.stop)),
-          ]),
-        `Stop container ${sessionId}`,
-      );
+      if (containerInfo.container) {
+        await retryOnConflict(
+          () =>
+            Promise.race([
+              containerInfo.container!.stop(),
+              new Promise((resolve) => setTimeout(resolve, TIMEOUTS.stop)),
+            ]),
+          `Stop container ${sessionId}`,
+        );
 
-      await retryOnConflict(
-        () => containerInfo.container.remove({ force: true }),
-        `Remove container ${sessionId}`,
-      );
+        await retryOnConflict(
+          () => containerInfo.container!.remove({ force: true }),
+          `Remove container ${sessionId}`,
+        );
+      }
 
       this.containers.delete(sessionId);
 
@@ -1110,11 +1136,13 @@ export class DockerService extends EventEmitter {
     } catch (error) {
       dockerLogger.error({ error, sessionId }, 'Failed to destroy container');
       try {
-        await retryOnConflict(
-          () => containerInfo.container.remove({ force: true }),
-          `Force remove container ${sessionId}`,
-        );
-        this.containers.delete(sessionId);
+        if (containerInfo.container) {
+          await retryOnConflict(
+            () => containerInfo.container!.remove({ force: true }),
+            `Force remove container ${sessionId}`,
+          );
+          this.containers.delete(sessionId);
+        }
       } catch {}
     }
   }

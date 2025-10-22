@@ -87,14 +87,15 @@ export function CapabilityCard({
   };
 
   return (
-    <div
+    <button
+      type="button"
       className={getCardClassName(mode, checked)}
       onClick={handleCardClick}
-      role="button"
       tabIndex={isInteractive ? 0 : -1}
       onKeyDown={handleKeyDown}
       aria-pressed={checked}
       aria-disabled={!isInteractive}
+      disabled={!isInteractive}
     >
       <div className="flex items-start gap-3">
         <div className="flex-shrink-0 pt-0.5">
@@ -117,6 +118,6 @@ export function CapabilityCard({
           )}
         </div>
       </div>
-    </div>
+    </button>
   );
 }
