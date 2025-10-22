@@ -17,15 +17,16 @@ export function LogViewer({ logs }: LogViewerProps) {
   );
   const logContainerRef = useRef<HTMLDivElement>(null);
 
+  // Filter logs by level
+  const filteredLogs = logs.filter((log) => filter === 'all' || log.level === filter);
+
   // Auto-scroll to bottom when new logs arrive
+  // biome-ignore lint/correctness/useExhaustiveDependencies: filteredLogs.length is intentionally included to trigger scroll when logs change
   useEffect(() => {
     if (autoScroll && logContainerRef.current) {
       logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
     }
-  }, [autoScroll]);
-
-  // Filter logs by level
-  const filteredLogs = logs.filter((log) => filter === 'all' || log.level === filter);
+  }, [autoScroll, filteredLogs.length]);
 
   // Format timestamp
   const formatTime = (timestamp: number) => {
