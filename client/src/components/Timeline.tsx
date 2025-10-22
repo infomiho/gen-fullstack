@@ -39,6 +39,7 @@ export function Timeline({ messages, toolCalls, toolResults }: TimelineProps) {
         id: toolCall.id,
         name: toolCall.name,
         args: toolCall.args,
+        reason: toolCall.reason,
         result: result?.result,
         isComplete: !!result,
         isError: result?.isError || false,

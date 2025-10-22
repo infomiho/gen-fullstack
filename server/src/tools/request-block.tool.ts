@@ -201,6 +201,13 @@ Use this to quickly add common features without writing boilerplate code.`,
     blockId: z
       .string()
       .describe('ID of the block to request (e.g., "auth-password"). Only one block at a time.'),
+    reason: z
+      .string()
+      .min(10)
+      .max(200)
+      .describe(
+        'Brief explanation of why you need this block and how it fits into the application (10-200 characters)',
+      ),
   }),
   execute: async ({ blockId }, { experimental_context: context }) => {
     const { sessionId, io } = extractToolContext(context);

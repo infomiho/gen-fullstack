@@ -31,7 +31,7 @@ export abstract class BaseCapability {
   protected static readonly TOOL_CALLS_PER_FIX_ITERATION = 10; // Increased from 5 to allow exploration + fixes
 
   // Command timeout constants (in milliseconds)
-  protected static readonly INSTALL_TIMEOUT_MS = 120_000; // 2 minutes - npm install can be slow
+  protected static readonly INSTALL_TIMEOUT_MS = 300_000; // 5 minutes - npm install can be slow, especially first time
   protected static readonly VALIDATION_TIMEOUT_MS = 90_000; // 1.5 minutes - Prisma schema validation
   protected static readonly TYPECHECK_TIMEOUT_MS = 120_000; // 2 minutes - TypeScript can be slow on large projects
   protected static readonly COMMAND_TIMEOUT_MS = 60_000; // 1 minute - default for other commands
@@ -149,12 +149,14 @@ export abstract class BaseCapability {
    * @param toolName - Name of the tool being called
    * @param args - Tool arguments
    * @param sessionId - Session identifier
+   * @param reason - Brief explanation of why this tool was called (optional for backwards compatibility)
    */
   protected emitToolCall(
     toolCallId: string,
     toolName: string,
     args: Record<string, unknown>,
     sessionId: string,
+    reason?: string,
   ): void {
     const timestamp = Date.now();
 
@@ -165,6 +167,7 @@ export abstract class BaseCapability {
       id: toolCallId,
       name: toolName,
       args,
+      reason,
       timestamp,
     });
 
@@ -177,6 +180,7 @@ export abstract class BaseCapability {
         toolCallId,
         toolName,
         toolArgs: JSON.stringify(args),
+        toolReason: reason,
       })
       .catch((err) => this.logger.error({ err, sessionId }, 'Failed to persist tool call'));
   }
@@ -256,7 +260,9 @@ export abstract class BaseCapability {
       // Emit tool calls with all data
       for (const toolCall of toolCalls) {
         const toolInput = toToolInput(toolCall.input);
-        this.emitToolCall(toolCall.toolCallId, toolCall.toolName, toolInput, sessionId);
+        // Extract reason from tool input (it's a required field in all tool schemas)
+        const reason = typeof toolInput.reason === 'string' ? toolInput.reason : undefined;
+        this.emitToolCall(toolCall.toolCallId, toolCall.toolName, toolInput, sessionId, reason);
       }
 
       // Emit tool results (including errors)

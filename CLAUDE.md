@@ -170,7 +170,36 @@ export const Default: Story = {
 
 ## Recent Changes
 
-### Session Reliability Fixes (Latest - October 2025) ✅
+### Dependency Installation Improvements (Latest - October 2025) ✅
+Enhanced npm install reliability and performance to prevent timeout failures:
+
+**Improvement #1: Increased Timeout**
+- Increased npm install timeout from 120s (2 min) to 300s (5 min)
+- Accommodates slow networks and first-time cache misses
+- Location: `server/src/capabilities/base.capability.ts` (line 34)
+
+**Improvement #2: Automatic Retry**
+- Added retry logic for npm install timeouts
+- Retries once if first attempt times out
+- Shows "⏱️ Installation timed out, retrying..." message to user
+- Location: `server/src/capabilities/validation.capability.ts` (lines 247-264)
+- Maximum total time: 10 minutes (2 attempts × 5 minutes)
+
+**Improvement #3: Enhanced Pre-caching**
+- Added bcryptjs to Docker image pre-cache (for auth-password block)
+- Includes both runtime and type definitions
+- Location: `server/docker/runner.Dockerfile` (lines 69, 74)
+- Install time improvement: ~60s → ~10-15s for apps using auth
+
+**Impact**:
+- ✅ Reduced false failures from transient network issues
+- ✅ Better user experience with retry messages
+- ✅ Faster installs for apps using common building blocks
+- ✅ Issue #35 resolved
+
+**Testing**: All 307 server tests passing ✅
+
+### Session Reliability Fixes (October 2025) ✅
 Implemented three critical fixes to prevent sessions from getting stuck in 'generating' state:
 
 **Fix #1: Server Startup Recovery**

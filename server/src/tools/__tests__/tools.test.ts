@@ -28,7 +28,7 @@ describe('Tools', () => {
   describe('writeFile tool', () => {
     it('should write a file successfully', async () => {
       const result = await writeFile.execute?.(
-        { path: 'test.txt', content: 'Hello, World!' },
+        { path: 'test.txt', content: 'Hello, World!', reason: 'Testing file write' },
         context as any,
       );
 
@@ -38,7 +38,11 @@ describe('Tools', () => {
 
     it('should create nested directories', async () => {
       const result = await writeFile.execute?.(
-        { path: 'nested/dir/file.txt', content: 'Nested content' },
+        {
+          path: 'nested/dir/file.txt',
+          content: 'Nested content',
+          reason: 'Testing nested directories',
+        },
         context as any,
       );
 
@@ -47,7 +51,10 @@ describe('Tools', () => {
     });
 
     it('should handle empty content', async () => {
-      const result = await writeFile.execute?.({ path: 'empty.txt', content: '' }, context as any);
+      const result = await writeFile.execute?.(
+        { path: 'empty.txt', content: '', reason: 'Testing empty file' },
+        context as any,
+      );
 
       expect(result).toContain('Successfully wrote 0 bytes');
     });
@@ -58,7 +65,10 @@ describe('Tools', () => {
       // Setup: Create test file directly with fs (not using tool under test)
       await fsWriteFile(join(sandboxPath, 'read-test.txt'), 'Test content', 'utf-8');
 
-      const result = await readFile.execute?.({ path: 'read-test.txt' }, context as any);
+      const result = await readFile.execute?.(
+        { path: 'read-test.txt', reason: 'Testing file read' },
+        context as any,
+      );
 
       expect(result).toBe('Test content');
     });
@@ -68,14 +78,20 @@ describe('Tools', () => {
       await mkdir(join(sandboxPath, 'read-subdir'), { recursive: true });
       await fsWriteFile(join(sandboxPath, 'read-subdir/nested.txt'), 'Nested content', 'utf-8');
 
-      const result = await readFile.execute?.({ path: 'read-subdir/nested.txt' }, context as any);
+      const result = await readFile.execute?.(
+        { path: 'read-subdir/nested.txt', reason: 'Testing nested read' },
+        context as any,
+      );
 
       expect(result).toBe('Nested content');
     });
 
     it('should throw error for non-existent files', async () => {
       await expect(
-        readFile.execute?.({ path: 'nonexistent.txt' }, context as any),
+        readFile.execute?.(
+          { path: 'nonexistent.txt', reason: 'Testing error handling' },
+          context as any,
+        ),
       ).rejects.toThrow();
     });
   });
@@ -88,7 +104,10 @@ describe('Tools', () => {
       await fsWriteFile(join(sandboxPath, 'file2.js'), 'Content 2', 'utf-8');
       await fsWriteFile(join(sandboxPath, 'list-subdir/nested.txt'), 'Nested', 'utf-8');
 
-      const result = await listFiles.execute?.({ directory: '.' }, context as any);
+      const result = await listFiles.execute?.(
+        { directory: '.', reason: 'Testing directory listing' },
+        context as any,
+      );
 
       // Formatted with emojis now
       expect(result).toContain('file1.txt');
@@ -102,7 +121,10 @@ describe('Tools', () => {
       await mkdir(join(sandboxPath, 'list2-subdir'), { recursive: true });
       await fsWriteFile(join(sandboxPath, 'list2-subdir/nested.txt'), 'Nested', 'utf-8');
 
-      const result = await listFiles.execute?.({ directory: 'list2-subdir' }, context as any);
+      const result = await listFiles.execute?.(
+        { directory: 'list2-subdir', reason: 'Testing subdirectory listing' },
+        context as any,
+      );
 
       expect(result).toContain('nested.txt');
     });
@@ -111,7 +133,10 @@ describe('Tools', () => {
       // Setup: Create empty directory directly with fs
       await mkdir(join(sandboxPath, 'empty-dir'), { recursive: true });
 
-      const result = await listFiles.execute?.({ directory: 'empty-dir' }, context as any);
+      const result = await listFiles.execute?.(
+        { directory: 'empty-dir', reason: 'Testing empty directory' },
+        context as any,
+      );
 
       expect(result).toContain('Contents of');
       expect(result).toContain('empty-dir');
@@ -121,7 +146,7 @@ describe('Tools', () => {
   describe('executeCommand tool', () => {
     it('should execute whitelisted commands', async () => {
       const result = await executeCommand.execute?.(
-        { command: 'echo "Hello from test"' },
+        { command: 'echo "Hello from test"', reason: 'Testing command execution' },
         context as any,
       );
 
@@ -129,38 +154,53 @@ describe('Tools', () => {
     });
 
     it('should execute pwd command', async () => {
-      const result = await executeCommand.execute?.({ command: 'pwd' }, context as any);
+      const result = await executeCommand.execute?.(
+        { command: 'pwd', reason: 'Testing pwd command' },
+        context as any,
+      );
 
       expect(result).toContain(sandboxPath);
     });
 
     it('should reject non-whitelisted commands', async () => {
       await expect(
-        executeCommand.execute?.({ command: 'rm -rf /' }, context as any),
+        executeCommand.execute?.(
+          { command: 'rm -rf /', reason: 'Testing security' },
+          context as any,
+        ),
       ).rejects.toThrow('not whitelisted');
     });
 
     it('should reject command chaining with &&', async () => {
       await expect(
-        executeCommand.execute?.({ command: 'echo "test" && rm file.txt' }, context as any),
+        executeCommand.execute?.(
+          { command: 'echo "test" && rm file.txt', reason: 'Testing security' },
+          context as any,
+        ),
       ).rejects.toThrow('chaining');
     });
 
     it('should reject command chaining with ||', async () => {
       await expect(
-        executeCommand.execute?.({ command: 'echo "test" || echo "fail"' }, context as any),
+        executeCommand.execute?.(
+          { command: 'echo "test" || echo "fail"', reason: 'Testing security' },
+          context as any,
+        ),
       ).rejects.toThrow('chaining');
     });
 
     it('should reject command chaining with ;', async () => {
       await expect(
-        executeCommand.execute?.({ command: 'echo "test"; echo "another"' }, context as any),
+        executeCommand.execute?.(
+          { command: 'echo "test"; echo "another"', reason: 'Testing security' },
+          context as any,
+        ),
       ).rejects.toThrow('chaining');
     });
 
     it('should handle command errors gracefully', async () => {
       const result = await executeCommand.execute?.(
-        { command: 'ls nonexistent-file-xyz.txt' },
+        { command: 'ls nonexistent-file-xyz.txt', reason: 'Testing error handling' },
         context as any,
       );
 
@@ -181,7 +221,10 @@ describe('Tools - Path Traversal Security', () => {
   describe('writeFile tool', () => {
     it('should reject invalid paths (path traversal)', async () => {
       await expect(
-        writeFile.execute?.({ path: '../outside.txt', content: 'Should fail' }, context as any),
+        writeFile.execute?.(
+          { path: '../outside.txt', content: 'Should fail', reason: 'Testing security' },
+          context as any,
+        ),
       ).rejects.toThrow();
     });
   });
@@ -189,7 +232,7 @@ describe('Tools - Path Traversal Security', () => {
   describe('readFile tool', () => {
     it('should reject invalid paths (path traversal)', async () => {
       await expect(
-        readFile.execute?.({ path: '../outside.txt' }, context as any),
+        readFile.execute?.({ path: '../outside.txt', reason: 'Testing security' }, context as any),
       ).rejects.toThrow();
     });
   });
@@ -197,7 +240,10 @@ describe('Tools - Path Traversal Security', () => {
   describe('listFiles tool', () => {
     it('should reject invalid paths (path traversal)', async () => {
       await expect(
-        listFiles.execute?.({ directory: '../outside' }, context as any),
+        listFiles.execute?.(
+          { directory: '../outside', reason: 'Testing security' },
+          context as any,
+        ),
       ).rejects.toThrow();
     });
   });

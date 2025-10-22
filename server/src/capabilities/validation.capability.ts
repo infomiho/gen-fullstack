@@ -234,18 +234,42 @@ export class ValidationCapability extends BaseCapability {
 
   /**
    * Install dependencies in Docker container
+   *
+   * Retries once on execution timeout to handle transient issues.
    */
   private async installDependencies(
     sessionId: string,
     context: CapabilityContext,
     dockerService: typeof import('../services/docker.service.js').dockerService,
   ): Promise<{ success: boolean; error?: string }> {
+    const { retryOperation, isExecutionTimeout } = await import('../lib/retry-utils.js');
+
     this.emitStatus('Installing dependencies...', context);
 
-    const installResult = await dockerService.executeCommand(
-      sessionId,
-      'npm install',
-      BaseCapability.INSTALL_TIMEOUT_MS,
+    const installResult = await retryOperation(
+      () =>
+        dockerService.executeCommand(sessionId, 'npm install', BaseCapability.INSTALL_TIMEOUT_MS),
+      {
+        maxRetries: 1,
+        shouldRetry: (error) => {
+          // Only retry on execution timeout (not network timeout)
+          // Execution timeouts have "timeout after X ms" in the error message
+          if (
+            typeof error === 'object' &&
+            error !== null &&
+            'success' in error &&
+            error.success === false &&
+            'stderr' in error
+          ) {
+            return isExecutionTimeout(error);
+          }
+          return false;
+        },
+        onRetry: async (attempt) => {
+          this.logger.info({ sessionId, attempt }, 'npm install timed out, retrying...');
+          this.emitStatus('⏱️ Installation timed out (attempt 1/2), retrying...', context);
+        },
+      },
     );
 
     if (!installResult.success) {

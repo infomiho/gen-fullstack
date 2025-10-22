@@ -65,11 +65,13 @@ RUN mkdir -p /tmp/npm-cache && cd /tmp/npm-cache && \
       "dependencies": { \
         "@prisma/client": "^6.10.0", \
         "express": "^5.1.0", \
-        "cors": "^2.8.5" \
+        "cors": "^2.8.5", \
+        "bcryptjs": "^2.4.3" \
       }, \
       "devDependencies": { \
         "@types/express": "^5.0.0", \
         "@types/cors": "^2.8.17", \
+        "@types/bcryptjs": "^2.4.6", \
         "@types/node": "^22.10.2", \
         "tsx": "^4.19.2", \
         "typescript": "~5.9.3" \

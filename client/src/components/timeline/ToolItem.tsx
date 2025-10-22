@@ -16,6 +16,7 @@ export interface ToolExecution {
   id: string;
   name: string;
   args: Record<string, unknown> | undefined;
+  reason?: string; // Brief explanation of why this tool was called
   result?: string;
   isComplete: boolean;
   isError?: boolean;
@@ -106,6 +107,17 @@ export function ToolItem({ tool, isOpen, onOpenChange }: ToolItemProps) {
                 {tool.isError ? 'Failed' : tool.isComplete ? 'Complete' : 'Running'}
               </span>
             </div>
+
+            {tool.reason && (
+              <div>
+                <h3 className={`${typography.label} mb-2`}>Reason</h3>
+                <p
+                  className={`${typography.body} text-gray-700 ${radius.sm} ${padding.compact} bg-blue-50 border border-blue-200`}
+                >
+                  {tool.reason}
+                </p>
+              </div>
+            )}
 
             <div>
               <h3 className={`${typography.label} mb-2`}>Parameters</h3>

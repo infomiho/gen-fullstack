@@ -35,7 +35,7 @@ export const PORT_RANGE = {
  * Timeout configuration (in milliseconds)
  */
 export const TIMEOUTS = {
-  install: 2 * 60 * 1000, // 2 minutes for npm install
+  install: 5 * 60 * 1000, // 5 minutes for npm install (increased from 2 min to handle slow networks)
   start: 30 * 1000, // 30 seconds to start dev server
   stop: 10 * 1000, // 10 seconds for graceful shutdown
   maxRuntime: 10 * 60 * 1000, // 10 minutes max runtime

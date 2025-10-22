@@ -59,6 +59,7 @@ export const timelineItems = sqliteTable('timeline_items', {
   toolCallId: text('tool_call_id'),
   toolName: text('tool_name'),
   toolArgs: text('tool_args'), // JSON string
+  toolReason: text('tool_reason'), // Brief explanation of why this tool was called
   // Tool result fields (when type = 'tool_result')
   toolResultId: text('tool_result_id'),
   toolResultFor: text('tool_result_for'), // References toolCallId

@@ -134,6 +134,7 @@ export interface ToolCall {
   name: string;
   // Args may be undefined during initial emission before input is fully captured
   args?: Record<string, unknown>;
+  reason?: string; // Brief explanation of why this tool was called (10-200 characters)
   timestamp: number; // Unix timestamp in milliseconds
 }
 

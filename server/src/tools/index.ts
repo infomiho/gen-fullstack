@@ -26,6 +26,13 @@ export const writeFile = tool({
   inputSchema: z.object({
     path: z.string().describe('Relative path to the file (e.g., "src/App.tsx", "package.json")'),
     content: z.string().describe('Full content to write to the file'),
+    reason: z
+      .string()
+      .min(10)
+      .max(200)
+      .describe(
+        'Brief explanation of why you are writing this file and what problem it solves (10-200 characters)',
+      ),
   }),
   execute: async ({ path, content }, { experimental_context: context }) => {
     const { sessionId, io } = extractToolContext(context);
@@ -93,6 +100,13 @@ export const readFile = tool({
     'Read the content of an existing file. Use this to check current file contents before making changes.',
   inputSchema: z.object({
     path: z.string().describe('Relative path to the file to read (e.g., "src/App.tsx")'),
+    reason: z
+      .string()
+      .min(10)
+      .max(200)
+      .describe(
+        'Brief explanation of why you need to read this file and what information you are looking for (10-200 characters)',
+      ),
   }),
   execute: async ({ path }, { experimental_context: context }) => {
     const { sessionId } = extractToolContext(context);
@@ -111,6 +125,13 @@ export const listFiles = tool({
     'List all files and directories in a given path. Use this to explore the project structure.',
   inputSchema: z.object({
     directory: z.string().describe('Relative path to the directory (use "." for root directory)'),
+    reason: z
+      .string()
+      .min(10)
+      .max(200)
+      .describe(
+        'Brief explanation of why you need to list this directory and what you are looking for (10-200 characters)',
+      ),
   }),
   execute: async ({ directory }, { experimental_context: context }) => {
     const { sessionId } = extractToolContext(context);
@@ -140,6 +161,13 @@ Use this to install packages (npm install), run builds (npm build), or execute t
     command: z
       .string()
       .describe('Command to execute (e.g., "npm install", "npm dev", "npm build")'),
+    reason: z
+      .string()
+      .min(10)
+      .max(200)
+      .describe(
+        'Brief explanation of why you need to execute this command and what it will accomplish (10-200 characters)',
+      ),
   }),
   execute: async ({ command }, { experimental_context: context }) => {
     const { sessionId } = extractToolContext(context);

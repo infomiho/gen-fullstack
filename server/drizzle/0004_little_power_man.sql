@@ -1,0 +1,1 @@
+ALTER TABLE `timeline_items` ADD `tool_reason` text;
