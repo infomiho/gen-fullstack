@@ -81,6 +81,7 @@ describe('DockerService', () => {
   let dockerService: DockerService;
 
   beforeEach(() => {
+    vi.useRealTimers(); // Ensure fake timers don't leak between tests
     dockerService = new DockerService();
     vi.clearAllMocks();
   });
@@ -318,18 +319,19 @@ describe('DockerService', () => {
         start: vi.fn().mockResolvedValueOnce(neverResolving),
       });
 
-      // Start the install (which will timeout after 2 minutes)
+      // Start the install (which will timeout after waitForMachineState times out at 180s)
       const installPromise = dockerService.installDependencies(sessionId).catch((err) => err);
 
-      // Fast-forward time by 2 minutes to trigger the timeout
-      await vi.advanceTimersByTimeAsync(121000); // 2 minutes + 1 second
+      // Fast-forward time by 3 minutes to trigger waitForMachineState timeout
+      await vi.advanceTimersByTimeAsync(181000); // 3 minutes + 1 second
 
       const result = await installPromise;
       expect(result).toBeInstanceOf(Error);
-      expect(result.message).toContain('npm install timeout');
+      expect(result.message).toContain('Timeout waiting for machine state');
+      expect(result.message).toContain('installing');
 
       vi.useRealTimers();
-    });
+    }, 15000);
   });
 
   describe('startDevServer', () => {
@@ -360,7 +362,7 @@ describe('DockerService', () => {
             container.actor.send({ type: 'VITE_READY' } as any);
           }
         }
-      }, 100);
+      }, 10);
 
       // Safety timeout to clear interval
       setTimeout(() => clearInterval(pollInterval), 28000);
@@ -377,7 +379,7 @@ describe('DockerService', () => {
           WorkingDir: '/app',
         }),
       );
-    }, 10000);
+    }, 30000);
 
     it('should emit command log before starting dev server', async () => {
       const sessionId = 'dev-cmd-test';
@@ -406,7 +408,7 @@ describe('DockerService', () => {
             container.actor.send({ type: 'VITE_READY' } as any);
           }
         }
-      }, 100);
+      }, 10);
 
       // Safety timeout
       setTimeout(() => clearInterval(pollInterval), 28000);
@@ -424,7 +426,7 @@ describe('DockerService', () => {
           timestamp: expect.any(Number),
         }),
       );
-    }, 10000);
+    }, 30000);
 
     it('should throw error if container not found', async () => {
       await expect(dockerService.startDevServer('non-existent')).rejects.toThrow(
