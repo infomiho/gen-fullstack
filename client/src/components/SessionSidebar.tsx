@@ -55,6 +55,7 @@ export function SessionSidebar({
     inputMode?: string;
     planning?: boolean;
     compilerChecks?: boolean;
+    buildingBlocks?: boolean;
     maxIterations?: number;
   } | null = null;
   try {
@@ -107,6 +108,16 @@ export function SessionSidebar({
                   className={`w-4 h-4 ${capabilityConfig.compilerChecks ? CAPABILITY_METADATA.compiler.iconColor : 'text-gray-400'} flex-shrink-0`}
                 />
                 <span>{CAPABILITY_METADATA.compiler.label}</span>
+              </div>
+
+              {/* Building Blocks - shown always, grayed and crossed out if disabled */}
+              <div
+                className={`flex items-center gap-2 text-sm ${capabilityConfig.buildingBlocks ? 'text-gray-700' : 'text-gray-400 line-through'}`}
+              >
+                <CAPABILITY_METADATA.buildingBlocks.icon
+                  className={`w-4 h-4 ${capabilityConfig.buildingBlocks ? CAPABILITY_METADATA.buildingBlocks.iconColor : 'text-gray-400'} flex-shrink-0`}
+                />
+                <span>{CAPABILITY_METADATA.buildingBlocks.label}</span>
               </div>
             </div>
           </div>
