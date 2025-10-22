@@ -18,6 +18,7 @@ export interface ToolExecution {
   args: Record<string, unknown> | undefined;
   result?: string;
   isComplete: boolean;
+  isError?: boolean;
   timestamp: number;
 }
 
@@ -94,9 +95,15 @@ export function ToolItem({ tool, isOpen, onOpenChange }: ToolItemProps) {
             <div className={`flex items-center gap-2 ${typography.body}`}>
               <span className="text-gray-500">Status:</span>
               <span
-                className={`font-medium ${tool.isComplete ? 'text-green-600' : 'text-yellow-600'}`}
+                className={`font-medium ${
+                  tool.isError
+                    ? 'text-red-600'
+                    : tool.isComplete
+                      ? 'text-green-600'
+                      : 'text-yellow-600'
+                }`}
               >
-                {tool.isComplete ? 'Complete' : 'Running'}
+                {tool.isError ? 'Failed' : tool.isComplete ? 'Complete' : 'Running'}
               </span>
             </div>
 
@@ -107,9 +114,13 @@ export function ToolItem({ tool, isOpen, onOpenChange }: ToolItemProps) {
 
             {tool.isComplete && tool.result && (
               <div>
-                <h3 className={`${typography.label} mb-2`}>Result</h3>
+                <h3 className={`${typography.label} mb-2`}>{tool.isError ? 'Error' : 'Result'}</h3>
                 <pre
-                  className={`bg-gray-50 p-3 ${radius.sm} border border-gray-200 overflow-x-auto ${typography.mono} max-h-96 overflow-y-auto text-gray-800`}
+                  className={`p-3 ${radius.sm} border overflow-x-auto ${typography.mono} max-h-96 overflow-y-auto ${
+                    tool.isError
+                      ? 'bg-red-50 border-red-200 text-red-900'
+                      : 'bg-gray-50 border-gray-200 text-gray-800'
+                  }`}
                 >
                   {tool.result}
                 </pre>

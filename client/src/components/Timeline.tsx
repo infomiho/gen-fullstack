@@ -3,7 +3,7 @@ import { Bot } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { EmptyState } from './EmptyState';
 import { MessageItem } from './timeline/MessageItem';
-import { ToolItem, type ToolExecution } from './timeline/ToolItem';
+import { type ToolExecution, ToolItem } from './timeline/ToolItem';
 
 interface TimelineProps {
   messages: LLMMessage[];
@@ -41,6 +41,7 @@ export function Timeline({ messages, toolCalls, toolResults }: TimelineProps) {
         args: toolCall.args,
         result: result?.result,
         isComplete: !!result,
+        isError: result?.isError || false,
         timestamp: toolCall.timestamp,
       };
     });

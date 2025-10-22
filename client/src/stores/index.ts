@@ -5,6 +5,6 @@
  * All stores are organized by domain and can be imported from this index.
  */
 
-export { useGenerationStore } from './generation';
-export { useConnectionStore } from './connection';
 export { useAppStore } from './app';
+export { useConnectionStore } from './connection';
+export { useGenerationStore } from './generation';

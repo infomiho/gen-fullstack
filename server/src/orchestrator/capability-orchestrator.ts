@@ -1,4 +1,17 @@
 import type { Server as SocketIOServer } from 'socket.io';
+import {
+  type BaseCapability,
+  CodeGenerationCapability,
+  ErrorFixingCapability,
+  PlanningCapability,
+  TemplateCapability,
+  ValidationCapability,
+} from '../capabilities/index.js';
+import { getErrorMessage, isAbortError } from '../lib/error-utils.js';
+import { createLogger } from '../lib/logger.js';
+import { databaseService } from '../services/database.service.js';
+import { initializeSandbox } from '../services/filesystem.service.js';
+import type { ModelName } from '../services/llm.service.js';
 import type {
   CapabilityConfig,
   CapabilityContext,
@@ -8,19 +21,6 @@ import type {
   GenerationStatus,
   ServerToClientEvents,
 } from '../types/index.js';
-import { createLogger } from '../lib/logger.js';
-import { getErrorMessage, isAbortError } from '../lib/error-utils.js';
-import { initializeSandbox } from '../services/filesystem.service.js';
-import type { ModelName } from '../services/llm.service.js';
-import { databaseService } from '../services/database.service.js';
-import {
-  type BaseCapability,
-  TemplateCapability,
-  PlanningCapability,
-  CodeGenerationCapability,
-  ValidationCapability,
-  ErrorFixingCapability,
-} from '../capabilities/index.js';
 
 /**
  * Capability Orchestrator
@@ -434,6 +434,7 @@ export class CapabilityOrchestrator {
             this.io,
             config.planning ? 'template-plan-based' : 'template',
             CapabilityOrchestrator.DEFAULT_TOOL_CALL_LIMIT,
+            config,
           ),
         );
         break;
@@ -445,6 +446,7 @@ export class CapabilityOrchestrator {
             this.io,
             config.planning ? 'plan-based' : 'naive',
             CapabilityOrchestrator.DEFAULT_TOOL_CALL_LIMIT,
+            config,
           ),
         );
         break;

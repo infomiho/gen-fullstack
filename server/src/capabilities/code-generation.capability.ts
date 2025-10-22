@@ -1,15 +1,9 @@
+import type { CapabilityConfig } from '@gen-fullstack/shared';
 import { stepCountIs, streamText } from 'ai';
-import type {
-  CapabilityContext,
-  CapabilityResult,
-  ClientToServerEvents,
-  ServerToClientEvents,
-} from '../types/index.js';
 import type { Server as SocketIOServer } from 'socket.io';
-import { BaseCapability } from './base.capability.js';
-import type { ModelName } from '../services/llm.service.js';
 import {
   ARCHITECTURE_DESCRIPTION,
+  BUILDING_BLOCKS_CATALOG,
   DOMAIN_SPECIFIC_WARNING,
   FILE_STRUCTURE,
   getNaiveImplementationSteps,
@@ -18,9 +12,17 @@ import {
   SYSTEM_PROMPT_INTRO,
   TOOL_CAPABILITIES,
 } from '../config/prompt-snippets.js';
-import { tools } from '../tools/index.js';
-import { calculateCost } from '../services/llm.service.js';
 import { getErrorMessage } from '../lib/error-utils.js';
+import type { ModelName } from '../services/llm.service.js';
+import { calculateCost } from '../services/llm.service.js';
+import { tools } from '../tools/index.js';
+import type {
+  CapabilityContext,
+  CapabilityResult,
+  ClientToServerEvents,
+  ServerToClientEvents,
+} from '../types/index.js';
+import { BaseCapability } from './base.capability.js';
 
 /**
  * Code Generation Mode
@@ -44,16 +46,19 @@ export type CodeGenerationMode = 'naive' | 'template' | 'plan-based' | 'template
 export class CodeGenerationCapability extends BaseCapability {
   private mode: CodeGenerationMode;
   private maxToolCalls: number;
+  private config: CapabilityConfig;
 
   constructor(
     modelName: ModelName,
     io: SocketIOServer<ClientToServerEvents, ServerToClientEvents>,
     mode: CodeGenerationMode = 'naive',
     maxToolCalls: number = BaseCapability.DEFAULT_TOOL_CALL_LIMIT,
+    config: CapabilityConfig,
   ) {
     super(modelName, io);
     this.mode = mode;
     this.maxToolCalls = maxToolCalls;
+    this.config = config;
   }
 
   getName(): string {
@@ -80,11 +85,15 @@ export class CodeGenerationCapability extends BaseCapability {
    * Get system prompt for naive mode
    */
   private getNaiveSystemPrompt(): string {
+    const buildingBlocksSection = this.config.buildingBlocks
+      ? `\n\n${BUILDING_BLOCKS_CATALOG}`
+      : '';
+
     return `${SYSTEM_PROMPT_INTRO}
 
 ${DOMAIN_SPECIFIC_WARNING}
 
-${TOOL_CAPABILITIES}
+${TOOL_CAPABILITIES}${buildingBlocksSection}
 
 ${ARCHITECTURE_DESCRIPTION}
 
@@ -97,13 +106,17 @@ ${getNaiveImplementationSteps()}`;
    * Get system prompt for template mode
    */
   private getTemplateSystemPrompt(): string {
+    const buildingBlocksSection = this.config.buildingBlocks
+      ? `\n\n${BUILDING_BLOCKS_CATALOG}`
+      : '';
+
     return `${SYSTEM_PROMPT_INTRO}
 
 A complete full-stack template has been pre-loaded into your workspace.
 
 YOUR TASK: Carefully analyze the user's requirements, then customize this template to implement EXACTLY what they requested.
 
-${DOMAIN_SPECIFIC_WARNING}
+${DOMAIN_SPECIFIC_WARNING}${buildingBlocksSection}
 
 TEMPLATE STRUCTURE - ALREADY SET UP (DO NOT READ OR MODIFY):
 ✓ Root package.json with npm workspaces and scripts
@@ -148,13 +161,17 @@ IMPORTANT: All configuration is done. DO NOT read package.json, tsconfig.json, v
    * Get system prompt for plan-based mode
    */
   private getPlanBasedSystemPrompt(): string {
+    const buildingBlocksSection = this.config.buildingBlocks
+      ? `\n\n${BUILDING_BLOCKS_CATALOG}`
+      : '';
+
     return `${SYSTEM_PROMPT_INTRO}
 
 You will be implementing an architectural plan that has already been created.
 
 ${DOMAIN_SPECIFIC_WARNING}
 
-${TOOL_CAPABILITIES}
+${TOOL_CAPABILITIES}${buildingBlocksSection}
 
 ${ARCHITECTURE_DESCRIPTION}
 
@@ -167,6 +184,10 @@ ${getPlanFirstImplementationGuidelines()}`;
    * Get system prompt for template-plan-based mode
    */
   private getTemplatePlanBasedSystemPrompt(): string {
+    const buildingBlocksSection = this.config.buildingBlocks
+      ? `\n\n${BUILDING_BLOCKS_CATALOG}`
+      : '';
+
     return `${SYSTEM_PROMPT_INTRO}
 
 A complete full-stack template has been pre-loaded into your workspace.
@@ -174,7 +195,7 @@ You will be implementing an architectural plan that has already been created.
 
 YOUR TASK: Follow the architectural plan to customize this template and implement EXACTLY what was planned.
 
-${DOMAIN_SPECIFIC_WARNING}
+${DOMAIN_SPECIFIC_WARNING}${buildingBlocksSection}
 
 TEMPLATE STRUCTURE - ALREADY SET UP (DO NOT READ OR MODIFY):
 ✓ Root package.json with npm workspaces and scripts
@@ -247,12 +268,17 @@ Implement the application following this plan exactly. Create all files as speci
         );
       }
 
+      // Prepare tools - conditionally include requestBlock
+      const availableTools = this.config.buildingBlocks
+        ? tools
+        : Object.fromEntries(Object.entries(tools).filter(([name]) => name !== 'requestBlock'));
+
       // Stream text generation with tools
       const result = streamText({
         model: this.model,
         system: this.getSystemPrompt(context),
         prompt: this.getUserPrompt(context),
-        tools,
+        tools: availableTools,
         experimental_context: { sessionId, io: this.io },
         stopWhen: stepCountIs(this.maxToolCalls),
         onStepFinish: this.createOnStepFinishHandler(sessionId),

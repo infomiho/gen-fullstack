@@ -25,3 +25,20 @@ export function toToolResult(output: unknown): string {
   }
   return JSON.stringify(output);
 }
+
+/**
+ * Format tool error for display, avoiding duplicate "Error:" prefixes
+ * @param error - Error from AI SDK tool execution
+ * @returns Formatted error message
+ */
+export function formatToolError(error: unknown): string {
+  if (!error) return 'Error: Unknown error occurred';
+
+  const message =
+    typeof error === 'object' && error !== null && 'message' in error
+      ? String((error as { message: unknown }).message)
+      : String(error);
+
+  // Avoid double "Error:" prefix
+  return message.startsWith('Error:') ? message : `Error: ${message}`;
+}

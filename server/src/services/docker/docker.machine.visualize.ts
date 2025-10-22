@@ -12,13 +12,13 @@
 import type { Container } from 'dockerode';
 import { createActor } from 'xstate';
 import {
-  stateToAppStatus,
-  createDockerMachine,
-  type CreateContainerOutput,
   type CreateContainerInput,
+  type CreateContainerOutput,
+  createDockerMachine,
+  type HttpReadyCheckInput,
   type InstallDependenciesInput,
   type StartDevServerInput,
-  type HttpReadyCheckInput,
+  stateToAppStatus,
 } from './docker.machine.js';
 
 // ============================================================================

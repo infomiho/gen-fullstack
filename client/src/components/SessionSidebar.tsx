@@ -1,8 +1,8 @@
 import type { AppInfo } from '@gen-fullstack/shared';
+import { CAPABILITY_METADATA } from '../lib/capability-metadata';
+import { typography } from '../lib/design-tokens';
 import { Alert } from './Alert';
 import { AppControls } from './AppControls';
-import { typography } from '../lib/design-tokens';
-import { CAPABILITY_METADATA } from '../lib/capability-metadata';
 
 interface SessionData {
   session: {

@@ -5,8 +5,8 @@
  * Handles log retention and build event detection.
  */
 
-import type { AppLog, BuildEvent } from '@gen-fullstack/shared';
 import { EventEmitter } from 'node:events';
+import type { AppLog, BuildEvent } from '@gen-fullstack/shared';
 import { LOG_RETENTION } from './config.js';
 import type { ContainerInfo } from './types.js';
 

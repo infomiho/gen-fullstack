@@ -10,9 +10,9 @@
  *                                               failed
  */
 
+import type { AppLog, AppStatus } from '@gen-fullstack/shared';
 import type { Container } from 'dockerode';
 import { type Actor, assign, createMachine, fromPromise } from 'xstate';
-import type { AppLog, AppStatus } from '@gen-fullstack/shared';
 
 // ============================================================================
 // Context Types

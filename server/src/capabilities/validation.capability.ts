@@ -1,16 +1,16 @@
+import type { Server as SocketIOServer } from 'socket.io';
+import { getErrorMessage, truncateErrorMessage } from '../lib/error-utils.js';
+import { parsePrismaErrors } from '../lib/prisma-error-parser.js';
+import type { TypeScriptError } from '../lib/typescript-error-parser.js';
+import type { DockerMachineEvent } from '../services/docker/docker.machine.js';
+import type { ModelName } from '../services/llm.service.js';
 import type {
   CapabilityContext,
   CapabilityResult,
   ClientToServerEvents,
   ServerToClientEvents,
 } from '../types/index.js';
-import type { Server as SocketIOServer } from 'socket.io';
 import { BaseCapability } from './base.capability.js';
-import type { ModelName } from '../services/llm.service.js';
-import { parsePrismaErrors } from '../lib/prisma-error-parser.js';
-import type { TypeScriptError } from '../lib/typescript-error-parser.js';
-import { getErrorMessage, truncateErrorMessage } from '../lib/error-utils.js';
-import type { DockerMachineEvent } from '../services/docker/docker.machine.js';
 
 /**
  * Schema validation result

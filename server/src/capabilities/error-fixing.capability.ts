@@ -1,22 +1,22 @@
 import { stepCountIs, streamText } from 'ai';
+import type { Server as SocketIOServer } from 'socket.io';
+import { createFixPrompt } from '../config/prompt-snippets.js';
+import { getErrorMessage } from '../lib/error-utils.js';
+import { parsePrismaErrors } from '../lib/prisma-error-parser.js';
+import {
+  formatTypeScriptErrorsForLLM,
+  type TypeScriptError,
+} from '../lib/typescript-error-parser.js';
+import type { ModelName } from '../services/llm.service.js';
+import { calculateCost } from '../services/llm.service.js';
+import { tools } from '../tools/index.js';
 import type {
   CapabilityContext,
   CapabilityResult,
   ClientToServerEvents,
   ServerToClientEvents,
 } from '../types/index.js';
-import type { Server as SocketIOServer } from 'socket.io';
 import { BaseCapability } from './base.capability.js';
-import type { ModelName } from '../services/llm.service.js';
-import { createFixPrompt } from '../config/prompt-snippets.js';
-import { parsePrismaErrors } from '../lib/prisma-error-parser.js';
-import {
-  formatTypeScriptErrorsForLLM,
-  type TypeScriptError,
-} from '../lib/typescript-error-parser.js';
-import { tools } from '../tools/index.js';
-import { calculateCost } from '../services/llm.service.js';
-import { getErrorMessage } from '../lib/error-utils.js';
 
 /**
  * Metrics tracker for error fixing iterations

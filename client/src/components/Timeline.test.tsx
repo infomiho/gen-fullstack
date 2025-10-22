@@ -5,11 +5,11 @@
  * Includes test for modal persistence during live updates.
  */
 
-import { describe, it, expect } from 'vitest';
+import type { LLMMessage, ToolCall, ToolResult } from '@gen-fullstack/shared';
 import { render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
+import { describe, expect, it } from 'vitest';
 import { Timeline } from './Timeline';
-import type { LLMMessage, ToolCall, ToolResult } from '@gen-fullstack/shared';
 
 describe('Timeline', () => {
   it('should keep tool dialog open when new messages arrive', async () => {

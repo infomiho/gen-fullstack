@@ -1,0 +1,53 @@
+{
+  "id": "auth-password",
+  "name": "Password Authentication",
+  "version": "1.0.0",
+  "description": "Username/password authentication with bcrypt hashing, session management, and React components",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "@types/bcryptjs": "^2.4.6"
+  },
+  "files": {
+    "server": ["server/auth.ts", "server/auth-middleware.ts", "server/auth-routes.ts"],
+    "client": [
+      "client/useAuth.tsx",
+      "client/LoginForm.tsx",
+      "client/RegisterForm.tsx",
+      "client/ProtectedRoute.tsx"
+    ],
+    "prisma": ["prisma/schema.prisma"]
+  },
+  "integrationGuide": {
+    "steps": [
+      "1. Install dependencies: npm install bcryptjs @types/bcryptjs",
+      "2. Merge Prisma models from prisma/schema.prisma into your schema",
+      "3. Run: npx prisma generate && npx prisma migrate dev --name add-auth",
+      "4. Import and mount auth router in server/src/index.ts:",
+      "   import { authRouter } from './routes/auth-routes';",
+      "   app.use('/api/auth', authRouter);",
+      "5. Wrap your app in client with <AuthProvider>:",
+      "   import { AuthProvider } from './hooks/useAuth';",
+      "   <AuthProvider><App /></AuthProvider>",
+      "6. Use useAuth() hook in components to access user, login, register, logout",
+      "7. Use <ProtectedRoute> component to guard authenticated routes"
+    ],
+    "exports": {
+      "server": [
+        "hashPassword(password: string): Promise<string>",
+        "verifyPassword(password: string, hash: string): Promise<boolean>",
+        "createSession(userId: string): Promise<string>",
+        "validateSession(token: string): Promise<User | null>",
+        "deleteSession(token: string): Promise<void>",
+        "requireAuth middleware",
+        "authRouter (Express router)"
+      ],
+      "client": [
+        "AuthProvider component",
+        "useAuth() hook -> { user, login, register, logout, isLoading }",
+        "LoginForm component",
+        "RegisterForm component",
+        "ProtectedRoute component"
+      ]
+    }
+  }
+}

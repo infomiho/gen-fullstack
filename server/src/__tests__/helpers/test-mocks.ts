@@ -70,8 +70,8 @@
  * ```
  */
 
-import { vi } from 'vitest';
 import type { Server as SocketIOServer } from 'socket.io';
+import { vi } from 'vitest';
 import type { ClientToServerEvents, ServerToClientEvents } from '../../types/index.js';
 
 /**

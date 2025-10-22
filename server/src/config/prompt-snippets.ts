@@ -23,6 +23,47 @@ You have access to four tools to build applications:
 4. executeCommand - Run commands (npm install, npm dev, etc.)`;
 
 /**
+ * Building blocks catalog for enhanced generation
+ * Only include this when buildingBlocks capability is enabled
+ */
+export const BUILDING_BLOCKS_CATALOG = `BUILDING BLOCKS AVAILABLE:
+You can request pre-built, production-ready building blocks to speed up development.
+
+Available blocks:
+1. **auth-password** - Username/password authentication
+   - Bcrypt password hashing
+   - Session-based auth with 30-day tokens
+   - Express middleware (requireAuth)
+   - API routes: /auth/register, /auth/login, /auth/logout, /auth/me
+   - React components: AuthProvider, useAuth hook, LoginForm, RegisterForm, ProtectedRoute
+   - Dependencies: bcryptjs, @types/bcryptjs
+
+To use a block, call the requestBlock tool:
+\`\`\`
+requestBlock({ blockId: "auth-password" })
+\`\`\`
+
+The system will:
+1. Copy all block files to your workspace
+2. Provide integration steps
+3. List dependencies to install
+4. Show available exports and usage examples
+
+WHEN TO USE BLOCKS:
+- Use blocks when the user needs common functionality (auth, CRUD, etc.)
+- Request blocks EARLY in implementation (before writing related code)
+- Follow integration guide to properly integrate with your app
+- Don't reinvent the wheel - blocks save time and reduce errors
+
+INTEGRATION WORKFLOW:
+1. Request block: requestBlock({ blockId: "auth-password" })
+2. Review integration guide in the response
+3. Install dependencies: executeCommand({ command: "npm install bcryptjs @types/bcryptjs" })
+4. Merge Prisma models into your schema
+5. Import and mount routes (server) or wrap with provider (client)
+6. Use exported functions/components in your code`;
+
+/**
  * Critical warning about domain-specific implementation
  * Prevents LLM from using generic examples
  */

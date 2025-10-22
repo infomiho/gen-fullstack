@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
 import type { LLMMessage } from '@gen-fullstack/shared';
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
 import { MessageItem } from './MessageItem';
 
 describe('MessageItem', () => {

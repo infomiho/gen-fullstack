@@ -1,6 +1,6 @@
+import type { CapabilityConfig } from '@gen-fullstack/shared';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
-import type { CapabilityConfig } from '@gen-fullstack/shared';
 import { CapabilitySection } from './CapabilitySection';
 
 const meta = {
@@ -29,6 +29,7 @@ export const QuickStart: Story = {
       inputMode: 'naive' as const,
       planning: false,
       compilerChecks: false,
+      buildingBlocks: false,
       maxIterations: 3,
     },
     onConfigChange: () => {},
@@ -40,6 +41,7 @@ export const QuickStart: Story = {
           inputMode: 'naive',
           planning: false,
           compilerChecks: false,
+          buildingBlocks: false,
           maxIterations: 3,
         }}
       />
@@ -53,6 +55,7 @@ export const SelfCorrecting: Story = {
       inputMode: 'naive' as const,
       planning: false,
       compilerChecks: false,
+      buildingBlocks: false,
       maxIterations: 3,
     },
     onConfigChange: () => {},
@@ -64,6 +67,7 @@ export const SelfCorrecting: Story = {
           inputMode: 'naive',
           planning: false,
           compilerChecks: true,
+          buildingBlocks: false,
           maxIterations: 3,
         }}
       />
@@ -77,6 +81,7 @@ export const Comprehensive: Story = {
       inputMode: 'naive' as const,
       planning: false,
       compilerChecks: false,
+      buildingBlocks: false,
       maxIterations: 3,
     },
     onConfigChange: () => {},
@@ -88,6 +93,7 @@ export const Comprehensive: Story = {
           inputMode: 'naive',
           planning: true,
           compilerChecks: true,
+          buildingBlocks: false,
           maxIterations: 3,
         }}
       />
@@ -101,6 +107,7 @@ export const WithTemplate: Story = {
       inputMode: 'naive' as const,
       planning: false,
       compilerChecks: false,
+      buildingBlocks: false,
       maxIterations: 3,
     },
     onConfigChange: () => {},
@@ -115,6 +122,7 @@ export const WithTemplate: Story = {
           },
           planning: false,
           compilerChecks: false,
+          buildingBlocks: false,
           maxIterations: 3,
         }}
       />
@@ -128,6 +136,7 @@ export const CustomConfiguration: Story = {
       inputMode: 'naive' as const,
       planning: false,
       compilerChecks: false,
+      buildingBlocks: false,
       maxIterations: 3,
     },
     onConfigChange: () => {},
@@ -142,6 +151,7 @@ export const CustomConfiguration: Story = {
           },
           planning: true,
           compilerChecks: true,
+          buildingBlocks: false,
           maxIterations: 5,
         }}
       />
@@ -155,6 +165,7 @@ export const Disabled: Story = {
       inputMode: 'naive' as const,
       planning: false,
       compilerChecks: false,
+      buildingBlocks: false,
       maxIterations: 3,
     },
     onConfigChange: () => {},
@@ -166,6 +177,7 @@ export const Disabled: Story = {
           inputMode: 'naive',
           planning: true,
           compilerChecks: true,
+          buildingBlocks: false,
           maxIterations: 3,
         }}
         disabled
@@ -180,6 +192,7 @@ export const Interactive: Story = {
       inputMode: 'naive' as const,
       planning: false,
       compilerChecks: false,
+      buildingBlocks: false,
       maxIterations: 3,
     },
     onConfigChange: () => {},
@@ -189,6 +202,7 @@ export const Interactive: Story = {
       inputMode: 'naive',
       planning: false,
       compilerChecks: false,
+      buildingBlocks: false,
       maxIterations: 3,
     });
 

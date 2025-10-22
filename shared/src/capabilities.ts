@@ -3,11 +3,12 @@ import { z } from 'zod';
 /**
  * Capability system for composable app generation
  *
- * This module defines a flexible capability-based architecture with three
+ * This module defines a flexible capability-based architecture with four
  * independent dimensions:
  * 1. Input Mode: naive vs template (mutually exclusive)
  * 2. Planning: enabled/disabled (can be combined with any input mode)
  * 3. Compiler Checks: enabled/disabled (can be combined with any input mode)
+ * 4. Building Blocks: enabled/disabled (can be combined with any input mode)
  */
 
 // ============================================================================
@@ -53,6 +54,9 @@ export const CapabilityConfigSchema = z.object({
 
   // Compiler check iterations (only used if compilerChecks is true)
   maxIterations: z.number().int().min(1).max(5).optional().default(3),
+
+  // Building blocks: whether to enable pre-built reusable components
+  buildingBlocks: z.boolean().optional().default(false),
 });
 
 // Use input type for creating configs (optional fields) and output type for using configs (with defaults applied)
@@ -176,12 +180,14 @@ export const strategyToCapabilityConfig: Record<string, CapabilityConfig> = {
     inputMode: 'naive',
     planning: false,
     compilerChecks: false,
+    buildingBlocks: false,
     maxIterations: 3,
   },
   'plan-first': {
     inputMode: 'naive',
     planning: true,
     compilerChecks: false,
+    buildingBlocks: false,
     maxIterations: 3,
   },
   template: {
@@ -191,12 +197,14 @@ export const strategyToCapabilityConfig: Record<string, CapabilityConfig> = {
     },
     planning: false,
     compilerChecks: false,
+    buildingBlocks: false,
     maxIterations: 3,
   },
   'compiler-check': {
     inputMode: 'naive',
     planning: false,
     compilerChecks: true,
+    buildingBlocks: false,
     maxIterations: 3,
   },
 };
@@ -221,6 +229,7 @@ export const CAPABILITY_PRESETS: readonly CapabilityPreset[] = [
       inputMode: 'naive',
       planning: false,
       compilerChecks: false,
+      buildingBlocks: false,
       maxIterations: 3,
     },
   },
@@ -232,6 +241,7 @@ export const CAPABILITY_PRESETS: readonly CapabilityPreset[] = [
       inputMode: 'naive',
       planning: true,
       compilerChecks: false,
+      buildingBlocks: false,
       maxIterations: 3,
     },
   },
@@ -243,6 +253,7 @@ export const CAPABILITY_PRESETS: readonly CapabilityPreset[] = [
       inputMode: 'naive',
       planning: false,
       compilerChecks: true,
+      buildingBlocks: false,
       maxIterations: 3,
     },
   },
@@ -254,6 +265,7 @@ export const CAPABILITY_PRESETS: readonly CapabilityPreset[] = [
       inputMode: 'naive',
       planning: true,
       compilerChecks: true,
+      buildingBlocks: false,
       maxIterations: 3,
     },
   },
@@ -268,6 +280,7 @@ export const CAPABILITY_PRESETS: readonly CapabilityPreset[] = [
       },
       planning: false,
       compilerChecks: false,
+      buildingBlocks: false,
       maxIterations: 3,
     },
   },
@@ -282,6 +295,7 @@ export const CAPABILITY_PRESETS: readonly CapabilityPreset[] = [
       },
       planning: true,
       compilerChecks: false,
+      buildingBlocks: false,
       maxIterations: 3,
     },
   },
@@ -296,6 +310,7 @@ export const CAPABILITY_PRESETS: readonly CapabilityPreset[] = [
       },
       planning: false,
       compilerChecks: true,
+      buildingBlocks: false,
       maxIterations: 3,
     },
   },
@@ -310,6 +325,7 @@ export const CAPABILITY_PRESETS: readonly CapabilityPreset[] = [
       },
       planning: true,
       compilerChecks: true,
+      buildingBlocks: false,
       maxIterations: 3,
     },
   },

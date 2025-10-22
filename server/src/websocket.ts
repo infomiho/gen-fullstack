@@ -6,10 +6,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 import { getEnv } from './config/env.js';
 import { websocketLogger } from './lib/logger.js';
-import { databaseService } from './services/database.service.js';
-import { getSandboxPath, writeFile } from './services/filesystem.service.js';
-import { dockerService } from './services/docker.service.js';
 import { CapabilityOrchestrator } from './orchestrator/capability-orchestrator.js';
+import { databaseService } from './services/database.service.js';
+import { dockerService } from './services/docker.service.js';
+import { getSandboxPath, writeFile } from './services/filesystem.service.js';
 import type { ClientToServerEvents, ServerToClientEvents } from './types/index.js';
 import {
   AppActionSchema,

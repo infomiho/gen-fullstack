@@ -11,13 +11,13 @@
  * - Session room management
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createServer } from 'node:http';
-import { io as ioClient, type Socket as ClientSocket } from 'socket.io-client';
-import { setupWebSocket } from '../websocket.js';
-import { databaseService } from '../services/database.service.js';
 import type { Server as SocketIOServer } from 'socket.io';
+import { type Socket as ClientSocket, io as ioClient } from 'socket.io-client';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { databaseService } from '../services/database.service.js';
 import type { ClientToServerEvents, ServerToClientEvents } from '../types/index.js';
+import { setupWebSocket } from '../websocket.js';
 
 // Mock services
 vi.mock('../services/process.service.js', () => ({
@@ -198,6 +198,7 @@ describe('WebSocket Handler Edge Cases', () => {
           inputMode: 'naive' as const,
           planning: false,
           compilerChecks: false,
+          buildingBlocks: false,
           maxIterations: 3,
         },
         model: 'gpt-5-mini' as const,
@@ -249,6 +250,7 @@ describe('WebSocket Handler Edge Cases', () => {
           inputMode: 'naive' as const,
           planning: false,
           compilerChecks: false,
+          buildingBlocks: false,
           maxIterations: 3,
         },
         model: 'gpt-5-mini' as const,
@@ -343,6 +345,7 @@ describe('WebSocket Handler Edge Cases', () => {
           inputMode: 'naive' as const,
           planning: false,
           compilerChecks: false,
+          buildingBlocks: false,
           maxIterations: 3,
         },
         model: 'gpt-5-mini' as const,
@@ -372,6 +375,7 @@ describe('WebSocket Handler Edge Cases', () => {
           inputMode: 'naive' as const,
           planning: false,
           compilerChecks: false,
+          buildingBlocks: false,
           maxIterations: 3,
         },
         model: 'gpt-5-mini' as const,
@@ -457,6 +461,7 @@ describe('WebSocket Handler Edge Cases', () => {
           inputMode: 'naive' as const,
           planning: false,
           compilerChecks: false,
+          buildingBlocks: false,
           maxIterations: 3,
         },
         model: 'gpt-5-mini' as const,
@@ -467,6 +472,7 @@ describe('WebSocket Handler Edge Cases', () => {
           inputMode: 'naive' as const,
           planning: false,
           compilerChecks: false,
+          buildingBlocks: false,
           maxIterations: 3,
         },
         model: 'gpt-5-mini' as const,
@@ -477,6 +483,7 @@ describe('WebSocket Handler Edge Cases', () => {
           inputMode: 'naive' as const,
           planning: false,
           compilerChecks: false,
+          buildingBlocks: false,
           maxIterations: 3,
         },
         model: 'gpt-5-mini' as const,

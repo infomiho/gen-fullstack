@@ -8,8 +8,8 @@
  * - Cost calculation accuracy
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Server as SocketIOServer } from 'socket.io';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CapabilityOrchestrator } from '../orchestrator/capability-orchestrator.js';
 import { databaseService } from '../services/database.service.js';
 import type {
@@ -120,6 +120,7 @@ describe('Capability Orchestrator - Advanced Integration', () => {
         inputMode: 'naive',
         planning: false,
         compilerChecks: false,
+        buildingBlocks: false,
         maxIterations: 3,
       };
 
@@ -155,6 +156,7 @@ describe('Capability Orchestrator - Advanced Integration', () => {
         inputMode: 'naive',
         planning: true,
         compilerChecks: false,
+        buildingBlocks: false,
         maxIterations: 3,
       };
 
@@ -186,6 +188,7 @@ describe('Capability Orchestrator - Advanced Integration', () => {
       const config: CapabilityConfig = {
         inputMode: 'naive',
         compilerChecks: true,
+        buildingBlocks: false,
         planning: false,
         maxIterations: 3,
       };
@@ -222,6 +225,7 @@ describe('Capability Orchestrator - Advanced Integration', () => {
         },
         planning: false,
         compilerChecks: false,
+        buildingBlocks: false,
         maxIterations: 3,
       };
 
@@ -252,6 +256,7 @@ describe('Capability Orchestrator - Advanced Integration', () => {
         inputMode: 'naive',
         planning: true,
         compilerChecks: false,
+        buildingBlocks: false,
         maxIterations: 3,
       };
 
@@ -282,6 +287,7 @@ describe('Capability Orchestrator - Advanced Integration', () => {
         inputMode: 'naive',
         planning: false,
         compilerChecks: false,
+        buildingBlocks: false,
         maxIterations: 3,
       };
 
@@ -308,6 +314,7 @@ describe('Capability Orchestrator - Advanced Integration', () => {
       const config: CapabilityConfig = {
         inputMode: 'naive',
         compilerChecks: true,
+        buildingBlocks: false,
         planning: false,
         maxIterations: 3,
       };
@@ -338,6 +345,7 @@ describe('Capability Orchestrator - Advanced Integration', () => {
         inputMode: 'naive',
         planning: true,
         compilerChecks: true,
+        buildingBlocks: false,
         maxIterations: 1,
       };
 
@@ -369,6 +377,7 @@ describe('Capability Orchestrator - Advanced Integration', () => {
         inputMode: 'naive',
         planning: false,
         compilerChecks: false,
+        buildingBlocks: false,
         maxIterations: 3,
       };
 
@@ -417,6 +426,7 @@ describe('Capability Orchestrator - Advanced Integration', () => {
         inputMode: 'naive',
         planning: true,
         compilerChecks: false,
+        buildingBlocks: false,
         maxIterations: 3,
       };
 
@@ -450,6 +460,7 @@ describe('Capability Orchestrator - Advanced Integration', () => {
         inputMode: 'naive',
         planning: false,
         compilerChecks: false,
+        buildingBlocks: false,
         maxIterations: 3,
       };
 
@@ -483,6 +494,7 @@ describe('Capability Orchestrator - Advanced Integration', () => {
         inputMode: 'naive',
         planning: true,
         compilerChecks: true,
+        buildingBlocks: false,
         maxIterations: 3,
       };
 
@@ -514,6 +526,7 @@ describe('Capability Orchestrator - Advanced Integration', () => {
       const config: CapabilityConfig = {
         inputMode: 'naive',
         compilerChecks: true,
+        buildingBlocks: false,
         planning: false,
         maxIterations: 3,
       };
@@ -551,6 +564,7 @@ describe('Capability Orchestrator - Advanced Integration', () => {
       const config: CapabilityConfig = {
         inputMode: 'naive',
         compilerChecks: true,
+        buildingBlocks: false,
         maxIterations: 1,
         planning: false,
       };
@@ -580,6 +594,7 @@ describe('Capability Orchestrator - Advanced Integration', () => {
         inputMode: 'naive',
         planning: false,
         compilerChecks: false,
+        buildingBlocks: false,
         maxIterations: 3,
       };
 
@@ -606,6 +621,7 @@ describe('Capability Orchestrator - Advanced Integration', () => {
         inputMode: 'naive',
         planning: false,
         compilerChecks: false,
+        buildingBlocks: false,
         maxIterations: 3,
       };
 
@@ -634,6 +650,7 @@ describe('Capability Orchestrator - Advanced Integration', () => {
       const config: CapabilityConfig = {
         inputMode: 'naive',
         compilerChecks: true,
+        buildingBlocks: false,
         planning: false,
         maxIterations: 3,
       };

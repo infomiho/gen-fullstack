@@ -5,8 +5,8 @@
  * to ensure they work correctly together.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Server as SocketIOServer } from 'socket.io';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CapabilityOrchestrator } from '../orchestrator/capability-orchestrator.js';
 import { databaseService } from '../services/database.service.js';
 import type {
@@ -112,6 +112,7 @@ describe('Capability Combinations Integration', () => {
         inputMode: 'naive',
         planning: false,
         compilerChecks: false,
+        buildingBlocks: false,
         maxIterations: 3,
       };
 
@@ -142,6 +143,7 @@ describe('Capability Combinations Integration', () => {
         inputMode: 'naive',
         planning: true,
         compilerChecks: false,
+        buildingBlocks: false,
         maxIterations: 3,
       };
 
@@ -175,6 +177,7 @@ describe('Capability Combinations Integration', () => {
         },
         planning: false,
         compilerChecks: false,
+        buildingBlocks: false,
         maxIterations: 3,
       };
 
@@ -207,6 +210,7 @@ describe('Capability Combinations Integration', () => {
       const config: CapabilityConfig = {
         inputMode: 'naive',
         compilerChecks: true,
+        buildingBlocks: false,
         planning: false,
         maxIterations: 3,
       };
@@ -246,6 +250,7 @@ describe('Capability Combinations Integration', () => {
       const config: CapabilityConfig = {
         inputMode: 'naive',
         compilerChecks: true,
+        buildingBlocks: false,
         maxIterations: 2,
         planning: false,
       };
@@ -289,6 +294,7 @@ describe('Capability Combinations Integration', () => {
         inputMode: 'naive',
         planning: true,
         compilerChecks: true,
+        buildingBlocks: false,
         maxIterations: 3,
       };
 
@@ -341,6 +347,7 @@ describe('Capability Combinations Integration', () => {
           templateName: 'vite-fullstack-base',
         },
         compilerChecks: true,
+        buildingBlocks: false,
         maxIterations: 2,
         planning: false,
       };
@@ -387,6 +394,7 @@ describe('Capability Combinations Integration', () => {
       const config: CapabilityConfig = {
         inputMode: 'naive',
         compilerChecks: true,
+        buildingBlocks: false,
         planning: false,
         maxIterations: 3,
       };
@@ -416,6 +424,7 @@ describe('Capability Combinations Integration', () => {
         inputMode: 'naive',
         planning: false,
         compilerChecks: false,
+        buildingBlocks: false,
         maxIterations: 3,
       };
 

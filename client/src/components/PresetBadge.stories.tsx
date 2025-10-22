@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { Zap, Target, Rocket } from 'lucide-react';
+import { Rocket, Target, Zap } from 'lucide-react';
 import { useState } from 'react';
 import { fn } from 'storybook/test';
 import { PresetBadge } from './PresetBadge';

@@ -1,11 +1,12 @@
+import type { CapabilityConfig } from '@gen-fullstack/shared';
+import { Send } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import type { CapabilityConfig } from '@gen-fullstack/shared';
 import { CapabilitySection } from '../components/CapabilitySection';
 import { PromptInput } from '../components/PromptInput';
 import { StatusBadge } from '../components/StatusBadge';
 import { useWebSocket } from '../hooks/useWebSocket';
-import { card, spacing, typography } from '../lib/design-tokens';
+import { card, focus, spacing, transitions, typography } from '../lib/design-tokens';
 
 const SERVER_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
@@ -36,11 +37,15 @@ function HomePage() {
   const navigate = useNavigate();
   const { isConnected, startGeneration, isGenerating } = useWebSocket(navigate);
 
+  // Prompt state
+  const [prompt, setPrompt] = useState('');
+
   // Capability mode state
   const [capabilityConfig, setCapabilityConfig] = useState<CapabilityConfig>({
     inputMode: 'naive',
     planning: false,
     compilerChecks: false,
+    buildingBlocks: false,
     maxIterations: 3,
   });
 
@@ -67,8 +72,11 @@ function HomePage() {
     fetchSessions();
   }, []);
 
-  const handleGenerate = (prompt: string) => {
-    startGeneration(prompt, capabilityConfig, 'gpt-5-mini');
+  const handleGenerate = () => {
+    if (prompt.trim()) {
+      startGeneration(prompt, capabilityConfig, 'gpt-5-mini');
+      setPrompt('');
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -89,10 +97,10 @@ function HomePage() {
   return (
     <div className="min-h-screen bg-white">
       {/* Main content - Centered */}
-      <main className="max-w-4xl mx-auto px-6 py-16">
+      <main className="max-w-5xl mx-auto px-6 py-16">
         {/* Title */}
-        <div className="text-center mb-16">
-          <h1 className="text-5xl font-bold text-gray-900 mb-16">Gen Fullstack</h1>
+        <div className="text-center mb-12">
+          <h1 className="text-5xl font-bold text-gray-900">Gen Fullstack</h1>
         </div>
 
         {/* Generation form */}
@@ -100,13 +108,9 @@ function HomePage() {
           <div className={`${spacing.sections}`}>
             {/* Prompt input */}
             <div>
-              <label htmlFor="prompt-textarea" className={`block mb-3 ${typography.sectionHeader}`}>
-                What do you want to build?
-              </label>
-              {/* biome-ignore lint/correctness/useUniqueElementIds: Static ID is intentional for label accessibility - HomePage renders once per page */}
               <PromptInput
-                id="prompt-textarea"
-                onSubmit={handleGenerate}
+                value={prompt}
+                onChange={setPrompt}
                 disabled={isGenerating || !isConnected}
               />
             </div>
@@ -117,6 +121,19 @@ function HomePage() {
               onConfigChange={setCapabilityConfig}
               disabled={isGenerating}
             />
+
+            {/* Generate button */}
+            <div>
+              <button
+                type="button"
+                onClick={handleGenerate}
+                disabled={isGenerating || !isConnected || !prompt.trim()}
+                className={`w-full flex items-center justify-center gap-2 rounded border border-gray-900 bg-gray-900 px-4 py-3 text-base font-medium text-white ${transitions.colors} hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:border-gray-300 ${focus.ring}`}
+              >
+                <Send size={16} />
+                Generate
+              </button>
+            </div>
           </div>
         </div>
 

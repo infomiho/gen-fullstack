@@ -2,12 +2,12 @@ import { useEffect, useRef } from 'react';
 import {
   data,
   isRouteErrorResponse,
+  Link,
   type LoaderFunctionArgs,
   useLoaderData,
   useNavigate,
   useParams,
   useRouteError,
-  Link,
 } from 'react-router';
 import { AppPreview } from '../components/AppPreview';
 import { ErrorBoundary as ErrorBoundaryComponent } from '../components/ErrorBoundary';
@@ -18,8 +18,8 @@ import { SessionSidebar } from '../components/SessionSidebar';
 import { Timeline } from '../components/Timeline';
 import { useSessionData } from '../hooks/useSessionData';
 import { useWebSocket } from '../hooks/useWebSocket';
-import { useAppStore, useGenerationStore } from '../stores';
 import { focus, padding, spacing, transitions, typography } from '../lib/design-tokens';
+import { useAppStore, useGenerationStore } from '../stores';
 
 const SERVER_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 

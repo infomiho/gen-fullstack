@@ -154,4 +154,5 @@ export const capabilityIcons = {
   planning: 'text-blue-600',
   template: 'text-purple-600',
   compiler: 'text-green-600',
+  blocks: 'text-orange-600',
 } as const;

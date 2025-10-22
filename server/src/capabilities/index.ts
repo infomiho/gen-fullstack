@@ -7,8 +7,8 @@
  */
 
 export { BaseCapability } from './base.capability.js';
-export { TemplateCapability } from './template.capability.js';
-export { PlanningCapability } from './planning.capability.js';
 export { CodeGenerationCapability } from './code-generation.capability.js';
-export { ValidationCapability } from './validation.capability.js';
 export { ErrorFixingCapability } from './error-fixing.capability.js';
+export { PlanningCapability } from './planning.capability.js';
+export { TemplateCapability } from './template.capability.js';
+export { ValidationCapability } from './validation.capability.js';

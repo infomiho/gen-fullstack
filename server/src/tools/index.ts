@@ -5,6 +5,7 @@ import { databaseLogger } from '../lib/logger.js';
 import * as commandService from '../services/command.service.js';
 import { databaseService } from '../services/database.service.js';
 import * as filesystemService from '../services/filesystem.service.js';
+import { requestBlock } from './request-block.tool.js';
 import { extractToolContext } from './tool-utils.js';
 
 /**
@@ -166,6 +167,7 @@ export const tools = {
   readFile,
   listFiles,
   executeCommand,
+  requestBlock,
 };
 
 /**

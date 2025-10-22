@@ -16,12 +16,12 @@ import { getEnv } from '../config/env.js';
 import { dockerLogger } from '../lib/logger.js';
 import {
   CircuitBreaker,
-  checkHttpReady,
   type ContainerInfo,
+  checkHttpReady,
   createDockerMachine,
   createDockerStreamHandler,
-  type DockerMachineActor,
   DOCKERFILE_PATH,
+  type DockerMachineActor,
   type dockerContainerMachine,
   getDockerSocketPath,
   hasDestroyMethod,
@@ -29,8 +29,8 @@ import {
   PORT_RANGE,
   PortManager,
   RESOURCE_LIMITS,
-  retryOnConflict,
   RUNNER_IMAGE,
+  retryOnConflict,
   stateToAppStatus,
   TIMEOUTS,
 } from './docker/index.js';

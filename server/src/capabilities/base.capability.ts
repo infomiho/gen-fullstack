@@ -1,16 +1,16 @@
+import { randomUUID } from 'node:crypto';
 import type { LanguageModel } from 'ai';
 import type { Server as SocketIOServer } from 'socket.io';
+import { createLogger } from '../lib/logger.js';
+import { formatToolError, toToolInput, toToolResult } from '../lib/tool-utils.js';
+import { databaseService } from '../services/database.service.js';
+import { getModel, type ModelName } from '../services/llm.service.js';
 import type {
   CapabilityContext,
   CapabilityResult,
   ClientToServerEvents,
   ServerToClientEvents,
 } from '../types/index.js';
-import { createLogger } from '../lib/logger.js';
-import { getModel, type ModelName } from '../services/llm.service.js';
-import { databaseService } from '../services/database.service.js';
-import { toToolInput, toToolResult } from '../lib/tool-utils.js';
-import { randomUUID } from 'node:crypto';
 
 /**
  * Base class for all capabilities in the composable generation system
@@ -188,12 +188,14 @@ export abstract class BaseCapability {
    * @param toolName - Name of the tool that was called
    * @param result - Result from tool execution
    * @param sessionId - Session identifier
+   * @param isError - Whether this result represents an error (default: false)
    */
   protected emitToolResult(
     toolCallId: string,
     toolName: string,
     result: string,
     sessionId: string,
+    isError = false,
   ): void {
     const timestamp = Date.now();
     const resultId = `result-${toolCallId}`;
@@ -203,6 +205,7 @@ export abstract class BaseCapability {
       toolName,
       result,
       timestamp,
+      isError,
     });
 
     // Persist to database (async, don't await to not block)
@@ -215,7 +218,7 @@ export abstract class BaseCapability {
         toolResultFor: toolCallId,
         toolName,
         result,
-        isError: false,
+        isError,
       })
       .catch((err) => this.logger.error({ err, sessionId }, 'Failed to persist tool result'));
   }
@@ -256,10 +259,29 @@ export abstract class BaseCapability {
         this.emitToolCall(toolCall.toolCallId, toolCall.toolName, toolInput, sessionId);
       }
 
-      // Emit tool results
+      // Emit tool results (including errors)
       for (const toolResult of toolResults) {
-        const result = toToolResult(toolResult.output);
-        this.emitToolResult(toolResult.toolCallId, toolResult.toolName, result, sessionId);
+        // Check if this is an error result
+        // AI SDK 5.0+ includes error in toolResult.error field when tool execution fails
+        // The error object may have a 'message' property or be a primitive value
+        const isError = toolResult.error !== undefined;
+        const result = isError
+          ? formatToolError(toolResult.error)
+          : toToolResult(toolResult.output);
+
+        // Log tool errors for debugging
+        if (isError) {
+          this.logger.warn(
+            {
+              toolCallId: toolResult.toolCallId,
+              toolName: toolResult.toolName,
+              error: toolResult.error,
+            },
+            'Tool execution failed',
+          );
+        }
+
+        this.emitToolResult(toolResult.toolCallId, toolResult.toolName, result, sessionId, isError);
       }
     };
   }

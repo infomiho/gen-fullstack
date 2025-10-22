@@ -1,8 +1,8 @@
 import { createBrowserRouter } from 'react-router';
 import HomePage from './pages/HomePage';
 import SessionPage, {
-  clientLoader as sessionLoader,
   ErrorBoundary as SessionErrorBoundary,
+  clientLoader as sessionLoader,
 } from './pages/SessionPage';
 
 /**

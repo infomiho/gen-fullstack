@@ -8,11 +8,10 @@ import { MAX_FILE_SIZE } from './constants.js';
  * type safety and prevent mismatches.
  */
 
-// Re-export constants
-export * from './constants.js';
-
 // Re-export capability types
 export * from './capabilities.js';
+// Re-export constants
+export * from './constants.js';
 
 // ============================================================================
 // Strategy Types
@@ -143,6 +142,7 @@ export interface ToolResult {
   toolName: string;
   result: string;
   timestamp: number; // Unix timestamp in milliseconds
+  isError?: boolean; // Whether this result represents an error
 }
 
 export interface FileUpdate {

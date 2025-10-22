@@ -1,5 +1,5 @@
-import { BrainCircuit, Code2, FileCode, ScanSearch } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { Blocks, BrainCircuit, Code2, FileCode, ScanSearch } from 'lucide-react';
 import { capabilityIcons } from './design-tokens';
 
 /**
@@ -62,6 +62,15 @@ export const CAPABILITY_METADATA = {
     description: 'Validate and fix TypeScript and Prisma errors',
     hoverInfo:
       'Automatically runs TypeScript and Prisma compiler checks after generation. If errors are found, the AI attempts to fix them iteratively until they pass or reach the maximum iterations.',
+  },
+  buildingBlocks: {
+    id: 'building-blocks',
+    icon: Blocks,
+    iconColor: capabilityIcons.blocks,
+    label: 'Building Blocks',
+    description: 'Use pre-built components (auth, CRUD, pagination)',
+    hoverInfo:
+      'Enable access to production-ready building blocks like authentication, CRUD operations, and pagination. The AI can request and integrate these blocks instead of writing everything from scratch, saving time and reducing errors.',
   },
 } as const satisfies Record<string, CapabilityMetadata>;
 

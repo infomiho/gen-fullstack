@@ -1,14 +1,14 @@
+import type { Server as SocketIOServer } from 'socket.io';
+import { getErrorMessage } from '../lib/error-utils.js';
+import { strategyLogger } from '../lib/logger.js';
+import type { ModelName } from '../services/llm.service.js';
 import type {
   CapabilityContext,
   CapabilityResult,
   ClientToServerEvents,
   ServerToClientEvents,
 } from '../types/index.js';
-import type { Server as SocketIOServer } from 'socket.io';
 import { BaseCapability } from './base.capability.js';
-import type { ModelName } from '../services/llm.service.js';
-import { strategyLogger } from '../lib/logger.js';
-import { getErrorMessage } from '../lib/error-utils.js';
 
 /**
  * Template Capability

@@ -13,7 +13,6 @@ import { and, desc, eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import { getEnv } from '../config/env.js';
-import { databaseLogger } from '../lib/logger.js';
 import {
   type File,
   files,
@@ -25,6 +24,7 @@ import {
   type TimelineItem,
   timelineItems,
 } from '../db/schema.js';
+import { databaseLogger } from '../lib/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

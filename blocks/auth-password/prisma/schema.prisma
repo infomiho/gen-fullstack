@@ -1,0 +1,20 @@
+// Auth Block - User and Session Models
+// Merge these models into your main schema.prisma file
+
+model User {
+  id        String    @id @default(uuid())
+  username  String    @unique
+  password  String    // bcrypt hash
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  sessions  Session[]
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+}

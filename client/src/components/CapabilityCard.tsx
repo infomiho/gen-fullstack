@@ -16,7 +16,6 @@ export interface CapabilityCardProps {
   icon: LucideIcon;
   iconColor: string;
   title: string;
-  description: string;
   hoverInfo: string;
   checked: boolean;
   onCheckedChange?: (checked: boolean) => void;
@@ -54,7 +53,6 @@ export function CapabilityCard({
   icon: Icon,
   iconColor,
   title,
-  description,
   hoverInfo,
   checked,
   onCheckedChange,
@@ -97,26 +95,23 @@ export function CapabilityCard({
       aria-disabled={!isInteractive}
       disabled={!isInteractive}
     >
-      <div className="flex items-start gap-3">
-        <div className="flex-shrink-0 pt-0.5">
-          <Checkbox
-            id={id}
-            checked={checked}
-            onCheckedChange={onCheckedChange || (() => {})}
-            mode={mode}
-          />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <Icon className={`w-5 h-5 ${iconColor} flex-shrink-0`} />
-            <span className="text-sm font-medium text-gray-900">{title}</span>
-            <HoverInfo content={hoverInfo} />
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex-shrink-0">
+            <Checkbox
+              id={id}
+              checked={checked}
+              onCheckedChange={onCheckedChange || (() => {})}
+              mode={mode}
+            />
           </div>
-          <p className="text-sm text-gray-600">{description}</p>
-          {checked && children && (
-            <div className="nested-controls mt-3 pt-3 border-t border-gray-200">{children}</div>
-          )}
+          <Icon className={`w-5 h-5 ${iconColor} flex-shrink-0`} />
+          <span className="text-sm font-medium text-gray-900 flex-1">{title}</span>
+          <HoverInfo content={hoverInfo} />
         </div>
+        {checked && children && (
+          <div className="nested-controls pt-3 border-t border-gray-200">{children}</div>
+        )}
       </div>
     </button>
   );
