@@ -18,6 +18,18 @@ const EnvSchema = z.object({
   COLIMA_HOME: z.string().optional(),
   MAX_CONTAINERS: z.coerce.number().int().positive().default(20),
 
+  // Generation
+  STUCK_SESSION_THRESHOLD_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(5 * 60 * 1000), // 5 minutes
+  GENERATION_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(30 * 60 * 1000), // 30 minutes
+
   // Logging (Note: LOG_LEVEL is used by logger.ts which can't import this due to circular deps)
   LOG_LEVEL: z
     .enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal'])
@@ -60,6 +72,9 @@ export function validateEnv(): Env {
       DOCKER_HOST: process.env.DOCKER_HOST,
       COLIMA_HOME: process.env.COLIMA_HOME,
       MAX_CONTAINERS: process.env.MAX_CONTAINERS,
+      // Generation
+      STUCK_SESSION_THRESHOLD_MS: process.env.STUCK_SESSION_THRESHOLD_MS,
+      GENERATION_TIMEOUT_MS: process.env.GENERATION_TIMEOUT_MS,
       // Logging
       LOG_LEVEL: process.env.LOG_LEVEL,
     });

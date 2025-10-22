@@ -123,6 +123,38 @@ async function initializeServices() {
     process.exit(1);
   }
 
+  // Recover stuck sessions from previous server crashes/restarts
+  serverLogger.info('Checking for stuck sessions...');
+  try {
+    const env = getEnv();
+    const stuckSessions = await databaseService.findStuckSessions(env.STUCK_SESSION_THRESHOLD_MS);
+
+    if (stuckSessions.length > 0) {
+      serverLogger.info({ count: stuckSessions.length }, 'Found stuck sessions, recovering...');
+
+      for (const session of stuckSessions) {
+        const ageMinutes = Math.floor(
+          (Date.now() - new Date(session.createdAt).getTime()) / 1000 / 60,
+        );
+        await databaseService.updateSession(session.id, {
+          status: 'failed',
+          errorMessage: `Generation interrupted by server restart (session was ${ageMinutes} minutes old)`,
+        });
+        serverLogger.info(
+          { sessionId: session.id, ageMinutes },
+          'Recovered stuck session from server restart',
+        );
+      }
+
+      serverLogger.info({ count: stuckSessions.length }, '✓ Recovered all stuck sessions');
+    } else {
+      serverLogger.info('✓ No stuck sessions found');
+    }
+  } catch (err) {
+    serverLogger.error({ error: err }, 'Failed to recover stuck sessions');
+    // Continue anyway - not critical enough to crash server
+  }
+
   serverLogger.info('Checking Docker availability...');
 
   const dockerAvailable = await processService.checkDockerAvailability();
@@ -173,6 +205,27 @@ httpServer.listen(PORT, () => {
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   serverLogger.info('SIGTERM signal received: closing servers');
+
+  // Abort all active generations
+  const { getActiveGenerations } = await import('./websocket.js');
+  const activeGenerations = getActiveGenerations();
+
+  if (activeGenerations.size > 0) {
+    serverLogger.info(
+      { count: activeGenerations.size },
+      'Aborting active generations for graceful shutdown',
+    );
+
+    for (const [sessionId, orchestrator] of activeGenerations.entries()) {
+      serverLogger.info({ sessionId }, 'Aborting generation');
+      orchestrator.abort();
+    }
+
+    // Give 5 seconds for generations to finish gracefully
+    serverLogger.info('Waiting 5 seconds for generations to abort gracefully...');
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+    serverLogger.info('Graceful abort period complete');
+  }
 
   // Cleanup running apps
   await processService.cleanup();

@@ -170,7 +170,50 @@ export const Default: Story = {
 
 ## Recent Changes
 
-### Compiler Checks Strategy (Latest - October 2025) ✅
+### Session Reliability Fixes (Latest - October 2025) ✅
+Implemented three critical fixes to prevent sessions from getting stuck in 'generating' state:
+
+**Fix #1: Server Startup Recovery**
+- Automatically detects and fixes sessions stuck in 'generating' state on server startup
+- Configurable threshold (default: 5 minutes via `STUCK_SESSION_THRESHOLD_MS`)
+- Marks old sessions as 'failed' with clear error message
+- Location: `server/src/index.ts` (lines 126-159)
+- Database method: `databaseService.findStuckSessions()`
+
+**Fix #2: Generation Timeout**
+- Prevents runaway generations that never complete
+- Automatic abort after configurable timeout (default: 30 minutes via `GENERATION_TIMEOUT_MS`)
+- Timeout cleared on success, failure, or early return
+- Location: `server/src/orchestrator/capability-orchestrator.ts`
+- Implementation: `setTimeout()` with automatic cleanup
+
+**Fix #3: SIGTERM Graceful Abort**
+- Aborts all active generations when server receives SIGTERM
+- 5-second grace period for generations to finish cleanly
+- Ensures database status is updated before shutdown
+- Location: `server/src/index.ts` (lines 208-247)
+- Exposes `getActiveGenerations()` from websocket module
+
+**Testing**:
+- Added 15 new tests across 3 test files
+- All 322 tests passing (307 server + 15 new) ✅
+- Test files:
+  - `stuck-session-recovery.test.ts` - 5 tests
+  - `generation-timeout.test.ts` - 5 tests
+  - `sigterm-graceful-abort.test.ts` - 5 tests
+
+**Configuration**:
+- `STUCK_SESSION_THRESHOLD_MS`: Time before session is considered stuck (default: 300000 = 5 min)
+- `GENERATION_TIMEOUT_MS`: Max generation time before auto-abort (default: 1800000 = 30 min)
+- Both configurable via environment variables in `.env`
+
+**Impact**:
+- ✅ No more sessions permanently stuck after server restarts
+- ✅ No more zombie generations consuming resources
+- ✅ Clean shutdown with proper database state
+- ✅ User-reported issue (#21) fully resolved
+
+### Compiler Checks Strategy (October 2025) ✅
 Implemented fourth generation strategy with automatic validation and error fixing:
 
 **Three-Phase Workflow**:
@@ -569,18 +612,28 @@ cd server && pnpm exec tsx ../scripts/cleanup-generations.ts
 
 Server requires `.env` file:
 ```
+# Required
 OPENAI_API_KEY=your_api_key_here
+
+# Optional (defaults shown)
 PORT=3001
+CLIENT_URL=http://localhost:5173
+
+# Generation Settings (Optional)
+STUCK_SESSION_THRESHOLD_MS=300000   # 5 minutes - time before marking session as stuck on startup
+GENERATION_TIMEOUT_MS=1800000        # 30 minutes - max generation time before auto-abort
 ```
+
+See `server/.env.example` for a complete template.
 
 ## Testing
 
 - Server tests in `server/src/**/__tests__/*.test.ts`
 - Uses Vitest 3.2 for testing
-- **Current test suite: 168/168 tests passing** ✅
+- **Current test suite: 322/322 tests passing** ✅ (307 server + 15 new session reliability tests)
   - All test suites passing with zero errors
   - TypeScript strict mode enabled
-  - Full coverage of strategies, Docker service, and process service
+  - Full coverage of strategies, Docker service, process service, and session reliability
 - Comprehensive test coverage:
   - Strategy implementations and tool execution
   - Docker container lifecycle and security features

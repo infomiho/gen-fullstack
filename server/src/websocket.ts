@@ -78,6 +78,17 @@ async function handleGenerationError(sessionId: string | null, error: unknown): 
   }
 }
 
+// Track active generations for cancellation support (module-level for access by shutdown handler)
+const activeGenerations = new Map<string, CapabilityOrchestrator>();
+
+/**
+ * Get all active generation orchestrators
+ * Used by SIGTERM handler for graceful shutdown
+ */
+export function getActiveGenerations(): Map<string, CapabilityOrchestrator> {
+  return activeGenerations;
+}
+
 export function setupWebSocket(httpServer: HTTPServer) {
   const env = getEnv();
   const io = new SocketIOServer<ClientToServerEvents, ServerToClientEvents>(httpServer, {
@@ -92,9 +103,6 @@ export function setupWebSocket(httpServer: HTTPServer) {
     duration: 1, // Per second
     blockDuration: 0, // Do not block, just reject
   });
-
-  // Track active generations for cancellation support
-  const activeGenerations = new Map<string, CapabilityOrchestrator>();
 
   /**
    * Apply rate limiting to a handler

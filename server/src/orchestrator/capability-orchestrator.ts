@@ -46,6 +46,7 @@ export class CapabilityOrchestrator {
   private io: SocketIOServer<ClientToServerEvents, ServerToClientEvents>;
   private logger: ReturnType<typeof createLogger>;
   private abortController: AbortController;
+  private generationTimeout?: NodeJS.Timeout;
 
   constructor(
     modelName: ModelName,
@@ -79,6 +80,16 @@ export class CapabilityOrchestrator {
   }
 
   /**
+   * Clear the generation timeout (if set)
+   */
+  private clearGenerationTimeout(): void {
+    if (this.generationTimeout) {
+      clearTimeout(this.generationTimeout);
+      this.generationTimeout = undefined;
+    }
+  }
+
+  /**
    * Generate an app using the capability-based system
    *
    * @param prompt - User's app description
@@ -99,6 +110,17 @@ export class CapabilityOrchestrator {
       },
       'Starting capability-based generation',
     );
+
+    // Set up generation timeout
+    const { getEnv } = await import('../config/env.js');
+    const env = getEnv();
+    this.generationTimeout = setTimeout(() => {
+      this.logger.warn(
+        { sessionId, timeoutMs: env.GENERATION_TIMEOUT_MS },
+        'Generation timeout reached, aborting',
+      );
+      this.abort();
+    }, env.GENERATION_TIMEOUT_MS);
 
     try {
       // 1. Initialize sandbox on host filesystem
@@ -127,12 +149,17 @@ export class CapabilityOrchestrator {
       const executionResult = await this.executePipeline(capabilities, context);
 
       if (executionResult) {
+        this.clearGenerationTimeout();
         return executionResult; // Early return on failure
       }
 
       // Success path - container stays in 'ready' status
+      this.clearGenerationTimeout();
       return await this.finalizeGeneration(context);
     } catch (error) {
+      // Clear timeout on error
+      this.clearGenerationTimeout();
+
       // Cleanup container on error
       try {
         const { dockerService } = await import('../services/docker.service.js');

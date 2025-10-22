@@ -131,6 +131,22 @@ class DatabaseService {
   }
 
   /**
+   * Find stuck sessions (in 'generating' state for longer than threshold)
+   */
+  async findStuckSessions(thresholdMs: number): Promise<Session[]> {
+    const allSessions = await this.listSessions(500); // Check more sessions for recovery
+    const now = Date.now();
+
+    return allSessions.filter((session) => {
+      if (session.status !== 'generating') {
+        return false;
+      }
+      const sessionAge = now - new Date(session.createdAt).getTime();
+      return sessionAge > thresholdMs;
+    });
+  }
+
+  /**
    * Delete session and all related data
    */
   async deleteSession(sessionId: string): Promise<void> {
