@@ -3,12 +3,15 @@ import { Bot } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { EmptyState } from './EmptyState';
 import { MessageItem } from './timeline/MessageItem';
+import { SkeletonLoader } from './timeline/SkeletonLoader';
 import { type ToolExecution, ToolItem } from './timeline/ToolItem';
 
 interface TimelineProps {
   messages: LLMMessage[];
   toolCalls: ToolCall[];
   toolResults: ToolResult[];
+  /** Whether generation is currently in progress */
+  isGenerating?: boolean;
 }
 
 type TimelineItem =
@@ -20,8 +23,14 @@ type TimelineItem =
  *
  * Displays a unified timeline of messages and tool calls in chronological order.
  * Tool calls can be clicked to view details in a modal dialog.
+ * Shows a skeleton loader at the top when generation is in progress.
  */
-export function Timeline({ messages, toolCalls, toolResults }: TimelineProps) {
+export function Timeline({
+  messages,
+  toolCalls,
+  toolResults,
+  isGenerating = false,
+}: TimelineProps) {
   // Track which tool dialog is open (by tool ID)
   // This state is lifted to Timeline to persist across re-renders
   const [openToolId, setOpenToolId] = useState<string | null>(null);
@@ -73,7 +82,8 @@ export function Timeline({ messages, toolCalls, toolResults }: TimelineProps) {
     return items.sort((a, b) => b.timestamp - a.timestamp);
   }, [messages, toolExecutions]);
 
-  if (timeline.length === 0) {
+  // Show empty state only if not generating and no timeline items
+  if (timeline.length === 0 && !isGenerating) {
     return (
       <EmptyState
         icon={<Bot size={48} />}
@@ -85,6 +95,9 @@ export function Timeline({ messages, toolCalls, toolResults }: TimelineProps) {
 
   return (
     <div className="space-y-4">
+      {/* Show skeleton loader at top when generating */}
+      {isGenerating && <SkeletonLoader />}
+
       {timeline.map((item, index) =>
         item.type === 'message' ? (
           <MessageItem key={`${item.data.id}-${index}`} message={item.data} />

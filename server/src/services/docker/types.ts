@@ -5,7 +5,7 @@
  */
 
 import type { AppLog, AppStatus } from '@gen-fullstack/shared';
-import type { Container } from 'dockerode';
+import type { Container, Exec } from 'dockerode';
 import type { Actor } from 'xstate';
 import type { dockerContainerMachine } from './docker.machine.js';
 
@@ -34,6 +34,7 @@ export interface ContainerInfo {
   cleanupTimer?: NodeJS.Timeout;
   streamCleanup?: () => void;
   devServerStreamCleanup?: () => void;
+  devServerExec?: Exec; // Docker exec instance for npm run dev (needed to kill process)
   readyCheckInterval?: NodeJS.Timeout;
   readyCheckPromise?: Promise<void>;
   readyCheckAbort?: AbortController;

@@ -12,6 +12,75 @@ import { describe, expect, it } from 'vitest';
 import { Timeline } from './Timeline';
 
 describe('Timeline', () => {
+  it('should render empty state when no messages or tool calls', () => {
+    render(<Timeline messages={[]} toolCalls={[]} toolResults={[]} />);
+    expect(screen.getByText('No activity yet')).toBeInTheDocument();
+  });
+
+  it('should render skeleton loader when generating', () => {
+    render(<Timeline messages={[]} toolCalls={[]} toolResults={[]} isGenerating={true} />);
+    expect(screen.getByTestId('skeleton-loader')).toBeInTheDocument();
+  });
+
+  it('should not render skeleton loader when not generating', () => {
+    render(
+      <Timeline
+        messages={[
+          {
+            id: '1',
+            role: 'assistant',
+            content: 'Hello',
+            timestamp: Date.now(),
+          },
+        ]}
+        toolCalls={[]}
+        toolResults={[]}
+        isGenerating={false}
+      />,
+    );
+    expect(screen.queryByTestId('skeleton-loader')).not.toBeInTheDocument();
+  });
+
+  it('should render skeleton loader with messages when generating', () => {
+    render(
+      <Timeline
+        messages={[
+          {
+            id: '1',
+            role: 'assistant',
+            content: 'Test message',
+            timestamp: Date.now(),
+          },
+        ]}
+        toolCalls={[]}
+        toolResults={[]}
+        isGenerating={true}
+      />,
+    );
+
+    // Both skeleton and message should be present
+    expect(screen.getByTestId('skeleton-loader')).toBeInTheDocument();
+    expect(screen.getByText('Test message')).toBeInTheDocument();
+  });
+
+  it('should default isGenerating to false', () => {
+    render(
+      <Timeline
+        messages={[
+          {
+            id: '1',
+            role: 'assistant',
+            content: 'Test',
+            timestamp: Date.now(),
+          },
+        ]}
+        toolCalls={[]}
+        toolResults={[]}
+      />,
+    );
+    expect(screen.queryByTestId('skeleton-loader')).not.toBeInTheDocument();
+  });
+
   it('should keep tool dialog open when new messages arrive', async () => {
     const user = userEvent.setup();
 

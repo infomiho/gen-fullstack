@@ -102,6 +102,64 @@ export class DockerService extends EventEmitter {
   }
 
   /**
+   * Kill npm run dev process inside container
+   *
+   * This sends SIGTERM to all node processes inside the container,
+   * which kills npm, node (client), and node (server), freeing up ports.
+   *
+   * Expected exit codes from pkill:
+   * - 0: Success (processes killed)
+   * - 1: No processes matched (already stopped)
+   * - 2: Syntax error (shouldn't happen)
+   */
+  private async killDevServerProcess(container: Container, sessionId: string): Promise<void> {
+    try {
+      dockerLogger.debug({ sessionId }, 'Killing dev server process');
+
+      // Kill all node processes (npm + child processes) inside the container
+      // Using pkill ensures we kill the entire process tree (npm, vite, express)
+      const killExec = await container.exec({
+        Cmd: ['pkill', '-TERM', 'node'],
+        WorkingDir: '/app',
+      });
+
+      // DON'T detach - we want to wait for completion and check exit code
+      const stream = await killExec.start({ Detach: false, Tty: false });
+
+      // Wait for command to complete
+      await new Promise<void>((resolve, reject) => {
+        stream.on('end', () => resolve());
+        stream.on('error', reject);
+      });
+
+      // Check exit code to verify result
+      const inspectResult = await killExec.inspect();
+      const exitCode = inspectResult.ExitCode ?? 0;
+
+      if (exitCode === 0) {
+        dockerLogger.info({ sessionId }, 'Dev server processes killed successfully');
+      } else if (exitCode === 1) {
+        dockerLogger.debug({ sessionId }, 'No node processes found to kill (already stopped)');
+      } else {
+        dockerLogger.warn({ sessionId, exitCode }, 'pkill returned unexpected exit code');
+      }
+    } catch (error) {
+      // Swallow errors - expected scenarios:
+      // 1. Process already terminated (ESRCH)
+      // 2. Container is stopping/stopped (API error)
+      // 3. Stream errors during container shutdown
+      dockerLogger.debug(
+        {
+          error,
+          sessionId,
+          errorType: error instanceof Error ? error.constructor.name : typeof error,
+        },
+        'Failed to kill dev server process (might be expected during shutdown)',
+      );
+    }
+  }
+
+  /**
    * Create a configured state machine actor for a container
    *
    * The machine orchestrates the container lifecycle, but delegates actual
@@ -292,9 +350,10 @@ export class DockerService extends EventEmitter {
           // Start dev servers - DON'T detach so we can capture output
           const stream = await exec.start({ Detach: false, Tty: false });
 
-          // Store cleanup function in containerInfo for later cleanup
+          // Store exec instance and cleanup function in containerInfo for later cleanup
           // NOTE: Cannot store in machine context as snapshots are immutable.
           // Cleanup actions will access this via containerInfo object.
+          containerInfo.devServerExec = exec;
           const cleanup = this.processExecStream(input.sessionId, stream);
           containerInfo.devServerStreamCleanup = cleanup;
 
@@ -348,7 +407,18 @@ export class DockerService extends EventEmitter {
               clearInterval(context.readyCheckInterval);
             }
 
-            // Cleanup dev server stream (stored in containerInfo, not context)
+            // Kill npm run dev process inside container to free up ports
+            // Note: This is async but we don't await in action context.
+            // The process kill happens via a separate exec (not the devServer stream),
+            // so it's safe to clean up stream listeners immediately after starting the kill.
+            if (containerInfo.container && containerInfo.devServerExec) {
+              this.killDevServerProcess(containerInfo.container, sessionId).catch((err) =>
+                dockerLogger.error({ error: err, sessionId }, 'Failed to kill dev server process'),
+              );
+            }
+
+            // Cleanup dev server stream listeners (stored in containerInfo, not context)
+            // This just removes event listeners - the actual processes are being killed above
             if (containerInfo.devServerStreamCleanup) {
               containerInfo.devServerStreamCleanup();
             }

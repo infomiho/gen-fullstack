@@ -105,19 +105,21 @@ export function AppControls({
       </div>
 
       <div>
-        <h3 className={typography.label}>Preview</h3>
+        <h3 className={typography.sectionHeader}>Preview</h3>
       </div>
 
       {/* Status Display */}
-      <div className="flex items-center gap-3">
-        <span className={typography.label}>Status:</span>
-        <StatusBadge status={status} variant="app" uppercase={true} />
+      <div>
+        <div className="flex items-center gap-3">
+          <span className={typography.label}>Status:</span>
+          <StatusBadge status={status} variant="app" uppercase={true} />
+        </div>
         {appStatus?.clientUrl && status === 'running' && (
           <a
             href={appStatus.clientUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-sm text-blue-600 hover:text-blue-800 underline"
+            className="mt-2 block text-sm text-blue-600 hover:text-blue-800 underline break-all"
           >
             {appStatus.clientUrl}
           </a>

@@ -117,6 +117,7 @@ function SessionPage() {
   const {
     socket,
     isConnected,
+    isGenerating: isGeneratingWebSocket,
     messages: liveMessages,
     toolCalls: liveToolCalls,
     toolResults: liveToolResults,
@@ -148,7 +149,13 @@ function SessionPage() {
     }
   }, [activeTab]);
 
-  const isActiveSession = sessionData.session.status === 'generating';
+  // Determine if session is actively generating:
+  // - If socket is connected: use real-time WebSocket state (isGeneratingWebSocket)
+  // - If socket is disconnected: fall back to database status from loader
+  // This ensures the "Generating..." indicator updates immediately when generation completes
+  const isActiveSession = socket
+    ? isGeneratingWebSocket
+    : sessionData.session.status === 'generating';
   // With room-based architecture, any connected client can receive live updates
   // isOwnSession is true if connected and viewing an active session
   const isOwnSession = socket !== null && isActiveSession;
@@ -292,7 +299,12 @@ function SessionPage() {
             {activeTab === 'timeline' ? (
               <div className={`h-full overflow-y-auto ${padding.panel}`}>
                 <ErrorBoundaryComponent>
-                  <Timeline messages={messages} toolCalls={toolCalls} toolResults={toolResults} />
+                  <Timeline
+                    messages={messages}
+                    toolCalls={toolCalls}
+                    toolResults={toolResults}
+                    isGenerating={isActiveSession}
+                  />
                 </ErrorBoundaryComponent>
               </div>
             ) : activeTab === 'files' ? (
