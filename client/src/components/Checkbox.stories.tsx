@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { useState } from 'react';
+import { useState, useId } from 'react';
 import { Checkbox } from './Checkbox';
 
 const meta = {
@@ -25,37 +25,55 @@ function CheckboxWrapper({
 
 export const Unchecked: Story = {
   args: { id: '', checked: false, onCheckedChange: () => {} },
-  render: () => <CheckboxWrapper id="unchecked" checked={false} />,
+  render: function Render() {
+    const id = useId();
+    return <CheckboxWrapper id={id} checked={false} />;
+  },
 };
 
 export const Checked: Story = {
   args: { id: '', checked: false, onCheckedChange: () => {} },
-  render: () => <CheckboxWrapper id="checked" checked={true} />,
+  render: function Render() {
+    const id = useId();
+    return <CheckboxWrapper id={id} checked={true} />;
+  },
 };
 
 export const Disabled: Story = {
   args: { id: '', checked: false, onCheckedChange: () => {} },
-  render: () => <CheckboxWrapper id="disabled" checked={false} mode="disabled" />,
+  render: function Render() {
+    const id = useId();
+    return <CheckboxWrapper id={id} checked={false} mode="disabled" />;
+  },
 };
 
 export const CheckedDisabled: Story = {
   args: { id: '', checked: false, onCheckedChange: () => {} },
-  render: () => <CheckboxWrapper id="checked-disabled" checked={true} mode="disabled" />,
+  render: function Render() {
+    const id = useId();
+    return <CheckboxWrapper id={id} checked={true} mode="disabled" />;
+  },
 };
 
 export const ReadOnly: Story = {
   args: { id: '', checked: false, onCheckedChange: () => {} },
-  render: () => <CheckboxWrapper id="readonly" checked={true} mode="readonly" />,
+  render: function Render() {
+    const id = useId();
+    return <CheckboxWrapper id={id} checked={true} mode="readonly" />;
+  },
 };
 
 export const WithLabel: Story = {
   args: { id: '', checked: false, onCheckedChange: () => {} },
-  render: () => (
-    <div className="flex items-center gap-2">
-      <CheckboxWrapper id="with-label" checked={false} />
-      <label htmlFor="with-label" className="text-sm text-gray-700 cursor-pointer">
-        Accept terms and conditions
-      </label>
-    </div>
-  ),
+  render: function Render() {
+    const id = useId();
+    return (
+      <div className="flex items-center gap-2">
+        <CheckboxWrapper id={id} checked={false} />
+        <label htmlFor={id} className="text-sm text-gray-700 cursor-pointer">
+          Accept terms and conditions
+        </label>
+      </div>
+    );
+  },
 };

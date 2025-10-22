@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { type CapabilityConfig, DEFAULT_TEMPLATE_NAME } from '@gen-fullstack/shared';
 import { CapabilityCard } from './CapabilityCard';
 import { HoverInfo } from './HoverInfo';
@@ -24,6 +25,8 @@ export function CapabilitySection({
   onConfigChange,
   disabled = false,
 }: CapabilitySectionProps) {
+  const iterationsId = useId();
+
   return (
     <div>
       {/* Section header */}
@@ -106,11 +109,11 @@ export function CapabilitySection({
         >
           {/* Nested control: max iterations slider */}
           <div className="space-y-2">
-            <label htmlFor="iterations" className="text-xs font-medium text-gray-700">
+            <label htmlFor={iterationsId} className="text-xs font-medium text-gray-700">
               Max iterations: {config.maxIterations}
             </label>
             <input
-              id="iterations"
+              id={iterationsId}
               type="range"
               min="1"
               max="5"

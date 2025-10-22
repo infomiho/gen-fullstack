@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Zap, Target, Rocket } from 'lucide-react';
 import { useState } from 'react';
+import { fn } from 'storybook/test';
 import { PresetBadge } from './PresetBadge';
 
 const meta = {
@@ -20,7 +21,7 @@ export const Inactive: Story = {
     label: 'Quick Start',
     icon: Zap,
     active: false,
-    onClick: () => console.log('Clicked'),
+    onClick: fn(),
   },
 };
 
@@ -29,7 +30,7 @@ export const Active: Story = {
     label: 'Quick Start',
     icon: Zap,
     active: true,
-    onClick: () => console.log('Clicked'),
+    onClick: fn(),
   },
 };
 
@@ -39,7 +40,7 @@ export const Disabled: Story = {
     icon: Zap,
     active: false,
     disabled: true,
-    onClick: () => console.log('Clicked'),
+    onClick: fn(),
   },
 };
 

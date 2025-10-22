@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { BrainCircuit, FileCode, ScanSearch } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useId } from 'react';
 import { CapabilityCard } from './CapabilityCard';
 import { capabilityIcons } from '../lib/design-tokens';
 
@@ -33,19 +33,22 @@ export const Unchecked: Story = {
     checked: false,
     onCheckedChange: () => {},
   },
-  render: () => (
-    <div className="w-96">
-      <CardWrapper
-        id="planning"
-        icon={BrainCircuit}
-        iconColor={capabilityIcons.planning}
-        title="Smart Planning"
-        description="Design architecture first before implementation"
-        hoverInfo="Generates an architectural plan including database schema, API endpoints, and component structure before writing any code."
-        checked={false}
-      />
-    </div>
-  ),
+  render: function Render() {
+    const id = useId();
+    return (
+      <div className="w-96">
+        <CardWrapper
+          id={id}
+          icon={BrainCircuit}
+          iconColor={capabilityIcons.planning}
+          title="Smart Planning"
+          description="Design architecture first before implementation"
+          hoverInfo="Generates an architectural plan including database schema, API endpoints, and component structure before writing any code."
+          checked={false}
+        />
+      </div>
+    );
+  },
 };
 
 export const Checked: Story = {
@@ -59,19 +62,22 @@ export const Checked: Story = {
     checked: false,
     onCheckedChange: () => {},
   },
-  render: () => (
-    <div className="w-96">
-      <CardWrapper
-        id="planning"
-        icon={BrainCircuit}
-        iconColor={capabilityIcons.planning}
-        title="Smart Planning"
-        description="Design architecture first before implementation"
-        hoverInfo="Generates an architectural plan including database schema, API endpoints, and component structure before writing any code."
-        checked={true}
-      />
-    </div>
-  ),
+  render: function Render() {
+    const id = useId();
+    return (
+      <div className="w-96">
+        <CardWrapper
+          id={id}
+          icon={BrainCircuit}
+          iconColor={capabilityIcons.planning}
+          title="Smart Planning"
+          description="Design architecture first before implementation"
+          hoverInfo="Generates an architectural plan including database schema, API endpoints, and component structure before writing any code."
+          checked={true}
+        />
+      </div>
+    );
+  },
 };
 
 export const Disabled: Story = {
@@ -85,20 +91,23 @@ export const Disabled: Story = {
     checked: false,
     onCheckedChange: () => {},
   },
-  render: () => (
-    <div className="w-96">
-      <CardWrapper
-        id="planning"
-        icon={BrainCircuit}
-        iconColor={capabilityIcons.planning}
-        title="Smart Planning"
-        description="Design architecture first before implementation"
-        hoverInfo="Generates an architectural plan including database schema, API endpoints, and component structure before writing any code."
-        checked={false}
-        mode="disabled"
-      />
-    </div>
-  ),
+  render: function Render() {
+    const id = useId();
+    return (
+      <div className="w-96">
+        <CardWrapper
+          id={id}
+          icon={BrainCircuit}
+          iconColor={capabilityIcons.planning}
+          title="Smart Planning"
+          description="Design architecture first before implementation"
+          hoverInfo="Generates an architectural plan including database schema, API endpoints, and component structure before writing any code."
+          checked={false}
+          mode="disabled"
+        />
+      </div>
+    );
+  },
 };
 
 export const WithNestedControls: Story = {
@@ -112,12 +121,14 @@ export const WithNestedControls: Story = {
     checked: false,
     onCheckedChange: () => {},
   },
-  render: () => {
+  render: function Render() {
+    const id = useId();
+    const iterationsId = useId();
     const [maxIterations, setMaxIterations] = useState(3);
     return (
       <div className="w-96">
         <CardWrapper
-          id="compiler"
+          id={id}
           icon={ScanSearch}
           iconColor={capabilityIcons.compiler}
           title="Auto Error-Fixing"
@@ -126,11 +137,11 @@ export const WithNestedControls: Story = {
           checked={true}
         >
           <div className="space-y-2">
-            <label htmlFor="iterations" className="text-xs font-medium text-gray-700">
+            <label htmlFor={iterationsId} className="text-xs font-medium text-gray-700">
               Max iterations: {maxIterations}
             </label>
             <input
-              id="iterations"
+              id={iterationsId}
               type="range"
               min="1"
               max="5"
@@ -160,35 +171,40 @@ export const AllCapabilities: Story = {
     checked: false,
     onCheckedChange: () => {},
   },
-  render: () => (
-    <div className="w-96 space-y-3">
-      <CardWrapper
-        id="planning"
-        icon={BrainCircuit}
-        iconColor={capabilityIcons.planning}
-        title="Smart Planning"
-        description="Design architecture first before implementation"
-        hoverInfo="Generates an architectural plan including database schema, API endpoints, and component structure before writing any code."
-        checked={true}
-      />
-      <CardWrapper
-        id="template"
-        icon={FileCode}
-        iconColor={capabilityIcons.template}
-        title="Template Base"
-        description="Start from working full-stack template"
-        hoverInfo="Begin with a pre-built full-stack template and modify it according to your requirements. Faster than building from scratch."
-        checked={false}
-      />
-      <CardWrapper
-        id="compiler"
-        icon={ScanSearch}
-        iconColor={capabilityIcons.compiler}
-        title="Auto Error-Fixing"
-        description="Validate and fix TypeScript and Prisma errors"
-        hoverInfo="Automatically runs compiler checks and attempts to fix any errors found in the generated code."
-        checked={true}
-      />
-    </div>
-  ),
+  render: function Render() {
+    const id1 = useId();
+    const id2 = useId();
+    const id3 = useId();
+    return (
+      <div className="w-96 space-y-3">
+        <CardWrapper
+          id={id1}
+          icon={BrainCircuit}
+          iconColor={capabilityIcons.planning}
+          title="Smart Planning"
+          description="Design architecture first before implementation"
+          hoverInfo="Generates an architectural plan including database schema, API endpoints, and component structure before writing any code."
+          checked={true}
+        />
+        <CardWrapper
+          id={id2}
+          icon={FileCode}
+          iconColor={capabilityIcons.template}
+          title="Template Base"
+          description="Start from working full-stack template"
+          hoverInfo="Begin with a pre-built full-stack template and modify it according to your requirements. Faster than building from scratch."
+          checked={false}
+        />
+        <CardWrapper
+          id={id3}
+          icon={ScanSearch}
+          iconColor={capabilityIcons.compiler}
+          title="Auto Error-Fixing"
+          description="Validate and fix TypeScript and Prisma errors"
+          hoverInfo="Automatically runs compiler checks and attempts to fix any errors found in the generated code."
+          checked={true}
+        />
+      </div>
+    );
+  },
 };
