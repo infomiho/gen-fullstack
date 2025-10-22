@@ -71,7 +71,7 @@ export function SessionSidebar({
           <div>
             <h3 className={`${typography.sectionHeader} mb-3`}>Capabilities</h3>
             <div className="space-y-2">
-              {/* Code Generation - always present */}
+              {/* Code Generation - always present and enabled */}
               <div className="flex items-center gap-2 text-sm text-gray-700">
                 <CAPABILITY_METADATA.codeGeneration.icon
                   className={`w-4 h-4 ${CAPABILITY_METADATA.codeGeneration.iconColor} flex-shrink-0`}
@@ -79,32 +79,35 @@ export function SessionSidebar({
                 <span>{CAPABILITY_METADATA.codeGeneration.label}</span>
               </div>
 
-              {capabilityConfig.planning && (
-                <div className="flex items-center gap-2 text-sm text-gray-700">
-                  <CAPABILITY_METADATA.planning.icon
-                    className={`w-4 h-4 ${CAPABILITY_METADATA.planning.iconColor} flex-shrink-0`}
-                  />
-                  <span>{CAPABILITY_METADATA.planning.label}</span>
-                </div>
-              )}
+              {/* Planning - shown always, grayed and crossed out if disabled */}
+              <div
+                className={`flex items-center gap-2 text-sm ${capabilityConfig.planning ? 'text-gray-700' : 'text-gray-400 line-through'}`}
+              >
+                <CAPABILITY_METADATA.planning.icon
+                  className={`w-4 h-4 ${capabilityConfig.planning ? CAPABILITY_METADATA.planning.iconColor : 'text-gray-400'} flex-shrink-0`}
+                />
+                <span>{CAPABILITY_METADATA.planning.label}</span>
+              </div>
 
-              {capabilityConfig.inputMode === 'template' && (
-                <div className="flex items-center gap-2 text-sm text-gray-700">
-                  <CAPABILITY_METADATA.template.icon
-                    className={`w-4 h-4 ${CAPABILITY_METADATA.template.iconColor} flex-shrink-0`}
-                  />
-                  <span>{CAPABILITY_METADATA.template.label}</span>
-                </div>
-              )}
+              {/* Template - shown always, grayed and crossed out if disabled */}
+              <div
+                className={`flex items-center gap-2 text-sm ${capabilityConfig.inputMode === 'template' ? 'text-gray-700' : 'text-gray-400 line-through'}`}
+              >
+                <CAPABILITY_METADATA.template.icon
+                  className={`w-4 h-4 ${capabilityConfig.inputMode === 'template' ? CAPABILITY_METADATA.template.iconColor : 'text-gray-400'} flex-shrink-0`}
+                />
+                <span>{CAPABILITY_METADATA.template.label}</span>
+              </div>
 
-              {capabilityConfig.compilerChecks && (
-                <div className="flex items-center gap-2 text-sm text-gray-700">
-                  <CAPABILITY_METADATA.compiler.icon
-                    className={`w-4 h-4 ${CAPABILITY_METADATA.compiler.iconColor} flex-shrink-0`}
-                  />
-                  <span>{CAPABILITY_METADATA.compiler.label}</span>
-                </div>
-              )}
+              {/* Compiler checks - shown always, grayed and crossed out if disabled */}
+              <div
+                className={`flex items-center gap-2 text-sm ${capabilityConfig.compilerChecks ? 'text-gray-700' : 'text-gray-400 line-through'}`}
+              >
+                <CAPABILITY_METADATA.compiler.icon
+                  className={`w-4 h-4 ${capabilityConfig.compilerChecks ? CAPABILITY_METADATA.compiler.iconColor : 'text-gray-400'} flex-shrink-0`}
+                />
+                <span>{CAPABILITY_METADATA.compiler.label}</span>
+              </div>
             </div>
           </div>
         )}

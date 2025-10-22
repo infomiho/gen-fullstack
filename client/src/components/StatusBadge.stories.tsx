@@ -16,12 +16,12 @@ const meta = {
         'completed',
         'generating',
         'failed',
-        'running',
         'creating',
         'installing',
         'starting',
+        'running',
+        'ready',
         'stopped',
-        'idle',
       ],
     },
     variant: {
@@ -120,7 +120,7 @@ export const Stopped: Story = {
 
 export const Idle: Story = {
   args: {
-    status: 'idle',
+    status: 'stopped',
     variant: 'app',
     uppercase: true,
   },
@@ -152,12 +152,12 @@ export const AllAppStatuses: Story = {
   args: { status: 'running' },
   render: () => (
     <div className="flex flex-col gap-3">
-      <StatusBadge status="running" variant="app" uppercase />
       <StatusBadge status="creating" variant="app" uppercase />
       <StatusBadge status="installing" variant="app" uppercase />
       <StatusBadge status="starting" variant="app" uppercase />
+      <StatusBadge status="ready" variant="app" uppercase />
+      <StatusBadge status="running" variant="app" uppercase />
       <StatusBadge status="stopped" variant="app" uppercase />
-      <StatusBadge status="idle" variant="app" uppercase />
       <StatusBadge status="failed" variant="app" uppercase />
     </div>
   ),

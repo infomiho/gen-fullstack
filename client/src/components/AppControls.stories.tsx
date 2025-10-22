@@ -20,7 +20,7 @@ type Story = StoryObj<typeof AppControls>;
 
 const mockAppStatus: AppInfo = {
   sessionId: 'test-session-123',
-  status: 'idle',
+  status: 'stopped',
 };
 
 /**

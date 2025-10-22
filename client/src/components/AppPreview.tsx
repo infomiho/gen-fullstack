@@ -109,11 +109,7 @@ export function AppPreview({ appStatus }: AppPreviewProps) {
           >
             <EmptyState
               icon={<Monitor size={48} />}
-              title={
-                appStatus?.status === 'starting' || appStatus?.status === 'installing'
-                  ? 'Starting app...'
-                  : 'No app running'
-              }
+              title={appStatus?.status === 'ready' ? 'App ready to run' : 'No app running'}
               description="Click Start App to preview your generated application"
             />
           </div>

@@ -57,7 +57,7 @@ describe('useAppStore', () => {
 
       const status1: AppInfo = {
         sessionId: 'test-session',
-        status: 'creating',
+        status: 'ready',
       };
 
       const status2: AppInfo = {
@@ -71,7 +71,7 @@ describe('useAppStore', () => {
         result.current.setAppStatus(status1);
       });
 
-      expect(result.current.appStatus?.status).toBe('creating');
+      expect(result.current.appStatus?.status).toBe('ready');
 
       act(() => {
         result.current.setAppStatus(status2);
@@ -100,10 +100,10 @@ describe('useAppStore', () => {
       const { result } = renderHook(() => useAppStore());
 
       const statuses: AppInfo['status'][] = [
-        'idle',
-        'creating',
-        'installing',
-        'starting',
+        'stopped',
+        'ready',
+        'ready',
+        'ready',
         'running',
         'failed',
         'stopped',

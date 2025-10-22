@@ -21,7 +21,7 @@ export function AppControls({
   onStop,
   onStartClick,
 }: AppControlsProps) {
-  const status = appStatus?.status || 'idle';
+  const status = appStatus?.status || 'stopped';
   const hasSession = currentSessionId !== null;
 
   // Determine button state based on app status
@@ -43,22 +43,36 @@ export function AppControls({
       };
     }
 
-    // App is starting - show disabled starting button
-    if (status === 'starting' || status === 'creating' || status === 'installing') {
+    // App is starting (creating, installing, starting) - show disabled "Starting..." button
+    if (status === 'creating' || status === 'installing' || status === 'starting') {
       return {
         label: 'Starting...',
-        icon: null,
+        icon: <CirclePlay size={18} />,
         onClick: () => {},
         disabled: true,
         className: button.primary,
-        title: 'Application is starting, please wait',
+        title: 'Application is starting',
       };
     }
 
-    // App is idle/stopped/failed - show start button with CirclePlay icon
-    const canStart = hasSession && !isGenerating;
+    // App is ready/stopped/failed - show start button with CirclePlay icon
+    // Allow starting from both 'stopped' (no container) and 'ready' (container exists) states
+    const canStart = hasSession && !isGenerating && (status === 'ready' || status === 'stopped');
+
+    // Determine tooltip based on why button is disabled
+    let title: string;
+    if (!hasSession) {
+      title = 'Generate an app first';
+    } else if (isGenerating) {
+      title = 'Wait for generation to complete';
+    } else if (canStart) {
+      title = 'Run the application';
+    } else {
+      title = `Cannot start app from ${status} state`;
+    }
+
     return {
-      label: 'Start',
+      label: 'Run',
       icon: <CirclePlay size={18} />,
       onClick: () => {
         if (!currentSessionId) {
@@ -69,11 +83,7 @@ export function AppControls({
       },
       disabled: !canStart,
       className: button.primary,
-      title: !hasSession
-        ? 'Generate an app first'
-        : isGenerating
-          ? 'Wait for generation to complete'
-          : 'Start the application',
+      title,
     };
   };
 
@@ -84,8 +94,9 @@ export function AppControls({
       {/* Screen reader announcements for status changes */}
       <div className="sr-only" aria-live="polite" aria-atomic="true">
         {status === 'creating' && 'App container is being created'}
-        {status === 'installing' && 'Installing dependencies'}
-        {status === 'starting' && 'App is starting'}
+        {status === 'installing' && 'Installing app dependencies'}
+        {status === 'starting' && 'Starting app servers'}
+        {status === 'ready' && 'App is ready to run'}
         {status === 'running' && 'App is now running'}
         {status === 'stopped' && 'App has stopped'}
         {status === 'failed' && appStatus?.error
@@ -94,7 +105,7 @@ export function AppControls({
       </div>
 
       <div>
-        <h3 className={typography.label}>App Execution</h3>
+        <h3 className={typography.label}>Preview</h3>
       </div>
 
       {/* Status Display */}

@@ -16,6 +16,7 @@ interface SessionListItem {
   id: string;
   prompt: string;
   strategy: string;
+  capabilityConfig: string; // JSON string of CapabilityConfig
   status: 'generating' | 'completed' | 'failed';
   createdAt: string;
   updatedAt?: string;
@@ -124,7 +125,7 @@ function HomePage() {
           <h3 className={`mb-4 ${typography.sectionHeader}`}>
             Previous Sessions
             {sessions.length > 0 && (
-              <span className={`ml-2 ${typography.caption}`}>({sessions.length})</span>
+              <span className="ml-2 text-sm text-gray-500 font-normal">({sessions.length})</span>
             )}
           </h3>
 
@@ -149,10 +150,6 @@ function HomePage() {
                         {session.prompt}
                       </p>
                       <div className="flex items-center gap-3">
-                        <span className={`${typography.caption} text-gray-500`}>
-                          {session.strategy}
-                        </span>
-                        <span className={`${typography.caption} text-gray-400`}>•</span>
                         <span className={`${typography.caption} text-gray-500`}>
                           {formatDate(session.createdAt)}
                         </span>

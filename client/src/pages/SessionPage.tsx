@@ -279,8 +279,8 @@ function SessionPage() {
                 }`}
                 onClick={() => navigate(`/${sessionId}/preview`)}
               >
-                App Execution{' '}
-                {appStatus?.status && appStatus.status !== 'idle' && (
+                Preview{' '}
+                {appStatus?.status && appStatus.status !== 'stopped' && (
                   <span className="ml-1 text-xs">({appStatus.status})</span>
                 )}
               </button>

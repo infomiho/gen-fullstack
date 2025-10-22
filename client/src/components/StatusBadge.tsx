@@ -6,12 +6,12 @@ export interface StatusBadgeProps {
     | 'completed'
     | 'generating'
     | 'failed'
-    | 'running'
     | 'creating'
     | 'installing'
     | 'starting'
-    | 'stopped'
-    | 'idle';
+    | 'running'
+    | 'ready'
+    | 'stopped';
   /** Optional custom variant for styling override */
   variant?: 'session' | 'app' | 'default';
   /** Show live indicator with pulsing animation (for generating status) */
@@ -26,9 +26,10 @@ export interface StatusBadgeProps {
  * StatusBadge component - displays status with color-coded badge
  *
  * Used to show session and app execution status with clear visual indicators:
- * - Green: running (app execution)
- * - Gray: completed, stopped, idle
- * - Blue: generating, creating, installing, starting
+ * - Green: running (app dev servers active)
+ * - Amber: ready (container ready for commands)
+ * - Gray: completed, stopped
+ * - Blue: generating (LLM generation in progress)
  * - Red: failed
  *
  * Supports live indicator for active generating sessions with pulsing animation.
@@ -36,7 +37,7 @@ export interface StatusBadgeProps {
  * @example
  * ```tsx
  * <StatusBadge status="generating" showLiveIndicator />
- * <StatusBadge status="running" variant="app" />
+ * <StatusBadge status="ready" variant="app" />
  * <StatusBadge status="completed" displayText="Done" />
  * ```
  */
@@ -52,6 +53,10 @@ export function StatusBadge({
       // App execution statuses
       case 'running':
         return 'bg-green-100 text-green-800 border-green-200';
+      case 'ready':
+        return 'bg-amber-100 text-amber-800 border-amber-200';
+
+      // Intermediate app statuses (creating, installing, starting)
       case 'creating':
       case 'installing':
       case 'starting':
@@ -65,11 +70,8 @@ export function StatusBadge({
       case 'stopped':
         return 'bg-gray-100 text-gray-700';
 
-      case 'idle':
-        return 'bg-gray-100 text-gray-600';
-
       case 'failed':
-        return status === 'failed' && variant === 'app'
+        return variant === 'app'
           ? 'bg-red-100 text-red-800 border-red-200'
           : 'bg-red-100 text-red-700';
 

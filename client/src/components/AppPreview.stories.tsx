@@ -24,7 +24,7 @@ export const Idle: Story = {
   args: {
     appStatus: {
       sessionId: 'test-session-123',
-      status: 'idle',
+      status: 'stopped',
     },
   },
 };
@@ -36,7 +36,7 @@ export const Creating: Story = {
   args: {
     appStatus: {
       sessionId: 'test-session-123',
-      status: 'creating',
+      status: 'ready',
     },
   },
 };
@@ -48,7 +48,7 @@ export const Installing: Story = {
   args: {
     appStatus: {
       sessionId: 'test-session-123',
-      status: 'installing',
+      status: 'ready',
     },
   },
 };
@@ -60,7 +60,7 @@ export const Starting: Story = {
   args: {
     appStatus: {
       sessionId: 'test-session-123',
-      status: 'starting',
+      status: 'ready',
     },
   },
 };
