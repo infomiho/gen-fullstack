@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { checkFileSafety } from '../lib/file-safety.js';
 import { databaseLogger } from '../lib/logger.js';
 import * as commandService from '../services/command.service.js';
-import { databaseService } from '../services/database.service.js';
 import * as filesystemService from '../services/filesystem.service.js';
 import { requestBlock } from './request-block.tool.js';
 import { extractToolContext } from './tool-utils.js';
@@ -75,19 +74,9 @@ export const writeFile = tool({
       });
     }
 
-    // Write file to filesystem
+    // Write file to filesystem AND database (atomic operation)
+    // filesystemService.writeFile now handles both disk and database writes
     const result = await filesystemService.writeFile(sessionId, path, content);
-
-    // Persist file to database (fire-and-forget)
-    databaseService
-      .saveFile({
-        sessionId,
-        path,
-        content,
-      })
-      .catch((err) =>
-        databaseLogger.error({ error: err, sessionId, path }, 'Failed to persist file to database'),
-      );
 
     return result;
   },

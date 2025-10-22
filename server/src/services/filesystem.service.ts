@@ -3,6 +3,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { filesystemLogger } from '../lib/logger.js';
+import { databaseService } from './database.service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -74,12 +75,20 @@ export async function initializeSandbox(sessionId: string): Promise<string> {
 }
 
 /**
- * Write content to a file within the sandbox
+ * Write content to a file within the sandbox (atomic operation)
+ *
+ * This function performs an atomic write operation that ensures files are
+ * written to both disk and database, preventing inconsistencies where files
+ * exist on disk but not in the database (or vice versa).
+ *
+ * IMPORTANT: This is the ONLY way to write files in the system. All code
+ * paths must use this function to ensure data consistency.
  *
  * @param sessionId - Session identifier
  * @param filePath - Relative path within sandbox
  * @param content - File content
  * @returns Success message with full path
+ * @throws {Error} If disk write or database save fails
  */
 export async function writeFile(
   sessionId: string,
@@ -94,10 +103,30 @@ export async function writeFile(
   const dir = path.dirname(fullPath);
   await fs.mkdir(dir, { recursive: true });
 
+  // Write to disk
   await fs.writeFile(fullPath, content, 'utf-8');
 
   const relativePath = path.relative(sandboxPath, fullPath);
-  filesystemLogger.info({ relativePath, bytes: content.length }, 'Wrote file');
+  filesystemLogger.info({ relativePath, bytes: content.length }, 'Wrote file to disk');
+
+  // Atomically persist to database
+  // If this fails, the disk write is still done but we throw to signal the failure
+  try {
+    await databaseService.saveFile({
+      sessionId,
+      path: filePath,
+      content,
+    });
+    filesystemLogger.info({ relativePath }, 'Persisted file to database');
+  } catch (error) {
+    filesystemLogger.error(
+      { error, sessionId, path: filePath },
+      'Failed to persist file to database - disk write succeeded but database is inconsistent',
+    );
+    throw new Error(
+      `Failed to persist file to database: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
 
   return `Successfully wrote ${content.length} bytes to ${relativePath}`;
 }

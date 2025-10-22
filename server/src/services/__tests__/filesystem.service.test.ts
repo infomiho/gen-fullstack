@@ -1,5 +1,5 @@
 import { stat } from 'node:fs/promises';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   cleanupSandbox,
   copyTemplateToSandbox,
@@ -9,6 +9,13 @@ import {
   readFile,
   writeFile,
 } from '../filesystem.service.js';
+
+// Mock database service to prevent actual database writes in filesystem tests
+vi.mock('../database.service.js', () => ({
+  databaseService: {
+    saveFile: vi.fn().mockResolvedValue({}),
+  },
+}));
 
 describe('Filesystem Service', () => {
   const sessionId = 'test-session-fs-123';

@@ -28,7 +28,7 @@ export abstract class BaseCapability {
   // Constants
   protected static readonly DEFAULT_TOOL_CALL_LIMIT = 20;
   protected static readonly DEFAULT_MAX_ITERATIONS = 3;
-  protected static readonly TOOL_CALLS_PER_FIX_ITERATION = 5;
+  protected static readonly TOOL_CALLS_PER_FIX_ITERATION = 10; // Increased from 5 to allow exploration + fixes
 
   // Command timeout constants (in milliseconds)
   protected static readonly INSTALL_TIMEOUT_MS = 120_000; // 2 minutes - npm install can be slow

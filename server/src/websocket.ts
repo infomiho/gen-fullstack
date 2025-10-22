@@ -321,13 +321,8 @@ export function setupWebSocket(httpServer: HTTPServer) {
         const { sessionId, path: filePath, content } = SaveFileSchema.parse(payload);
         websocketLogger.info({ sessionId, filePath }, 'Saving file');
 
+        // writeFile now handles both disk and database writes atomically
         await writeFile(sessionId, filePath, content);
-
-        await databaseService.saveFile({
-          sessionId,
-          path: filePath,
-          content,
-        });
 
         io.to(sessionId).emit('file_updated', { path: filePath, content });
 
