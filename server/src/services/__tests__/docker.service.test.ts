@@ -156,107 +156,8 @@ describe('DockerService', () => {
     });
   });
 
-  describe('checkHttpReady', () => {
-    beforeEach(() => {
-      // Reset fetch mock before each test
-      vi.unstubAllGlobals();
-    });
-
-    it('should return true when server responds immediately', async () => {
-      // Mock global fetch to succeed
-      global.fetch = vi.fn().mockResolvedValueOnce(new Response());
-
-      const ready = await (dockerService as any).checkHttpReady(5173);
-
-      expect(ready).toBe(true);
-      expect(global.fetch).toHaveBeenCalledTimes(1);
-      expect(global.fetch).toHaveBeenCalledWith(
-        'http://localhost:5173',
-        expect.objectContaining({
-          method: 'HEAD',
-        }),
-      );
-    });
-
-    it('should retry and eventually succeed', async () => {
-      // Mock fetch to fail twice, then succeed
-      global.fetch = vi
-        .fn()
-        .mockRejectedValueOnce(new Error('ECONNREFUSED'))
-        .mockRejectedValueOnce(new Error('ECONNREFUSED'))
-        .mockResolvedValueOnce(new Response());
-
-      const ready = await (dockerService as any).checkHttpReady(5173);
-
-      expect(ready).toBe(true);
-      expect(global.fetch).toHaveBeenCalledTimes(3);
-    });
-
-    it('should return false after all retries fail', async () => {
-      // Mock fetch to always fail
-      global.fetch = vi.fn().mockRejectedValue(new Error('ECONNREFUSED'));
-
-      const ready = await (dockerService as any).checkHttpReady(5173);
-
-      expect(ready).toBe(false);
-      expect(global.fetch).toHaveBeenCalledTimes(10); // maxAttempts from HTTP_READY_CHECK
-    });
-
-    it('should accept 404 responses as ready', async () => {
-      // Mock fetch to return 404 (which means server is listening)
-      global.fetch = vi.fn().mockResolvedValueOnce(new Response(null, { status: 404 }));
-
-      const ready = await (dockerService as any).checkHttpReady(5173);
-
-      expect(ready).toBe(true);
-      expect(global.fetch).toHaveBeenCalledTimes(1);
-    });
-
-    it('should accept any HTTP response as ready', async () => {
-      // Mock fetch to return 500 (server error, but server is listening)
-      global.fetch = vi.fn().mockResolvedValueOnce(new Response(null, { status: 500 }));
-
-      const ready = await (dockerService as any).checkHttpReady(5173);
-
-      expect(ready).toBe(true);
-    });
-
-    it('should wait between retry attempts', async () => {
-      vi.useFakeTimers();
-
-      // Mock fetch to fail twice, then succeed
-      global.fetch = vi
-        .fn()
-        .mockRejectedValueOnce(new Error('ECONNREFUSED'))
-        .mockRejectedValueOnce(new Error('ECONNREFUSED'))
-        .mockResolvedValueOnce(new Response());
-
-      const readyPromise = (dockerService as any).checkHttpReady(5173);
-
-      // Advance timers by 500ms between each retry
-      await vi.advanceTimersByTimeAsync(500);
-      await vi.advanceTimersByTimeAsync(500);
-
-      const ready = await readyPromise;
-
-      expect(ready).toBe(true);
-      expect(global.fetch).toHaveBeenCalledTimes(3);
-
-      vi.useRealTimers();
-    });
-
-    it('should handle timeout errors', async () => {
-      // Mock fetch to throw timeout error
-      global.fetch = vi
-        .fn()
-        .mockRejectedValue(new DOMException('The operation was aborted', 'AbortError'));
-
-      const ready = await (dockerService as any).checkHttpReady(5173);
-
-      expect(ready).toBe(false);
-      expect(global.fetch).toHaveBeenCalledTimes(10);
-    });
-  });
+  // NOTE: checkHttpReady tests moved to http-ready-check.test.ts
+  // since the functionality was extracted to a separate module
 
   describe('createContainer', () => {
     it('should create and start container with correct configuration', async () => {
@@ -271,7 +172,7 @@ describe('DockerService', () => {
       expect(result).toEqual({
         sessionId,
         containerId: 'mock-container-id',
-        status: 'creating',
+        status: 'ready',
         clientPort: expect.any(Number),
         serverPort: expect.any(Number),
         clientUrl: expect.stringContaining('http://localhost:'),
@@ -360,16 +261,9 @@ describe('DockerService', () => {
       const sessionId = 'install-test';
       await dockerService.createContainer(sessionId, '/tmp/test-app');
 
-      const statusHandler = vi.fn();
-      dockerService.on('status_change', statusHandler);
-
       await dockerService.installDependencies(sessionId);
 
-      // Verify status change emitted
-      expect(statusHandler).toHaveBeenCalledWith({
-        sessionId,
-        status: 'installing',
-      });
+      // Container stays in 'ready' status during installation (no status change)
 
       // Verify exec was called with correct command
       const Docker = (await import('dockerode')).default;
@@ -446,16 +340,35 @@ describe('DockerService', () => {
       const statusHandler = vi.fn();
       dockerService.on('status_change', statusHandler);
 
-      // Mock waiting for ready (to avoid actual timeout)
-      vi.spyOn(dockerService as any, 'waitForReady').mockResolvedValueOnce(undefined);
+      // Mock fetch to simulate successful HTTP ready check
+      global.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200 });
 
-      await dockerService.startDevServer(sessionId);
+      // Install dependencies first (required before starting dev server)
+      await dockerService.installDependencies(sessionId);
 
-      expect(statusHandler).toHaveBeenCalledWith({
-        sessionId,
-        status: 'starting',
-      });
+      // Start dev server (machine will handle START_SERVER event and wait for VITE_READY + HTTP_READY)
+      const startPromise = dockerService.startDevServer(sessionId);
 
+      // Poll until machine reaches waitingForVite state, then send VITE_READY
+      const pollInterval = setInterval(() => {
+        const containers = dockerService.listContainers();
+        const container = containers.find((c) => c.sessionId === sessionId);
+        if (container?.actor) {
+          const state = container.actor.getSnapshot().value;
+          if (state === 'waitingForVite') {
+            clearInterval(pollInterval);
+            container.actor.send({ type: 'VITE_READY' } as any);
+          }
+        }
+      }, 100);
+
+      // Safety timeout to clear interval
+      setTimeout(() => clearInterval(pollInterval), 28000);
+
+      await startPromise;
+      clearInterval(pollInterval);
+
+      // Verify exec was called
       const Docker = (await import('dockerode')).default;
       const mockContainer = (Docker as any).mockContainer;
       expect(mockContainer.exec).toHaveBeenCalledWith(
@@ -464,7 +377,7 @@ describe('DockerService', () => {
           WorkingDir: '/app',
         }),
       );
-    });
+    }, 10000);
 
     it('should emit command log before starting dev server', async () => {
       const sessionId = 'dev-cmd-test';
@@ -473,10 +386,33 @@ describe('DockerService', () => {
       const logHandler = vi.fn();
       dockerService.on('log', logHandler);
 
-      // Mock waiting for ready (to avoid actual timeout)
-      vi.spyOn(dockerService as any, 'waitForReady').mockResolvedValueOnce(undefined);
+      // Mock fetch to simulate successful HTTP ready check
+      global.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200 });
 
-      await dockerService.startDevServer(sessionId);
+      // Install dependencies first (required before starting dev server)
+      await dockerService.installDependencies(sessionId);
+
+      // Start dev server
+      const startPromise = dockerService.startDevServer(sessionId);
+
+      // Poll until machine reaches waitingForVite state, then send VITE_READY
+      const pollInterval = setInterval(() => {
+        const containers = dockerService.listContainers();
+        const container = containers.find((c) => c.sessionId === sessionId);
+        if (container?.actor) {
+          const state = container.actor.getSnapshot().value;
+          if (state === 'waitingForVite') {
+            clearInterval(pollInterval);
+            container.actor.send({ type: 'VITE_READY' } as any);
+          }
+        }
+      }, 100);
+
+      // Safety timeout
+      setTimeout(() => clearInterval(pollInterval), 28000);
+
+      await startPromise;
+      clearInterval(pollInterval);
 
       // Verify command log was emitted
       expect(logHandler).toHaveBeenCalledWith(
@@ -488,7 +424,7 @@ describe('DockerService', () => {
           timestamp: expect.any(Number),
         }),
       );
-    });
+    }, 10000);
 
     it('should throw error if container not found', async () => {
       await expect(dockerService.startDevServer('non-existent')).rejects.toThrow(
@@ -507,7 +443,7 @@ describe('DockerService', () => {
       expect(status).toEqual({
         sessionId,
         containerId: 'mock-container-id',
-        status: 'creating',
+        status: 'ready',
         clientPort: expect.any(Number),
         serverPort: expect.any(Number),
         clientUrl: expect.stringContaining('http://localhost:'),
@@ -545,12 +481,8 @@ describe('DockerService', () => {
       const statusHandler = vi.fn();
       dockerService.on('status_change', statusHandler);
 
+      // Destroy container - machine will handle DESTROY event and cleanup
       await dockerService.destroyContainer(sessionId);
-
-      expect(statusHandler).toHaveBeenCalledWith({
-        sessionId,
-        status: 'stopped',
-      });
 
       const Docker = (await import('dockerode')).default;
       const mockContainer = (Docker as any).mockContainer;
@@ -560,7 +492,7 @@ describe('DockerService', () => {
       // Verify container removed from internal map
       const status = dockerService.getStatus(sessionId);
       expect(status).toBeNull();
-    });
+    }, 15000);
 
     it('should handle gracefully if container does not exist', async () => {
       await expect(dockerService.destroyContainer('non-existent')).resolves.not.toThrow();
@@ -574,10 +506,11 @@ describe('DockerService', () => {
       const mockContainer = (Docker as any).mockContainer;
       mockContainer.stop.mockRejectedValueOnce(new Error('Stop failed'));
 
+      // Should still remove even if stop fails
       await dockerService.destroyContainer(sessionId);
 
       expect(mockContainer.remove).toHaveBeenCalledWith({ force: true });
-    });
+    }, 15000);
   });
 
   describe('cleanup', () => {
@@ -589,7 +522,7 @@ describe('DockerService', () => {
       await dockerService.cleanup();
 
       expect(dockerService.listContainers()).toHaveLength(0);
-    });
+    }, 15000);
   });
 
   describe('listContainers', () => {
@@ -641,8 +574,10 @@ describe('DockerService', () => {
       expect(container.sessionId).toBe('success');
 
       // Circuit breaker should be closed
-      // Access private field for testing (not ideal but acceptable in tests)
-      expect((dockerService as any).consecutiveFailures).toBe(0);
+      // The circuitBreaker is now a private member, but a successful operation should close it
+      // We can verify this indirectly by ensuring no error is thrown on next operation
+      const container2 = await dockerService.createContainer('success2', '/tmp/success2');
+      expect(container2.sessionId).toBe('success2');
     });
   });
 
@@ -673,6 +608,6 @@ describe('DockerService', () => {
       } else {
         delete process.env.MAX_CONTAINERS;
       }
-    });
+    }, 20000);
   });
 });

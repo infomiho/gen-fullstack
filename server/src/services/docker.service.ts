@@ -6,335 +6,379 @@
  */
 
 import { EventEmitter } from 'node:events';
-import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import type { AppInfo, AppLog, AppStatus, BuildEvent } from '@gen-fullstack/shared';
+import type { AppInfo, AppLog, AppStatus } from '@gen-fullstack/shared';
 import type { Container, ContainerCreateOptions } from 'dockerode';
 import Docker from 'dockerode';
+import type { Actor } from 'xstate';
+import { createActor } from 'xstate';
 import { getEnv } from '../config/env.js';
 import { dockerLogger } from '../lib/logger.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-/**
- * Validates that a socket path is safe and legitimate
- */
-function isValidSocketPath(socketPath: string): boolean {
-  try {
-    // Resolve symlinks to prevent TOCTOU attacks
-    const realPath = fs.realpathSync(socketPath);
-
-    // Validate path is in allowed locations only
-    const allowedPrefixes = [
-      '/var/run',
-      path.join(os.homedir(), '.colima'),
-      path.join(os.homedir(), '.docker'),
-    ];
-
-    const isAllowed = allowedPrefixes.some((prefix) => realPath.startsWith(prefix));
-
-    if (!isAllowed) {
-      dockerLogger.warn({ realPath }, 'Socket path rejected (not in allowed locations)');
-      return false;
-    }
-
-    // Verify it's actually a socket, not a regular file
-    const stats = fs.statSync(realPath);
-    if (!stats.isSocket()) {
-      dockerLogger.warn({ realPath }, 'Path exists but is not a socket');
-      return false;
-    }
-
-    return true;
-  } catch (_error) {
-    return false;
-  }
-}
-
-/**
- * Get the Docker socket path based on the platform and Docker runtime
- */
-function getDockerSocketPath(): string {
-  const env = getEnv();
-
-  // 1. Check DOCKER_HOST environment variable (standard Docker way)
-  if (env.DOCKER_HOST?.startsWith('unix://')) {
-    const socketPath = env.DOCKER_HOST.replace('unix://', '');
-    if (isValidSocketPath(socketPath)) {
-      dockerLogger.info({ socketPath }, 'Using validated socket from DOCKER_HOST');
-      return socketPath;
-    }
-    dockerLogger.warn({ socketPath }, 'DOCKER_HOST socket invalid');
-  }
-
-  if (os.platform() === 'darwin') {
-    // 2. Check for Colima (common on macOS)
-    const colimaHome = env.COLIMA_HOME || path.join(os.homedir(), '.colima');
-    const colimaSocket = path.join(colimaHome, 'default/docker.sock');
-    if (isValidSocketPath(colimaSocket)) {
-      dockerLogger.info({ socketPath: colimaSocket }, 'Using Colima socket');
-      return colimaSocket;
-    }
-
-    // 3. Check for Docker Desktop for Mac
-    const dockerDesktopSocket = path.join(os.homedir(), '.docker/run/docker.sock');
-    if (isValidSocketPath(dockerDesktopSocket)) {
-      dockerLogger.info({ socketPath: dockerDesktopSocket }, 'Using Docker Desktop socket');
-      return dockerDesktopSocket;
-    }
-
-    // 4. Check standard socket (might be symlinked)
-    if (isValidSocketPath('/var/run/docker.sock')) {
-      dockerLogger.info('Using standard socket: /var/run/docker.sock');
-      return '/var/run/docker.sock';
-    }
-
-    dockerLogger.warn(
-      {
-        dockerHost: env.DOCKER_HOST || 'not set',
-        colimaSocket,
-        dockerDesktopSocket,
-      },
-      'No valid Docker socket found on macOS',
-    );
-  }
-
-  // Linux default - validate it too
-  const linuxSocket = '/var/run/docker.sock';
-  if (isValidSocketPath(linuxSocket)) {
-    return linuxSocket;
-  }
-
-  // Fall back to default path even if validation fails
-  // Docker will handle the error when trying to connect
-  return linuxSocket;
-}
+import {
+  CircuitBreaker,
+  checkHttpReady,
+  type ContainerInfo,
+  createDockerMachine,
+  createDockerStreamHandler,
+  DOCKERFILE_PATH,
+  type dockerContainerMachine,
+  getDockerSocketPath,
+  hasDestroyMethod,
+  LogManager,
+  PORT_RANGE,
+  PortManager,
+  RESOURCE_LIMITS,
+  retryOnConflict,
+  RUNNER_IMAGE,
+  stateToAppStatus,
+  TIMEOUTS,
+} from './docker/index.js';
 
 const docker = new Docker({ socketPath: getDockerSocketPath() });
-
-const RUNNER_IMAGE = 'gen-fullstack-runner';
-const DOCKERFILE_PATH = path.join(__dirname, '../../docker/runner.Dockerfile');
-
-// Resource limits
-const RESOURCE_LIMITS = {
-  memory: 512 * 1024 * 1024, // 512MB RAM
-  nanoCPUs: 1000000000, // 1 CPU core
-  diskQuota: 100 * 1024 * 1024, // 100MB disk (not enforced on all systems)
-};
-
-// Note: MAX_CONCURRENT_CONTAINERS moved to DockerService.maxConcurrentContainers (initialized from env)
-
-// Timeouts
-const TIMEOUTS = {
-  install: 2 * 60 * 1000, // 2 minutes for npm install
-  start: 30 * 1000, // 30 seconds to start dev server
-  stop: 10 * 1000, // 10 seconds for graceful shutdown
-  maxRuntime: 10 * 60 * 1000, // 10 minutes max runtime
-};
-
-// Retry configuration for Docker 409 conflicts
-const RETRY_CONFIG = {
-  maxAttempts: 3,
-  delayMs: 1000, // Start with 1 second
-  backoffMultiplier: 2, // Exponential backoff
-};
-
-// HTTP readiness check configuration
-const HTTP_READY_CHECK = {
-  maxAttempts: 10, // ~5 seconds total with 500ms delays
-  delayMs: 500, // Wait between retry attempts
-  requestTimeoutMs: 1000, // Timeout for each HTTP request
-};
-
-/**
- * Retry helper for Docker operations that may fail with 409 conflicts
- */
-async function retryOnConflict<T>(operation: () => Promise<T>, operationName: string): Promise<T> {
-  let lastError: Error | undefined;
-
-  for (let attempt = 1; attempt <= RETRY_CONFIG.maxAttempts; attempt++) {
-    try {
-      return await operation();
-    } catch (error) {
-      lastError = error as Error;
-
-      const is409 =
-        error &&
-        typeof error === 'object' &&
-        'statusCode' in error &&
-        (error as { statusCode: number }).statusCode === 409;
-
-      if (!is409 || attempt === RETRY_CONFIG.maxAttempts) {
-        throw error;
-      }
-
-      const delay = RETRY_CONFIG.delayMs * RETRY_CONFIG.backoffMultiplier ** (attempt - 1);
-      dockerLogger.info(
-        { operationName, delay, attempt, maxAttempts: RETRY_CONFIG.maxAttempts },
-        `${operationName} failed with 409 conflict, retrying`,
-      );
-      await new Promise((resolve) => setTimeout(resolve, delay));
-    }
-  }
-
-  throw (
-    lastError || new Error(`${operationName} failed after ${RETRY_CONFIG.maxAttempts} attempts`)
-  );
-}
-
-export interface ContainerInfo {
-  sessionId: string;
-  containerId: string;
-  container: Container;
-  status: AppStatus;
-  clientPort: number; // Host port mapped to container's Vite port (5173)
-  serverPort: number; // Host port mapped to container's Express port (3000)
-  createdAt: number;
-  logs: AppLog[];
-  cleanupTimer?: NodeJS.Timeout;
-  streamCleanup?: () => void;
-  devServerStreamCleanup?: () => void;
-  readyCheckInterval?: NodeJS.Timeout;
-  readyCheckPromise?: Promise<void>;
-  readyCheckAbort?: AbortController; // For canceling HTTP ready checks
-}
-
-/**
- * Type guard for stream with destroy method
- */
-function hasDestroyMethod(stream: unknown): stream is { destroy: () => void } {
-  return (
-    typeof stream === 'object' &&
-    stream !== null &&
-    'destroy' in stream &&
-    typeof (stream as { destroy: unknown }).destroy === 'function'
-  );
-}
-
-/**
- * Determine log level from message content
- */
-function determineLogLevel(message: string): 'error' | 'warn' | 'info' {
-  if (message.includes('ERROR') || message.includes('error')) {
-    return 'error';
-  }
-  if (message.includes('WARN') || message.includes('warn')) {
-    return 'warn';
-  }
-  return 'info';
-}
 
 export class DockerService extends EventEmitter {
   private containers = new Map<string, ContainerInfo>();
   private imageBuilt = false;
-  private consecutiveFailures = 0;
-  private circuitBreakerOpen = false;
-  private circuitBreakerResetTimeout?: NodeJS.Timeout;
+  private circuitBreaker = new CircuitBreaker();
+  private logManager: LogManager;
+  private portManager: PortManager;
   private maxConcurrentContainers: number;
-
-  private static readonly CIRCUIT_BREAKER_THRESHOLD = 5; // Open after 5 consecutive failures
-  private static readonly CIRCUIT_BREAKER_RESET_MS = 60 * 1000; // Try again after 1 minute
 
   constructor() {
     super();
     const env = getEnv();
     this.maxConcurrentContainers = env.MAX_CONTAINERS;
-  }
+    this.logManager = new LogManager(this.containers);
+    this.portManager = new PortManager(this.containers, PORT_RANGE.min, PORT_RANGE.max);
 
-  /**
-   * Check if circuit breaker is open and throw error if so
-   */
-  private checkCircuitBreaker(): void {
-    if (this.circuitBreakerOpen) {
-      throw new Error(
-        'Docker service temporarily unavailable due to repeated failures. ' +
-          'Please wait a moment and try again.',
-      );
-    }
-  }
-
-  /**
-   * Record a successful Docker operation (reset failure counter)
-   */
-  private recordSuccess(): void {
-    this.consecutiveFailures = 0;
-    this.circuitBreakerOpen = false;
-    if (this.circuitBreakerResetTimeout) {
-      clearTimeout(this.circuitBreakerResetTimeout);
-      this.circuitBreakerResetTimeout = undefined;
-    }
-  }
-
-  /**
-   * Record a failed Docker operation and open circuit breaker if threshold reached
-   */
-  private recordFailure(): void {
-    this.consecutiveFailures++;
-
-    if (this.consecutiveFailures >= DockerService.CIRCUIT_BREAKER_THRESHOLD) {
-      this.circuitBreakerOpen = true;
-      dockerLogger.error(
-        {
-          consecutiveFailures: this.consecutiveFailures,
-          resetMs: DockerService.CIRCUIT_BREAKER_RESET_MS,
-        },
-        'Circuit breaker opened',
-      );
-
-      // Auto-reset circuit breaker after timeout
-      this.circuitBreakerResetTimeout = setTimeout(() => {
-        dockerLogger.info('Circuit breaker reset - attempting to recover');
-        this.consecutiveFailures = 0;
-        this.circuitBreakerOpen = false;
-      }, DockerService.CIRCUIT_BREAKER_RESET_MS);
-    }
-  }
-
-  /**
-   * Store a log entry with retention management
-   */
-  private storeLogEntry(sessionId: string, log: AppLog): void {
-    const containerInfo = this.containers.get(sessionId);
-    if (containerInfo) {
-      containerInfo.logs.push(log);
-      // Batch removal for better performance
-      if (containerInfo.logs.length > 1200) {
-        containerInfo.logs = containerInfo.logs.slice(-1000);
+    // Forward events from log manager to this service
+    this.logManager.on('log', (log) => this.emit('log', log));
+    this.logManager.on('build_event', (event) => this.emit('build_event', event));
+    this.logManager.on('vite_ready', (sessionId) => {
+      // Send VITE_READY event to state machine
+      const containerInfo = this.containers.get(sessionId);
+      if (containerInfo?.actor) {
+        containerInfo.actor.send({ type: 'VITE_READY' } as any);
+        dockerLogger.debug({ sessionId }, 'Sent VITE_READY event to state machine');
       }
-    }
-
-    this.emit('log', log);
-
-    if (log.level !== 'command') {
-      this.parseBuildEvents(sessionId, log.message);
-    }
+    });
   }
 
   /**
-   * Emit a log entry with specified level
+   * Create a configured state machine actor for a container
    *
-   * @param sessionId - Session identifier
-   * @param level - Log level (command, system, info, warn, error)
-   * @param message - Log message
-   * @param type - Stream type (stdout or stderr), defaults to stdout
+   * The machine orchestrates the container lifecycle, but delegates actual
+   * Docker operations back to the service methods. This hybrid approach
+   * allows gradual migration while maintaining existing functionality.
    */
-  private emitLog(
-    sessionId: string,
-    level: AppLog['level'],
-    message: string,
-    type: AppLog['type'] = 'stdout',
-  ): void {
-    const log: AppLog = {
-      sessionId,
-      timestamp: Date.now(),
-      type,
-      level,
-      message,
-    };
-    this.storeLogEntry(sessionId, log);
+  private createMachineActor(sessionId: string, workingDir: string): Actor<any> {
+    const machine = createDockerMachine({
+      actors: {
+        // Delegate to existing service methods
+        createContainer: async (input) => {
+          // Reuse existing container creation logic
+          await this.buildRunnerImage();
+          await this.cleanupExistingContainer(input.sessionId);
+
+          const [clientHostPort, serverHostPort] = this.portManager.findTwoAvailablePorts();
+
+          const containerOpts: ContainerCreateOptions = {
+            Image: RUNNER_IMAGE,
+            name: `gen-${input.sessionId}`,
+            Tty: true,
+            AttachStdout: true,
+            AttachStderr: true,
+            WorkingDir: '/app',
+            ExposedPorts: {
+              '5173/tcp': {},
+              '3000/tcp': {},
+            },
+            HostConfig: {
+              Memory: RESOURCE_LIMITS.memory,
+              NanoCpus: RESOURCE_LIMITS.nanoCPUs,
+              PortBindings: {
+                '5173/tcp': [{ HostPort: clientHostPort.toString() }],
+                '3000/tcp': [{ HostPort: serverHostPort.toString() }],
+              },
+              Binds: [`${path.resolve(input.workingDir)}:/app:rw`],
+              ReadonlyRootfs: false,
+              Tmpfs: {
+                '/tmp': 'rw,noexec,nosuid,size=100m',
+              },
+              CapDrop: ['ALL'],
+              SecurityOpt: ['no-new-privileges'],
+            },
+            Env: ['NODE_ENV=development', 'DATABASE_URL=file:./dev.db'],
+          };
+
+          const container = await docker.createContainer(containerOpts);
+          await container.start();
+
+          return {
+            containerId: container.id,
+            container,
+            clientPort: clientHostPort,
+            serverPort: serverHostPort,
+          };
+        },
+        installDependencies: async (input) => {
+          // Reuse existing dependency installation logic
+          const containerInfo = this.containers.get(input.sessionId);
+          if (!containerInfo || !input.container) {
+            throw new Error(`Container not found: ${input.sessionId}`);
+          }
+
+          let cleanupStream: (() => void) | undefined;
+
+          try {
+            // Step 1: npm install
+            this.logManager.emitLog(input.sessionId, 'system', 'Installing dependencies...');
+            this.logManager.emitLog(input.sessionId, 'command', '$ npm install --loglevel=info');
+
+            const installExec = await input.container.exec({
+              Cmd: ['npm', 'install', '--loglevel=info'],
+              AttachStdout: true,
+              AttachStderr: true,
+              WorkingDir: '/app',
+            });
+
+            const installStream = await installExec.start({ Detach: false, Tty: false });
+            cleanupStream = this.processExecStream(input.sessionId, installStream);
+
+            await this.executeWithTimeout(installStream, TIMEOUTS.install, 'npm install');
+
+            if (cleanupStream) {
+              cleanupStream();
+              cleanupStream = undefined;
+            }
+
+            this.logManager.emitLog(
+              input.sessionId,
+              'system',
+              'Dependencies installed successfully',
+            );
+
+            // Step 2: Prisma generate
+            this.logManager.emitLog(input.sessionId, 'system', 'Generating Prisma client...');
+            this.logManager.emitLog(input.sessionId, 'command', '$ npx prisma generate');
+
+            const generateExec = await input.container.exec({
+              Cmd: ['npx', 'prisma', 'generate'],
+              AttachStdout: true,
+              AttachStderr: true,
+              WorkingDir: '/app',
+            });
+
+            const generateStream = await generateExec.start({ Detach: false, Tty: false });
+            cleanupStream = this.processExecStream(input.sessionId, generateStream);
+
+            await this.executeWithTimeout(
+              generateStream,
+              TIMEOUTS.prismaGenerate,
+              'prisma generate',
+            );
+
+            if (cleanupStream) {
+              cleanupStream();
+              cleanupStream = undefined;
+            }
+
+            this.logManager.emitLog(
+              input.sessionId,
+              'system',
+              'Prisma client generated successfully',
+            );
+
+            // Step 3: Database migrations
+            this.logManager.emitLog(input.sessionId, 'system', 'Running database migration...');
+            this.logManager.emitLog(
+              input.sessionId,
+              'command',
+              '$ npx prisma migrate dev --name init',
+            );
+
+            const migrateExec = await input.container.exec({
+              Cmd: ['npx', 'prisma', 'migrate', 'dev', '--name', 'init'],
+              AttachStdout: true,
+              AttachStderr: true,
+              WorkingDir: '/app',
+              Env: ['DATABASE_URL=file:./dev.db'],
+            });
+
+            const migrateStream = await migrateExec.start({ Detach: false, Tty: false });
+            cleanupStream = this.processExecStream(input.sessionId, migrateStream);
+
+            await this.executeWithTimeout(
+              migrateStream,
+              TIMEOUTS.prismaMigrate,
+              'prisma migrate dev',
+            );
+
+            if (cleanupStream) {
+              cleanupStream();
+              cleanupStream = undefined;
+            }
+
+            this.logManager.emitLog(
+              input.sessionId,
+              'system',
+              'Database migration completed successfully',
+            );
+          } catch (error) {
+            if (cleanupStream) {
+              cleanupStream();
+            }
+            throw error;
+          }
+        },
+        startDevServer: async (input) => {
+          // Reuse existing dev server start logic
+          const containerInfo = this.containers.get(input.sessionId);
+          if (!containerInfo || !input.container) {
+            throw new Error(`Container not found: ${input.sessionId}`);
+          }
+
+          this.logManager.emitLog(
+            input.sessionId,
+            'system',
+            'Starting development servers (client + server)...',
+          );
+          this.logManager.emitLog(input.sessionId, 'command', '$ npm run dev');
+
+          const exec = await input.container.exec({
+            Cmd: ['npm', 'run', 'dev'],
+            AttachStdout: true,
+            AttachStderr: true,
+            WorkingDir: '/app',
+          });
+
+          // Start dev servers - DON'T detach so we can capture output
+          const stream = await exec.start({ Detach: false, Tty: false });
+
+          // Store cleanup function in containerInfo for later cleanup
+          // NOTE: Cannot store in machine context as snapshots are immutable.
+          // Cleanup actions will access this via containerInfo object.
+          const cleanup = this.processExecStream(input.sessionId, stream);
+          containerInfo.devServerStreamCleanup = cleanup;
+
+          dockerLogger.info(
+            { sessionId: input.sessionId },
+            'Dev servers starting (client + server)',
+          );
+        },
+        httpReadyCheck: async (input) => {
+          // Use extracted checkHttpReady function
+          const ready = await checkHttpReady(input.port, input.signal);
+          return ready;
+        },
+      },
+      actions: {
+        // Cleanup actions (automatic cleanup on state exits)
+        cleanupCreatingStreams: () => {
+          const containerInfo = this.containers.get(sessionId);
+          if (containerInfo?.actor) {
+            const context = containerInfo.actor.getSnapshot().context;
+            dockerLogger.debug({ sessionId: context.sessionId }, 'Cleanup: creating streams');
+          }
+        },
+        cleanupInstallStreams: () => {
+          const containerInfo = this.containers.get(sessionId);
+          if (containerInfo?.actor) {
+            const context = containerInfo.actor.getSnapshot().context;
+            dockerLogger.debug({ sessionId: context.sessionId }, 'Cleanup: install streams');
+          }
+        },
+        cleanupStartStreams: () => {
+          const containerInfo = this.containers.get(sessionId);
+          if (containerInfo?.actor) {
+            const context = containerInfo.actor.getSnapshot().context;
+            dockerLogger.debug({ sessionId: context.sessionId }, 'Cleanup: start streams');
+          }
+        },
+        cleanupRunningStreams: () => {
+          const containerInfo = this.containers.get(sessionId);
+          if (containerInfo?.actor) {
+            const context = containerInfo.actor.getSnapshot().context;
+            dockerLogger.debug({ sessionId: context.sessionId }, 'Cleanup: running streams');
+
+            // Abort HTTP ready checks
+            if (context.readyCheckAbort) {
+              context.readyCheckAbort.abort();
+            }
+
+            // Clear intervals
+            if (context.readyCheckInterval) {
+              clearInterval(context.readyCheckInterval);
+            }
+
+            // Cleanup dev server stream (stored in containerInfo, not context)
+            if (containerInfo.devServerStreamCleanup) {
+              containerInfo.devServerStreamCleanup();
+            }
+          }
+        },
+        cleanupAllResources: () => {
+          const containerInfo = this.containers.get(sessionId);
+          if (containerInfo?.actor) {
+            const context = containerInfo.actor.getSnapshot().context;
+            dockerLogger.info({ sessionId: context.sessionId }, 'Cleanup: all resources');
+
+            // Abort HTTP ready checks
+            if (context.readyCheckAbort) {
+              context.readyCheckAbort.abort();
+            }
+
+            // Clear all timers
+            if (context.cleanupTimer) {
+              clearTimeout(context.cleanupTimer);
+            }
+
+            if (context.readyCheckInterval) {
+              clearInterval(context.readyCheckInterval);
+            }
+
+            // Cleanup all streams (stored in containerInfo, not context)
+            if (containerInfo.streamCleanup) {
+              containerInfo.streamCleanup();
+            }
+
+            if (containerInfo.devServerStreamCleanup) {
+              containerInfo.devServerStreamCleanup();
+            }
+          }
+        },
+      },
+    });
+
+    // Create and configure actor
+    const actor = createActor(machine, {
+      input: { sessionId, workingDir },
+    });
+
+    // Subscribe to state changes to update ContainerInfo status and emit WebSocket events
+    actor.subscribe((snapshot) => {
+      const containerInfo = this.containers.get(sessionId);
+      if (containerInfo) {
+        const machineState = this.getMachineStateString(snapshot);
+        const newStatus = stateToAppStatus(machineState);
+
+        // Only emit if status actually changed to avoid duplicate events
+        if (containerInfo.status !== newStatus) {
+          containerInfo.status = newStatus;
+
+          // Emit status_change event to WebSocket clients
+          const error = snapshot.context.error;
+          this.emit('status_change', { sessionId, status: newStatus, error });
+
+          dockerLogger.debug(
+            { sessionId, state: machineState, status: newStatus, error },
+            'State machine transitioned - status changed',
+          );
+        }
+      }
+    });
+
+    return actor;
   }
 
   /**
@@ -447,34 +491,6 @@ export class DockerService extends EventEmitter {
   }
 
   /**
-   * Find an available port in the range, optionally excluding a specific port
-   */
-  private async findAvailablePort(start: number, end: number, exclude?: number): Promise<number> {
-    for (let port = start; port <= end; port++) {
-      if (port === exclude) {
-        continue; // Skip excluded port
-      }
-      const isAvailable = ![...this.containers.values()].some(
-        (c) => c.clientPort === port || c.serverPort === port,
-      );
-      if (isAvailable) {
-        return port;
-      }
-    }
-    throw new Error(`No available ports in range ${start}-${end}`);
-  }
-
-  /**
-   * Find two distinct available ports for client and server
-   * Ensures clientPort !== serverPort to avoid bind conflicts
-   */
-  private async findTwoAvailablePorts(start: number, end: number): Promise<[number, number]> {
-    const clientPort = await this.findAvailablePort(start, end);
-    const serverPort = await this.findAvailablePort(start, end, clientPort);
-    return [clientPort, serverPort];
-  }
-
-  /**
    * Remove existing container with the same name if it exists
    */
   private async cleanupExistingContainer(sessionId: string): Promise<void> {
@@ -509,12 +525,94 @@ export class DockerService extends EventEmitter {
   }
 
   /**
+   * Helper method to convert machine state to string
+   * Handles both simple string states and complex nested state objects
+   *
+   * @param snapshot - The machine snapshot to extract state from
+   * @returns The state as a string
+   */
+  private getMachineStateString(
+    snapshot: ReturnType<Actor<typeof dockerContainerMachine>['getSnapshot']>,
+  ): string {
+    return typeof snapshot.value === 'string' ? snapshot.value : JSON.stringify(snapshot.value);
+  }
+
+  /**
+   * Helper method to wait for machine state transition with timeout protection
+   * Prevents memory leaks by ensuring subscriptions are always cleaned up
+   *
+   * @param actor - The state machine actor to monitor
+   * @param targetStates - Array of acceptable target states
+   * @param timeoutMs - Maximum time to wait (default: 60 seconds)
+   * @returns Promise that resolves when target state is reached
+   * @throws Error if timeout is reached or machine enters failed state
+   */
+  private async waitForMachineState(
+    actor: Actor<typeof dockerContainerMachine>,
+    targetStates: string[],
+    timeoutMs: number = TIMEOUTS.default,
+  ): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      let subscription: ReturnType<typeof actor.subscribe> | undefined;
+      let timeout: NodeJS.Timeout | undefined;
+
+      const cleanup = () => {
+        if (subscription) {
+          subscription.unsubscribe();
+          subscription = undefined;
+        }
+        if (timeout) {
+          clearTimeout(timeout);
+          timeout = undefined;
+        }
+      };
+
+      // Check current state immediately (handles race condition)
+      const currentSnapshot = actor.getSnapshot();
+      const currentState = this.getMachineStateString(currentSnapshot);
+
+      if (targetStates.includes(currentState)) {
+        resolve();
+        return;
+      }
+
+      if (currentState === 'failed') {
+        reject(new Error(currentSnapshot.context.error || 'Machine in failed state'));
+        return;
+      }
+
+      // Set up timeout protection
+      timeout = setTimeout(() => {
+        cleanup();
+        reject(
+          new Error(
+            `Timeout waiting for machine state. Expected: [${targetStates.join(', ')}], Current: ${currentState}`,
+          ),
+        );
+      }, timeoutMs);
+
+      // Subscribe to state changes
+      subscription = actor.subscribe((snapshot) => {
+        const state = this.getMachineStateString(snapshot);
+
+        if (targetStates.includes(state)) {
+          cleanup();
+          resolve();
+        } else if (state === 'failed') {
+          cleanup();
+          reject(new Error(snapshot.context.error || 'Machine transitioned to failed state'));
+        }
+      });
+    });
+  }
+
+  /**
    * Create and start a container for the generated full-stack app
    */
   async createContainer(sessionId: string, workingDir: string): Promise<AppInfo> {
     try {
       // Check circuit breaker first
-      this.checkCircuitBreaker();
+      this.circuitBreaker.check();
 
       // Check container limit before creating new ones
       if (this.containers.size >= this.maxConcurrentContainers) {
@@ -525,136 +623,68 @@ export class DockerService extends EventEmitter {
         );
       }
 
-      this.emitLog(sessionId, 'system', 'Creating container...');
-      await this.buildRunnerImage();
-      await this.cleanupExistingContainer(sessionId);
+      this.logManager.emitLog(sessionId, 'system', 'Creating container...');
 
-      // Allocate ports for both client (Vite) and server (Express)
-      const [clientHostPort, serverHostPort] = await this.findTwoAvailablePorts(5001, 5200);
-
-      const containerOpts: ContainerCreateOptions = {
-        Image: RUNNER_IMAGE,
-        name: `gen-${sessionId}`,
-        Tty: true,
-        AttachStdout: true,
-        AttachStderr: true,
-        WorkingDir: '/app',
-        ExposedPorts: {
-          '5173/tcp': {}, // Vite client port
-          '3000/tcp': {}, // Express server port
-        },
-        HostConfig: {
-          Memory: RESOURCE_LIMITS.memory,
-          NanoCpus: RESOURCE_LIMITS.nanoCPUs,
-          PortBindings: {
-            '5173/tcp': [{ HostPort: clientHostPort.toString() }],
-            '3000/tcp': [{ HostPort: serverHostPort.toString() }],
-          },
-          Binds: [`${path.resolve(workingDir)}:/app:rw`],
-          ReadonlyRootfs: false, // Allow writes to /tmp and database file
-          Tmpfs: {
-            '/tmp': 'rw,noexec,nosuid,size=100m',
-          },
-          CapDrop: ['ALL'], // Drop all capabilities for security
-          SecurityOpt: ['no-new-privileges'], // Prevent privilege escalation
-        },
-        Env: [
-          'NODE_ENV=development',
-          'DATABASE_URL=file:./dev.db', // Prisma database connection
-        ],
-      };
-
-      const container = await docker.createContainer(containerOpts);
-      const containerId = container.id;
-
-      await container.start();
-
+      // Create minimal container info - machine will populate it
       const containerInfo: ContainerInfo = {
         sessionId,
-        containerId,
-        container,
-        status: 'creating',
-        clientPort: clientHostPort,
-        serverPort: serverHostPort,
+        containerId: '',
+        container: null as any,
+        status: 'ready',
+        clientPort: 0,
+        serverPort: 0,
         createdAt: Date.now(),
         logs: [],
       };
 
       this.containers.set(sessionId, containerInfo);
 
-      this.setupLogStream(sessionId, container);
+      // Initialize state machine actor
+      const actor = this.createMachineActor(sessionId, workingDir);
+      containerInfo.actor = actor;
+      actor.start();
+
+      dockerLogger.info({ sessionId }, 'State machine driving container creation');
+
+      // Send CREATE event - machine will handle buildImage, cleanup, create, start
+      // NOTE: `as any` required due to XState v5 type inference limitations
+      // The machine's event types don't properly propagate to Actor.send()
+      actor.send({ type: 'CREATE', sessionId, workingDir } as any);
+
+      // Wait for machine to reach 'ready' state with timeout protection
+      await this.waitForMachineState(actor, ['ready'], TIMEOUTS.containerCreation);
+
+      // Update containerInfo from machine context
+      const snapshot = actor.getSnapshot();
+      containerInfo.containerId = snapshot.context.containerId || '';
+      containerInfo.container = snapshot.context.container!;
+      containerInfo.clientPort = snapshot.context.clientPort || 0;
+      containerInfo.serverPort = snapshot.context.serverPort || 0;
+
+      // Setup log streaming and auto-cleanup
+      this.setupLogStream(sessionId, containerInfo.container);
       this.setupAutoCleanup(sessionId);
 
-      this.emitLog(sessionId, 'system', 'Container created successfully');
+      this.logManager.emitLog(sessionId, 'system', 'Container ready for commands');
 
       // Record successful operation
-      this.recordSuccess();
+      this.circuitBreaker.recordSuccess();
 
       return {
         sessionId,
-        containerId,
-        status: 'creating',
-        clientPort: clientHostPort,
-        serverPort: serverHostPort,
-        clientUrl: `http://localhost:${clientHostPort}`,
-        serverUrl: `http://localhost:${serverHostPort}`,
+        containerId: containerInfo.containerId,
+        status: stateToAppStatus(actor.getSnapshot().value as string),
+        clientPort: containerInfo.clientPort,
+        serverPort: containerInfo.serverPort,
+        clientUrl: `http://localhost:${containerInfo.clientPort}`,
+        serverUrl: `http://localhost:${containerInfo.serverPort}`,
       };
     } catch (error) {
       dockerLogger.error({ error, sessionId }, 'Failed to create container');
       // Record failure for circuit breaker
-      this.recordFailure();
+      this.circuitBreaker.recordFailure();
       throw new Error(`Failed to create Docker container: ${error}`);
     }
-  }
-
-  /**
-   * Create a handler for Docker multiplexed stream format
-   *
-   * Docker logs/exec streams use multiplexed format:
-   * - Header (8 bytes): [stream_type, 0, 0, 0, size1, size2, size3, size4]
-   * - stream_type: 1=stdout, 2=stderr
-   * - size: big-endian uint32 of message length
-   * - Followed by message bytes
-   *
-   * @param sessionId - Session identifier for log context
-   * @param onMessage - Callback invoked for each parsed log message
-   * @returns Handler function to attach to stream's 'data' event
-   */
-  private createDockerStreamHandler(
-    sessionId: string,
-    onMessage: (log: AppLog) => void,
-  ): (chunk: Buffer) => void {
-    let buffer = Buffer.alloc(0);
-
-    return (chunk: Buffer) => {
-      buffer = Buffer.concat([buffer, chunk]);
-
-      while (buffer.length >= 8) {
-        const messageSize = buffer.readUInt32BE(4);
-
-        if (buffer.length < 8 + messageSize) {
-          break;
-        }
-
-        const streamType = buffer[0]; // 1=stdout, 2=stderr
-        const messageBuffer = buffer.slice(8, 8 + messageSize);
-        const message = messageBuffer.toString('utf8').trim();
-
-        buffer = buffer.slice(8 + messageSize);
-
-        if (!message) continue;
-
-        const log: AppLog = {
-          sessionId,
-          timestamp: Date.now(),
-          type: streamType === 2 ? 'stderr' : 'stdout',
-          level: determineLogLevel(message),
-          message,
-        };
-
-        onMessage(log);
-      }
-    };
   }
 
   /**
@@ -669,8 +699,8 @@ export class DockerService extends EventEmitter {
         timestamps: true,
       });
 
-      const dataHandler = this.createDockerStreamHandler(sessionId, (log) =>
-        this.storeLogEntry(sessionId, log),
+      const dataHandler = createDockerStreamHandler(sessionId, (log) =>
+        this.logManager.storeLogEntry(sessionId, log),
       );
 
       const errorHandler = (error: Error) => {
@@ -696,177 +726,11 @@ export class DockerService extends EventEmitter {
   }
 
   /**
-   * Attempt a single HTTP readiness check
-   */
-  private async attemptHttpCheck(
-    port: number,
-    attempt: number,
-    signal?: AbortSignal,
-  ): Promise<boolean> {
-    try {
-      await fetch(`http://localhost:${port}`, {
-        method: 'HEAD',
-        signal: signal || AbortSignal.timeout(HTTP_READY_CHECK.requestTimeoutMs),
-      });
-      return true; // Any response means server is listening
-    } catch (error) {
-      // Log first and last failures for debugging
-      const shouldLog = attempt === 0 || attempt === HTTP_READY_CHECK.maxAttempts - 1;
-      if (shouldLog) {
-        dockerLogger.info(
-          {
-            port,
-            attempt: attempt + 1,
-            maxAttempts: HTTP_READY_CHECK.maxAttempts,
-            error: error instanceof Error ? error.message : error,
-          },
-          'HTTP ready check attempt failed',
-        );
-      }
-      return false;
-    }
-  }
-
-  /**
-   * Check if HTTP server is actually ready to accept connections
-   *
-   * Polls the HTTP endpoint with HEAD requests until the server responds.
-   * This prevents the iframe from loading before the server is ready to
-   * handle requests, avoiding "Unable to connect" errors.
-   *
-   * @param port - The host port to check
-   * @param signal - Optional AbortSignal to cancel the check
-   * @returns Promise<boolean> - true if server responds within timeout, false otherwise
-   *
-   * @remarks
-   * - Uses HEAD requests to minimize overhead
-   * - Accepts any HTTP response (including 404) as "ready"
-   * - Retries up to 10 times with 500ms delays (~5 seconds total)
-   * - Each request has a 1 second timeout
-   * - Logs first and last failures for debugging
-   * - Can be canceled via AbortSignal
-   */
-  private async checkHttpReady(port: number, signal?: AbortSignal): Promise<boolean> {
-    for (let i = 0; i < HTTP_READY_CHECK.maxAttempts; i++) {
-      if (signal?.aborted) {
-        return false;
-      }
-
-      const isReady = await this.attemptHttpCheck(port, i, signal);
-      if (isReady) {
-        return true;
-      }
-
-      if (signal?.aborted) {
-        return false;
-      }
-
-      // Wait before next attempt (unless last attempt)
-      const isLastAttempt = i === HTTP_READY_CHECK.maxAttempts - 1;
-      if (!isLastAttempt) {
-        await new Promise((resolve) => setTimeout(resolve, HTTP_READY_CHECK.delayMs));
-      }
-    }
-    return false;
-  }
-
-  /**
-   * Parse build events from logs
-   */
-  private parseBuildEvents(sessionId: string, message: string): void {
-    if (message.includes('VITE') && message.includes('ready')) {
-      const event: BuildEvent = {
-        sessionId,
-        timestamp: Date.now(),
-        event: 'success',
-        details: 'Dev server ready',
-      };
-      this.emit('build_event', event);
-
-      // Update container status to running after HTTP readiness check
-      const containerInfo = this.containers.get(sessionId);
-      if (containerInfo && containerInfo.status !== 'running') {
-        // Prevent concurrent HTTP checks with promise-based lock
-        if (containerInfo.readyCheckPromise) {
-          return; // Already checking, skip duplicate
-        }
-
-        // Create AbortController for cancellation
-        const abortController = new AbortController();
-        containerInfo.readyCheckAbort = abortController;
-
-        // Run readiness check in background to avoid blocking log processing
-        containerInfo.readyCheckPromise = this.checkHttpReady(
-          containerInfo.clientPort,
-          abortController.signal,
-        )
-          .then((ready) => {
-            // Check if aborted
-            if (abortController.signal.aborted) {
-              return;
-            }
-
-            // Guard against race: only update if still not running
-            if (containerInfo.status !== 'running') {
-              if (ready) {
-                containerInfo.status = 'running';
-                this.emit('status_change', {
-                  sessionId,
-                  status: 'running',
-                });
-                dockerLogger.info(
-                  { sessionId, clientPort: containerInfo.clientPort },
-                  'HTTP server ready',
-                );
-              } else {
-                dockerLogger.warn(
-                  { sessionId },
-                  'HTTP readiness check failed, but VITE reported ready',
-                );
-
-                // Emit warning event that surfaces in the UI
-                const warningEvent: BuildEvent = {
-                  sessionId,
-                  timestamp: Date.now(),
-                  event: 'error',
-                  details:
-                    'Dev server reported ready but HTTP health check failed. The preview may not load correctly.',
-                };
-                this.emit('build_event', warningEvent);
-
-                // Still mark as running since VITE said it's ready
-                containerInfo.status = 'running';
-                this.emit('status_change', {
-                  sessionId,
-                  status: 'running',
-                });
-              }
-            }
-          })
-          .finally(() => {
-            containerInfo.readyCheckPromise = undefined;
-            containerInfo.readyCheckAbort = undefined;
-          });
-      }
-    }
-
-    if (message.includes('ERROR') || message.includes('Failed')) {
-      const event: BuildEvent = {
-        sessionId,
-        timestamp: Date.now(),
-        event: 'error',
-        details: message,
-      };
-      this.emit('build_event', event);
-    }
-  }
-
-  /**
    * Process exec stream output and emit logs
    */
   private processExecStream(sessionId: string, stream: NodeJS.ReadableStream): () => void {
-    const dataHandler = this.createDockerStreamHandler(sessionId, (log) => {
-      this.storeLogEntry(sessionId, log);
+    const dataHandler = createDockerStreamHandler(sessionId, (log) => {
+      this.logManager.storeLogEntry(sessionId, log);
       dockerLogger.debug({ sessionId, message: log.message }, 'Container log');
     });
 
@@ -919,157 +783,152 @@ export class DockerService extends EventEmitter {
       throw new Error(`Container not found: ${sessionId}`);
     }
 
-    let cleanupStream: (() => void) | undefined;
+    if (!containerInfo.actor) {
+      throw new Error(`State machine actor not found for session: ${sessionId}`);
+    }
 
     try {
-      containerInfo.status = 'installing';
-      this.emit('status_change', { sessionId, status: 'installing' });
+      dockerLogger.info({ sessionId }, 'State machine driving dependency installation');
 
-      // Step 1: Install all dependencies (root + client + server workspaces)
-      this.emitLog(sessionId, 'system', 'Installing dependencies...');
-      this.emitLog(sessionId, 'command', '$ npm install --loglevel=info');
+      // Send INSTALL_DEPS event - machine handles npm install, Prisma generate, migrations
+      containerInfo.actor.send({ type: 'INSTALL_DEPS' } as any); // XState v5 type inference limitation
 
-      const installExec = await containerInfo.container.exec({
-        Cmd: ['npm', 'install', '--loglevel=info'],
+      // Wait for machine to reach installation complete states with timeout protection
+      await this.waitForMachineState(
+        containerInfo.actor,
+        ['starting', 'waitingForVite', 'running'], // Accept any state past installation
+        180000, // 3 minutes for npm install + Prisma
+      );
+
+      dockerLogger.info({ sessionId }, 'Dependencies installed successfully via state machine');
+    } catch (error) {
+      dockerLogger.error({ error, sessionId }, 'Failed to install dependencies via state machine');
+      throw error;
+    }
+  }
+
+  /**
+   * Execute an arbitrary command in a container
+   *
+   * This method enables running validation commands (TypeScript, Prisma, etc.)
+   * inside Docker containers for security and environment consistency.
+   *
+   * @param sessionId - Session identifier
+   * @param command - Command to execute (e.g., 'npm install', 'npx tsc --noEmit')
+   * @param timeoutMs - Command timeout in milliseconds (default: 60s)
+   * @returns Command result with stdout, stderr, exitCode, executionTime, and success flag
+   *
+   * @example
+   * ```typescript
+   * // Run TypeScript type checking
+   * const result = await dockerService.executeCommand(
+   *   sessionId,
+   *   'npx tsc --noEmit --project server/tsconfig.json',
+   *   120000
+   * );
+   *
+   * if (!result.success) {
+   *   console.error('Type check failed:', result.stderr);
+   * }
+   * ```
+   */
+  async executeCommand(
+    sessionId: string,
+    command: string,
+    timeoutMs: number = TIMEOUTS.default,
+  ): Promise<{
+    stdout: string;
+    stderr: string;
+    exitCode: number;
+    executionTime: number;
+    success: boolean;
+  }> {
+    const containerInfo = this.containers.get(sessionId);
+    if (!containerInfo) {
+      throw new Error(`Container not found: ${sessionId}`);
+    }
+
+    const startTime = Date.now();
+    let cleanupStream: (() => void) | undefined;
+    let stdout = '';
+    let stderr = '';
+    let exitCode = 0;
+
+    try {
+      dockerLogger.debug({ sessionId, command }, 'Executing command in container');
+
+      // Create exec instance
+      const exec = await containerInfo.container.exec({
+        Cmd: ['sh', '-c', command],
         AttachStdout: true,
         AttachStderr: true,
         WorkingDir: '/app',
       });
 
-      const installStream = await installExec.start({ Detach: false, Tty: false });
-      cleanupStream = this.processExecStream(sessionId, installStream);
+      // Start execution
+      const stream = await exec.start({ Detach: false, Tty: false });
 
-      await this.executeWithTimeout(installStream, TIMEOUTS.install, 'npm install');
-
-      if (cleanupStream) {
-        cleanupStream();
-        cleanupStream = undefined;
-      }
-
-      dockerLogger.info({ sessionId }, 'Dependencies installed');
-      this.emitLog(sessionId, 'system', 'Dependencies installed successfully');
-
-      // Step 2: Generate Prisma client
-      this.emitLog(sessionId, 'system', 'Generating Prisma client...');
-      this.emitLog(sessionId, 'command', '$ npx prisma generate');
-
-      const generateExec = await containerInfo.container.exec({
-        Cmd: ['npx', 'prisma', 'generate'],
-        AttachStdout: true,
-        AttachStderr: true,
-        WorkingDir: '/app',
+      // Capture output
+      const dataHandler = createDockerStreamHandler(sessionId, (log) => {
+        if (log.type === 'stdout') {
+          stdout += log.message + '\n';
+        } else {
+          stderr += log.message + '\n';
+        }
       });
 
-      const generateStream = await generateExec.start({ Detach: false, Tty: false });
-      cleanupStream = this.processExecStream(sessionId, generateStream);
+      stream.on('data', dataHandler);
 
-      await this.executeWithTimeout(generateStream, 60000, 'prisma generate');
-
-      if (cleanupStream) {
-        cleanupStream();
-        cleanupStream = undefined;
-      }
-
-      this.emitLog(sessionId, 'system', 'Prisma client generated successfully');
-
-      // Step 3: Check if migrations exist, then run database migrations
-      this.emitLog(sessionId, 'system', 'Checking for existing migrations...');
-
-      const checkMigrationsExec = await containerInfo.container.exec({
-        Cmd: ['sh', '-c', 'test -d prisma/migrations && echo "exists" || echo "none"'],
-        AttachStdout: true,
-        AttachStderr: true,
-        WorkingDir: '/app',
-      });
-
-      const checkStream = await checkMigrationsExec.start({ Detach: false, Tty: false });
-      let migrationsExist = false;
-      let checkBuffer = '';
-
-      const checkHandler = (chunk: Buffer) => {
-        checkBuffer += chunk.toString('utf8');
+      cleanupStream = () => {
+        stream.off('data', dataHandler);
+        if (hasDestroyMethod(stream)) {
+          stream.destroy();
+        }
       };
 
-      checkStream.on('data', checkHandler);
+      // Wait for completion with timeout
+      await this.executeWithTimeout(stream, timeoutMs, `command: ${command}`);
 
-      try {
-        await new Promise((resolve, reject) => {
-          checkStream.on('end', resolve);
-          checkStream.on('error', reject);
-        });
+      // Get exit code
+      const inspectResult = await exec.inspect();
+      exitCode = inspectResult.ExitCode ?? 0;
 
-        migrationsExist = checkBuffer.includes('exists');
-      } finally {
-        // Clean up stream handler
-        checkStream.off('data', checkHandler);
-        if (hasDestroyMethod(checkStream)) {
-          checkStream.destroy();
-        }
-      }
+      const executionTime = Date.now() - startTime;
+      const success = exitCode === 0;
 
-      if (migrationsExist) {
-        this.emitLog(
+      dockerLogger.debug(
+        {
           sessionId,
-          'system',
-          'Migrations directory already exists, applying existing migrations...',
-        );
-        this.emitLog(sessionId, 'command', '$ npx prisma migrate deploy');
+          command,
+          exitCode,
+          executionTime,
+          success,
+        },
+        'Command execution completed',
+      );
 
-        const deployExec = await containerInfo.container.exec({
-          Cmd: ['npx', 'prisma', 'migrate', 'deploy'],
-          AttachStdout: true,
-          AttachStderr: true,
-          WorkingDir: '/app',
-          Env: ['DATABASE_URL=file:./dev.db'],
-        });
-
-        const deployStream = await deployExec.start({ Detach: false, Tty: false });
-        cleanupStream = this.processExecStream(sessionId, deployStream);
-
-        await this.executeWithTimeout(deployStream, 60000, 'prisma migrate deploy');
-
-        if (cleanupStream) {
-          cleanupStream();
-          cleanupStream = undefined;
-        }
-
-        this.emitLog(sessionId, 'system', 'Existing migrations applied successfully');
-      } else {
-        this.emitLog(sessionId, 'system', 'Running initial database migration...');
-        this.emitLog(sessionId, 'command', '$ npx prisma migrate dev --name init');
-
-        const migrateExec = await containerInfo.container.exec({
-          Cmd: ['npx', 'prisma', 'migrate', 'dev', '--name', 'init'],
-          AttachStdout: true,
-          AttachStderr: true,
-          WorkingDir: '/app',
-          Env: ['DATABASE_URL=file:./dev.db'],
-        });
-
-        const migrateStream = await migrateExec.start({ Detach: false, Tty: false });
-        cleanupStream = this.processExecStream(sessionId, migrateStream);
-
-        await this.executeWithTimeout(migrateStream, 60000, 'prisma migrate dev');
-
-        if (cleanupStream) {
-          cleanupStream();
-          cleanupStream = undefined;
-        }
-
-        this.emitLog(sessionId, 'system', 'Initial database migration completed successfully');
-      }
+      return {
+        stdout: stdout.trim(),
+        stderr: stderr.trim(),
+        exitCode,
+        executionTime,
+        success,
+      };
     } catch (error) {
+      const executionTime = Date.now() - startTime;
+      dockerLogger.error({ error, sessionId, command }, 'Command execution failed');
+
+      return {
+        stdout: stdout.trim(),
+        stderr: stderr.trim() || (error instanceof Error ? error.message : String(error)),
+        exitCode: exitCode || 1,
+        executionTime,
+        success: false,
+      };
+    } finally {
       if (cleanupStream) {
         cleanupStream();
       }
-
-      containerInfo.status = 'failed';
-      this.emit('status_change', {
-        sessionId,
-        status: 'failed',
-        error: `Failed to install dependencies: ${error}`,
-      });
-      throw error;
     }
   }
 
@@ -1082,82 +941,24 @@ export class DockerService extends EventEmitter {
       throw new Error(`Container not found: ${sessionId}`);
     }
 
+    if (!containerInfo.actor) {
+      throw new Error(`State machine actor not found for session: ${sessionId}`);
+    }
+
     try {
-      containerInfo.status = 'starting';
-      this.emit('status_change', { sessionId, status: 'starting' });
+      dockerLogger.info({ sessionId }, 'State machine driving dev server startup');
 
-      this.emitLog(sessionId, 'system', 'Starting development servers (client + server)...');
-      this.emitLog(sessionId, 'command', '$ npm run dev');
+      // Send START_SERVER event - machine handles npm run dev and waits for VITE_READY + HTTP_READY
+      containerInfo.actor.send({ type: 'START_SERVER' } as any); // XState v5 type inference limitation
 
-      const exec = await containerInfo.container.exec({
-        Cmd: ['npm', 'run', 'dev'],
-        AttachStdout: true,
-        AttachStderr: true,
-        WorkingDir: '/app',
-      });
+      // Wait for machine to reach 'running' state with timeout protection
+      await this.waitForMachineState(containerInfo.actor, ['running'], TIMEOUTS.viteHttpReady);
 
-      // Start both dev servers via concurrently - DON'T detach so we can capture output
-      const stream = await exec.start({ Detach: false, Tty: false });
-
-      containerInfo.devServerStreamCleanup = this.processExecStream(sessionId, stream);
-
-      dockerLogger.info({ sessionId }, 'Dev servers starting (client + server)');
-
-      await this.waitForReady(sessionId, TIMEOUTS.start);
+      dockerLogger.info({ sessionId }, 'Dev servers running successfully via state machine');
     } catch (error) {
-      if (containerInfo.readyCheckInterval) {
-        clearInterval(containerInfo.readyCheckInterval);
-        containerInfo.readyCheckInterval = undefined;
-      }
-
-      containerInfo.status = 'failed';
-      this.emit('status_change', {
-        sessionId,
-        status: 'failed',
-        error: `Failed to start dev servers: ${error}`,
-      });
+      dockerLogger.error({ error, sessionId }, 'Failed to start dev servers via state machine');
       throw error;
     }
-  }
-
-  /**
-   * Wait for dev server to be ready
-   */
-  private async waitForReady(sessionId: string, timeout: number): Promise<void> {
-    const startTime = Date.now();
-
-    return new Promise((resolve, reject) => {
-      const checkInterval = setInterval(() => {
-        const containerInfo = this.containers.get(sessionId);
-        if (!containerInfo) {
-          clearInterval(checkInterval);
-          reject(new Error('Container not found'));
-          return;
-        }
-
-        const hasReadyMessage = containerInfo.logs.some(
-          (log) => log.message.includes('ready') || log.message.includes('VITE'),
-        );
-
-        if (hasReadyMessage || containerInfo.status === 'running') {
-          clearInterval(checkInterval);
-          containerInfo.readyCheckInterval = undefined;
-          resolve();
-          return;
-        }
-
-        if (Date.now() - startTime > timeout) {
-          clearInterval(checkInterval);
-          containerInfo.readyCheckInterval = undefined;
-          reject(new Error('Timeout waiting for dev server to start'));
-        }
-      }, 500);
-
-      const containerInfo = this.containers.get(sessionId);
-      if (containerInfo) {
-        containerInfo.readyCheckInterval = checkInterval;
-      }
-    });
   }
 
   /**
@@ -1184,12 +985,62 @@ export class DockerService extends EventEmitter {
    * Get container logs
    */
   getLogs(sessionId: string): AppLog[] {
-    const containerInfo = this.containers.get(sessionId);
-    return containerInfo?.logs || [];
+    return this.logManager.getLogs(sessionId);
   }
 
   /**
-   * Get container status
+   * Check if a container exists for a session
+   *
+   * @param sessionId - Session identifier
+   * @returns True if container exists, false otherwise
+   */
+  hasContainer(sessionId: string): boolean {
+    return this.containers.has(sessionId);
+  }
+
+  /**
+   * Stop the dev server but keep the container running
+   *
+   * This transitions the container from 'running' back to 'ready' state,
+   * keeping dependencies installed so it can be restarted quickly.
+   */
+  async stopDevServer(sessionId: string): Promise<void> {
+    const containerInfo = this.containers.get(sessionId);
+    if (!containerInfo) {
+      throw new Error(`Container not found: ${sessionId}`);
+    }
+
+    if (!containerInfo.actor) {
+      throw new Error(`State machine actor not found for session: ${sessionId}`);
+    }
+
+    try {
+      this.logManager.emitLog(sessionId, 'system', 'Stopping dev servers...');
+
+      // Send STOP_SERVER event - machine handles cleanup and transitions to 'ready'
+      containerInfo.actor.send({ type: 'STOP_SERVER' } as any); // XState v5 type inference limitation
+
+      // Wait for machine to reach 'ready' state with timeout protection
+      await this.waitForMachineState(containerInfo.actor, ['ready'], TIMEOUTS.stop);
+
+      dockerLogger.info(
+        { sessionId },
+        'Dev servers stopped via state machine, container ready for restart',
+      );
+      this.logManager.emitLog(
+        sessionId,
+        'system',
+        'Dev servers stopped. Container is ready to restart.',
+      );
+    } catch (error) {
+      dockerLogger.error({ error, sessionId }, 'Failed to stop dev server via state machine');
+      throw error;
+    }
+  }
+
+  /**
+   * Get container status information
+   * Status is derived from state machine state
    */
   getStatus(sessionId: string): AppInfo | null {
     const containerInfo = this.containers.get(sessionId);
@@ -1197,10 +1048,19 @@ export class DockerService extends EventEmitter {
       return null;
     }
 
+    // Derive status from machine state
+    let status: AppStatus = 'stopped';
+    if (containerInfo.actor) {
+      const machineState = containerInfo.actor.getSnapshot().value;
+      status = stateToAppStatus(
+        typeof machineState === 'string' ? machineState : JSON.stringify(machineState),
+      );
+    }
+
     return {
       sessionId,
       containerId: containerInfo.containerId,
-      status: containerInfo.status,
+      status,
       clientPort: containerInfo.clientPort,
       serverPort: containerInfo.serverPort,
       clientUrl: `http://localhost:${containerInfo.clientPort}`,
@@ -1217,38 +1077,18 @@ export class DockerService extends EventEmitter {
       return;
     }
 
-    this.emitLog(sessionId, 'system', 'Stopping container...');
+    this.logManager.emitLog(sessionId, 'system', 'Stopping container...');
 
     try {
-      // Abort any pending HTTP ready checks
-      if (containerInfo.readyCheckAbort) {
-        containerInfo.readyCheckAbort.abort();
-        containerInfo.readyCheckAbort = undefined;
+      // Send DESTROY event to state machine - cleanup will happen via exit actions
+      if (containerInfo.actor) {
+        containerInfo.actor.send({ type: 'DESTROY' } as any); // XState v5 type inference limitation
+
+        // Wait for machine to reach 'stopped' or 'failed' state with timeout protection
+        await this.waitForMachineState(containerInfo.actor, ['stopped', 'failed'], TIMEOUTS.stop);
       }
 
-      if (containerInfo.cleanupTimer) {
-        clearTimeout(containerInfo.cleanupTimer);
-        containerInfo.cleanupTimer = undefined;
-      }
-
-      if (containerInfo.readyCheckInterval) {
-        clearInterval(containerInfo.readyCheckInterval);
-        containerInfo.readyCheckInterval = undefined;
-      }
-
-      if (containerInfo.streamCleanup) {
-        containerInfo.streamCleanup();
-        containerInfo.streamCleanup = undefined;
-      }
-
-      if (containerInfo.devServerStreamCleanup) {
-        containerInfo.devServerStreamCleanup();
-        containerInfo.devServerStreamCleanup = undefined;
-      }
-
-      containerInfo.status = 'stopped';
-      this.emit('status_change', { sessionId, status: 'stopped' });
-
+      // Physical Docker container cleanup
       await retryOnConflict(
         () =>
           Promise.race([
@@ -1266,7 +1106,7 @@ export class DockerService extends EventEmitter {
       this.containers.delete(sessionId);
 
       dockerLogger.info({ sessionId }, 'Container destroyed');
-      this.emitLog(sessionId, 'system', 'Container stopped and cleaned up');
+      this.logManager.emitLog(sessionId, 'system', 'Container stopped and cleaned up');
     } catch (error) {
       dockerLogger.error({ error, sessionId }, 'Failed to destroy container');
       try {
@@ -1280,14 +1120,11 @@ export class DockerService extends EventEmitter {
   }
 
   /**
-   * Cleanup all containers and circuit breaker timeout
+   * Cleanup all containers and circuit breaker
    */
   async cleanup(): Promise<void> {
     // Clear circuit breaker timeout to prevent memory leak
-    if (this.circuitBreakerResetTimeout) {
-      clearTimeout(this.circuitBreakerResetTimeout);
-      this.circuitBreakerResetTimeout = undefined;
-    }
+    this.circuitBreaker.cleanup();
 
     const promises = Array.from(this.containers.keys()).map((sessionId) =>
       this.destroyContainer(sessionId),
@@ -1304,3 +1141,6 @@ export class DockerService extends EventEmitter {
 }
 
 export const dockerService = new DockerService();
+
+// Re-export types for backward compatibility
+export type { ContainerInfo };
