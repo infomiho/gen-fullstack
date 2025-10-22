@@ -109,7 +109,11 @@ export class ValidationCapability extends BaseCapability {
       }
 
       // ==================== SCHEMA VALIDATION ====================
-      schemaValidationPassed = await this.performSchemaValidation(sessionId, context, dockerService);
+      schemaValidationPassed = await this.performSchemaValidation(
+        sessionId,
+        context,
+        dockerService,
+      );
 
       // ==================== TYPESCRIPT VALIDATION ====================
       const tsResult = await this.performTypeScriptValidation(sessionId, context, dockerService);
@@ -141,7 +145,10 @@ export class ValidationCapability extends BaseCapability {
             .listContainers()
             .find((c) => c.sessionId === sessionId);
           if (containerInfo?.actor) {
-            containerInfo.actor.send({ type: 'ERROR', error: errorMessage } satisfies DockerMachineEvent);
+            containerInfo.actor.send({
+              type: 'ERROR',
+              error: errorMessage,
+            } satisfies DockerMachineEvent);
           }
         }
       } catch (sendError) {
@@ -247,9 +254,7 @@ export class ValidationCapability extends BaseCapability {
 
       // Send ERROR event to state machine
       try {
-        const containerInfo = dockerService
-          .listContainers()
-          .find((c) => c.sessionId === sessionId);
+        const containerInfo = dockerService.listContainers().find((c) => c.sessionId === sessionId);
         if (containerInfo?.actor) {
           containerInfo.actor.send({ type: 'ERROR', error: errorMsg } satisfies DockerMachineEvent);
         }
