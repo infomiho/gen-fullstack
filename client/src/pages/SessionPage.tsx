@@ -237,7 +237,6 @@ function SessionPage() {
 
       const data = await response.json();
       enterReplay(sessionId, data);
-      showToast('Replay mode', 'Entered replay mode', 'success');
     } catch (_error) {
       showToast('Error', 'Failed to load replay data', 'error');
       // Error already shown to user via toast
@@ -247,7 +246,6 @@ function SessionPage() {
   // Handler to exit replay mode
   const handleExitReplayMode = () => {
     exitReplayMode();
-    showToast('Replay mode', 'Exited replay mode', 'success');
   };
 
   // Use replay mode hook for playback logic and filtered data
