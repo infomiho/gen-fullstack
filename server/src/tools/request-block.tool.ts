@@ -415,8 +415,55 @@ Use this to quickly add common features without writing boilerplate code.`,
       // Copy block files to session sandbox
       const copiedFiles = await copyBlockFiles(sessionId, blockId, metadata);
 
-      // Verify block integration
+      // Verify block integration (returns warnings array)
       const warnings = await verifyBlockIntegration(sessionId, copiedFiles);
+
+      // Auto-install block dependencies (if any)
+      if (Object.keys(metadata.dependencies).length > 0) {
+        try {
+          // Determine which dependencies go to server vs client based on copied files
+          const hasServerFiles = copiedFiles.some((f) => f.startsWith('server/'));
+          const hasClientFiles = copiedFiles.some((f) => f.startsWith('client/'));
+
+          // For now, assume all block dependencies go to server (most common case)
+          // In the future, block.json could specify client vs server dependencies separately
+          if (hasServerFiles) {
+            await filesystemService.updatePackageJson(
+              sessionId,
+              'server',
+              metadata.dependencies,
+              undefined,
+            );
+            databaseLogger.info(
+              { sessionId, blockId, dependencies: metadata.dependencies },
+              'Auto-installed block dependencies to server',
+            );
+          }
+
+          // If client files exist but no server files, add to client
+          if (hasClientFiles && !hasServerFiles) {
+            await filesystemService.updatePackageJson(
+              sessionId,
+              'client',
+              metadata.dependencies,
+              undefined,
+            );
+            databaseLogger.info(
+              { sessionId, blockId, dependencies: metadata.dependencies },
+              'Auto-installed block dependencies to client',
+            );
+          }
+        } catch (error) {
+          databaseLogger.warn(
+            { error, sessionId, blockId },
+            'Failed to auto-install block dependencies',
+          );
+          // Add critical warning so LLM knows to handle this manually
+          warnings.push(
+            `⚠️ CRITICAL: Failed to auto-install dependencies. You MUST manually add these to package.json using updatePackageJson tool: ${Object.keys(metadata.dependencies).join(', ')}`,
+          );
+        }
+      }
 
       // Emit file_updated events for each copied file (for UI update)
       if (io) {

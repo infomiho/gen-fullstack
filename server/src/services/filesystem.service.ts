@@ -242,6 +242,61 @@ export async function fileExists(sessionId: string, filePath: string): Promise<b
 }
 
 /**
+ * Update package.json by adding dependencies without removing existing ones
+ *
+ * @param sessionId - Session identifier
+ * @param target - Which package.json to update (root, client, or server)
+ * @param dependencies - Dependencies to add
+ * @param devDependencies - Dev dependencies to add
+ * @returns Success message
+ */
+export async function updatePackageJson(
+  sessionId: string,
+  target: 'root' | 'client' | 'server',
+  dependencies?: Record<string, string>,
+  devDependencies?: Record<string, string>,
+): Promise<string> {
+  const packageJsonPath = target === 'root' ? 'package.json' : `${target}/package.json`;
+
+  try {
+    // Read existing package.json
+    const content = await readFile(sessionId, packageJsonPath);
+    const packageJson = JSON.parse(content);
+
+    // Merge dependencies (new ones override if same key)
+    if (dependencies && Object.keys(dependencies).length > 0) {
+      packageJson.dependencies = {
+        ...packageJson.dependencies,
+        ...dependencies,
+      };
+    }
+
+    if (devDependencies && Object.keys(devDependencies).length > 0) {
+      packageJson.devDependencies = {
+        ...packageJson.devDependencies,
+        ...devDependencies,
+      };
+    }
+
+    // Write back with formatting
+    await writeFile(sessionId, packageJsonPath, JSON.stringify(packageJson, null, 2));
+
+    const added = [...Object.keys(dependencies || {}), ...Object.keys(devDependencies || {})];
+
+    filesystemLogger.info(
+      { sessionId, target, added },
+      'Updated package.json with new dependencies',
+    );
+
+    return `Successfully added ${added.length} dependencies to ${target}/package.json: ${added.join(', ')}`;
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    filesystemLogger.error({ error, sessionId, target }, 'Failed to update package.json');
+    throw new Error(`Failed to update package.json: ${errorMsg}`);
+  }
+}
+
+/**
  * Template directory location
  */
 const TEMPLATE_BASE_DIR = path.resolve(__dirname, '../../../templates');

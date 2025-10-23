@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 import { getEnv } from './config/env.js';
 import { websocketLogger } from './lib/logger.js';
-import { CapabilityOrchestrator } from './orchestrator/capability-orchestrator.js';
+import { UnifiedOrchestrator } from './orchestrator/unified-orchestrator.js';
 import { databaseService } from './services/database.service.js';
 import { dockerService } from './services/docker.service.js';
 import { getSandboxPath, writeFile } from './services/filesystem.service.js';
@@ -79,13 +79,13 @@ async function handleGenerationError(sessionId: string | null, error: unknown): 
 }
 
 // Track active generations for cancellation support (module-level for access by shutdown handler)
-const activeGenerations = new Map<string, CapabilityOrchestrator>();
+const activeGenerations = new Map<string, UnifiedOrchestrator>();
 
 /**
  * Get all active generation orchestrators
  * Used by SIGTERM handler for graceful shutdown
  */
-export function getActiveGenerations(): Map<string, CapabilityOrchestrator> {
+export function getActiveGenerations(): Map<string, UnifiedOrchestrator> {
   return activeGenerations;
 }
 
@@ -172,7 +172,7 @@ export function setupWebSocket(httpServer: HTTPServer) {
 
         socket.emit('session_started', { sessionId });
 
-        const orchestrator = new CapabilityOrchestrator(validated.model, io);
+        const orchestrator = new UnifiedOrchestrator(validated.model, io);
 
         // Track active generation for cancellation support
         activeGenerations.set(sessionId, orchestrator);

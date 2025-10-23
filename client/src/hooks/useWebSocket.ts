@@ -79,6 +79,12 @@ export function useWebSocket(navigate?: NavigateFunction): UseWebSocketReturn {
     showToastRef.current = showToast;
   }, [showToast]);
 
+  // Stable ref for navigate to avoid re-registering event handlers
+  const navigateRef = useRef(navigate);
+  useEffect(() => {
+    navigateRef.current = navigate;
+  }, [navigate]);
+
   // Debouncing for truncation notifications (max once per 10 seconds per type)
   const lastTruncationToast = useRef<Record<string, number>>({});
   const notifyTruncation = useCallback((title: string, message: string, type: string) => {
@@ -142,8 +148,8 @@ export function useWebSocket(navigate?: NavigateFunction): UseWebSocketReturn {
 
     const handleSessionStarted = ({ sessionId }: { sessionId: string }) => {
       // If navigate function provided (from HomePage), navigate directly to session page
-      if (navigate) {
-        navigate(`/${sessionId}`);
+      if (navigateRef.current) {
+        navigateRef.current(`/${sessionId}`);
       }
     };
 
@@ -278,7 +284,7 @@ export function useWebSocket(navigate?: NavigateFunction): UseWebSocketReturn {
       newSocket.off('app_log', handleAppLog);
       newSocket.off('build_event', handleBuildEvent);
     };
-  }, [setSocket, setConnected, notifyTruncation, notifyConnectionError, navigate]);
+  }, [setSocket, setConnected, notifyTruncation, notifyConnectionError]);
 
   const startGeneration = useCallback(
     (prompt: string, config: CapabilityConfig, model?: 'gpt-5' | 'gpt-5-mini' | 'gpt-5-nano') => {

@@ -35,7 +35,7 @@ describe('useSessionData - Live Updates', () => {
           liveToolResults: [],
           liveFiles: [],
           isActiveSession: true,
-          isOwnSession: true,
+          isConnectedToRoom: true,
         }),
       {
         initialProps: { liveMessages: [] as LLMMessage[] },
@@ -90,7 +90,7 @@ describe('useSessionData - Live Updates', () => {
           liveToolResults: [],
           liveFiles: liveFiles,
           isActiveSession: true,
-          isOwnSession: true,
+          isConnectedToRoom: true,
         }),
       {
         initialProps: { liveFiles: [] as FileUpdate[] },
@@ -156,7 +156,7 @@ describe('useSessionData - Live Updates', () => {
         liveToolResults: [],
         liveFiles: [],
         isActiveSession: true,
-        isOwnSession: true,
+        isConnectedToRoom: true,
       }),
     );
 

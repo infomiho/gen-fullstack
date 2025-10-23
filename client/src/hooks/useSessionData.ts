@@ -137,8 +137,8 @@ export interface UseSessionDataParams {
   liveFiles: FileUpdate[];
   /** Whether the session is still generating */
   isActiveSession: boolean;
-  /** Whether we're connected and viewing our own active session */
-  isOwnSession: boolean;
+  /** Whether we're connected to the session room and receiving live updates */
+  isConnectedToRoom: boolean;
 }
 
 /**
@@ -158,8 +158,7 @@ export function useSessionData(params: UseSessionDataParams) {
     liveToolCalls,
     liveToolResults,
     liveFiles,
-    isActiveSession,
-    isOwnSession,
+    isConnectedToRoom,
   } = params;
   // Convert persisted timeline items to client types (memoized)
   const persistedMessages = useMemo(() => convertPersistedMessages(timeline), [timeline]);
@@ -170,37 +169,33 @@ export function useSessionData(params: UseSessionDataParams) {
     [persistedFilesData],
   );
 
-  // Only merge live data if this is our own active session
-  // Otherwise, live updates won't work due to session/socket ID mismatch
+  // Merge live data if we're connected to the session room
+  // This allows live updates to work for any viewer (not just the creator)
+  // regardless of whether the session is actively generating or already completed
   // Memoize the merged results to prevent unnecessary re-renders
   const messages = useMemo(
     () =>
-      isActiveSession && isOwnSession
-        ? mergeByIdAndSort(persistedMessages, liveMessages)
-        : persistedMessages,
-    [isActiveSession, isOwnSession, persistedMessages, liveMessages],
+      isConnectedToRoom ? mergeByIdAndSort(persistedMessages, liveMessages) : persistedMessages,
+    [isConnectedToRoom, persistedMessages, liveMessages],
   );
 
   const toolCalls = useMemo(
     () =>
-      isActiveSession && isOwnSession
-        ? mergeByIdAndSort(persistedToolCalls, liveToolCalls)
-        : persistedToolCalls,
-    [isActiveSession, isOwnSession, persistedToolCalls, liveToolCalls],
+      isConnectedToRoom ? mergeByIdAndSort(persistedToolCalls, liveToolCalls) : persistedToolCalls,
+    [isConnectedToRoom, persistedToolCalls, liveToolCalls],
   );
 
   const toolResults = useMemo(
     () =>
-      isActiveSession && isOwnSession
+      isConnectedToRoom
         ? mergeByIdAndSort(persistedToolResults, liveToolResults)
         : persistedToolResults,
-    [isActiveSession, isOwnSession, persistedToolResults, liveToolResults],
+    [isConnectedToRoom, persistedToolResults, liveToolResults],
   );
 
   const files = useMemo(
-    () =>
-      isActiveSession && isOwnSession ? mergeByPath(persistedFiles, liveFiles) : persistedFiles,
-    [isActiveSession, isOwnSession, persistedFiles, liveFiles],
+    () => (isConnectedToRoom ? mergeByPath(persistedFiles, liveFiles) : persistedFiles),
+    [isConnectedToRoom, persistedFiles, liveFiles],
   );
 
   return { messages, toolCalls, toolResults, files };

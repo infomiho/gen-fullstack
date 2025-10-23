@@ -34,7 +34,7 @@ describe('useSessionData', () => {
           liveToolResults: [],
           liveFiles: [],
           isActiveSession: false,
-          isOwnSession: false,
+          isConnectedToRoom: false,
         }),
       );
 
@@ -70,7 +70,7 @@ describe('useSessionData', () => {
           liveToolResults: [],
           liveFiles: [],
           isActiveSession: false,
-          isOwnSession: false,
+          isConnectedToRoom: false,
         }),
       );
 
@@ -107,7 +107,7 @@ describe('useSessionData', () => {
           liveToolResults: [],
           liveFiles: [],
           isActiveSession: false,
-          isOwnSession: false,
+          isConnectedToRoom: false,
         }),
       );
 
@@ -141,7 +141,7 @@ describe('useSessionData', () => {
           liveToolResults: [],
           liveFiles: [],
           isActiveSession: false,
-          isOwnSession: false,
+          isConnectedToRoom: false,
         }),
       );
 
@@ -154,7 +154,7 @@ describe('useSessionData', () => {
   });
 
   describe('Data Merging - Active Session', () => {
-    it('should merge persisted and live messages when isOwnSession=true', () => {
+    it('should merge persisted and live messages when isConnectedToRoom=true', () => {
       const persistedTimeline = [
         {
           id: 1,
@@ -186,7 +186,7 @@ describe('useSessionData', () => {
           liveToolResults: [],
           liveFiles: [],
           isActiveSession: true,
-          isOwnSession: true,
+          isConnectedToRoom: true,
         }),
       );
 
@@ -227,7 +227,7 @@ describe('useSessionData', () => {
           liveToolResults: [],
           liveFiles: [],
           isActiveSession: false,
-          isOwnSession: false,
+          isConnectedToRoom: false,
         }),
       );
 
@@ -268,7 +268,7 @@ describe('useSessionData', () => {
           liveToolResults: [],
           liveFiles: [],
           isActiveSession: true,
-          isOwnSession: false,
+          isConnectedToRoom: false,
         }),
       );
 
@@ -317,7 +317,7 @@ describe('useSessionData', () => {
           liveToolResults: [],
           liveFiles: [],
           isActiveSession: true,
-          isOwnSession: true,
+          isConnectedToRoom: true,
         }),
       );
 
@@ -360,7 +360,7 @@ describe('useSessionData', () => {
           liveToolResults: [],
           liveFiles: liveFiles,
           isActiveSession: true,
-          isOwnSession: true,
+          isConnectedToRoom: true,
         }),
       );
 
@@ -411,7 +411,7 @@ describe('useSessionData', () => {
           liveToolResults: [],
           liveFiles: [],
           isActiveSession: true,
-          isOwnSession: true,
+          isConnectedToRoom: true,
         }),
       );
 
@@ -433,7 +433,7 @@ describe('useSessionData', () => {
           liveToolResults: [],
           liveFiles: [],
           isActiveSession: false,
-          isOwnSession: false,
+          isConnectedToRoom: false,
         }),
       );
 
@@ -466,7 +466,7 @@ describe('useSessionData', () => {
           liveToolResults: [],
           liveFiles: [],
           isActiveSession: false,
-          isOwnSession: false,
+          isConnectedToRoom: false,
         }),
       );
 
@@ -497,7 +497,7 @@ describe('useSessionData', () => {
           liveToolResults: [],
           liveFiles: [],
           isActiveSession: false,
-          isOwnSession: false,
+          isConnectedToRoom: false,
         }),
       );
 
@@ -529,7 +529,7 @@ describe('useSessionData', () => {
           liveToolResults: [],
           liveFiles: [],
           isActiveSession: false,
-          isOwnSession: false,
+          isConnectedToRoom: false,
         }),
       );
 
@@ -561,7 +561,7 @@ describe('useSessionData', () => {
           liveToolResults: [],
           liveFiles: [],
           isActiveSession: false,
-          isOwnSession: false,
+          isConnectedToRoom: false,
         }),
       );
 
@@ -611,7 +611,7 @@ describe('useSessionData', () => {
           liveToolResults: [],
           liveFiles: [],
           isActiveSession: false,
-          isOwnSession: false,
+          isConnectedToRoom: false,
         }),
       );
 

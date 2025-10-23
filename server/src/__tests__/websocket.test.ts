@@ -36,8 +36,8 @@ vi.mock('../services/filesystem.service.js', () => ({
   writeFile: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock('../orchestrator/capability-orchestrator.js', () => ({
-  CapabilityOrchestrator: vi.fn().mockImplementation(() => ({
+vi.mock('../orchestrator/unified-orchestrator.js', () => ({
+  UnifiedOrchestrator: vi.fn().mockImplementation(() => ({
     generateApp: vi.fn().mockResolvedValue({
       sessionId: 'test-session',
       totalTokens: 150,

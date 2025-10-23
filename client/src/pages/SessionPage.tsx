@@ -159,8 +159,12 @@ function SessionPage() {
   const isActiveSession = socket
     ? isGeneratingWebSocket
     : sessionData.session.status === 'generating';
-  // With room-based architecture, any connected client can receive live updates
-  // isOwnSession is true if connected and viewing an active session
+
+  // Determine if we're connected to the session room and receiving live updates
+  // This should be true for any viewer who is connected and subscribed, regardless of generation status
+  const isConnectedToRoom = socket !== null && socket.connected && hasSubscribedRef.current;
+
+  // For UI purposes (like showing "Live" badge), we want to know if this is an active generation session
   const isOwnSession = socket !== null && isActiveSession;
 
   // Use custom hook to handle data merging
@@ -172,7 +176,7 @@ function SessionPage() {
     liveToolResults,
     liveFiles,
     isActiveSession,
-    isOwnSession,
+    isConnectedToRoom,
   });
 
   // Subscribe to session room and request app status when page loads or socket reconnects
