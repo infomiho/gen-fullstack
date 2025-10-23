@@ -3,6 +3,7 @@ import { Send } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { CapabilitySection } from '../components/CapabilitySection';
+import { PromptDisplay } from '../components/PromptDisplay';
 import { PromptInput } from '../components/PromptInput';
 import { StatusBadge } from '../components/StatusBadge';
 import { useWebSocket } from '../hooks/useWebSocket';
@@ -159,25 +160,24 @@ function HomePage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {sessions.map((session) => (
-                <Link key={session.id} to={`/${session.id}`} className={card.link}>
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <p className={`${typography.body} text-gray-900 truncate mb-1`}>
-                        {session.prompt}
-                      </p>
-                      <div className="flex items-center gap-3">
+              {sessions.map((session) => {
+                return (
+                  <Link key={session.id} to={`/${session.id}`} className={card.link}>
+                    <div className="space-y-3">
+                      {/* Prompt with copy button */}
+                      <PromptDisplay prompt={session.prompt} />
+
+                      {/* Bottom row: timestamp (left) and status (right) */}
+                      <div className="flex items-center justify-between gap-4">
                         <span className={`${typography.caption} text-gray-500`}>
                           {formatDate(session.createdAt)}
                         </span>
+                        <StatusBadge status={session.status} />
                       </div>
                     </div>
-                    <div>
-                      <StatusBadge status={session.status} />
-                    </div>
-                  </div>
-                </Link>
-              ))}
+                  </Link>
+                );
+              })}
             </div>
           )}
         </div>

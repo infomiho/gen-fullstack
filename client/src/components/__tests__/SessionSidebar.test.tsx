@@ -111,7 +111,8 @@ describe('SessionSidebar', () => {
     render(<SessionSidebar {...defaultProps} />);
     // AppControls should be rendered (checking for its presence)
     // The exact text depends on AppControls implementation
-    expect(screen.getByRole('button')).toBeInTheDocument();
+    const buttons = screen.getAllByRole('button');
+    expect(buttons.length).toBeGreaterThan(0);
   });
 
   it('handles missing capability config gracefully', () => {
@@ -128,7 +129,8 @@ describe('SessionSidebar', () => {
   it('passes app status to AppControls', () => {
     render(<SessionSidebar {...defaultProps} appStatus={mockAppStatus} />);
     // Verify component renders without crashing when app status is provided
-    expect(screen.getByRole('button')).toBeInTheDocument();
+    const buttons = screen.getAllByRole('button');
+    expect(buttons.length).toBeGreaterThan(0);
   });
 
   it('formats cost with 4 decimal places', () => {

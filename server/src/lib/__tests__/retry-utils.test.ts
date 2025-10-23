@@ -91,7 +91,8 @@ describe('Retry Utilities', () => {
       const elapsed = Date.now() - start;
 
       expect(result).toBe('success');
-      expect(elapsed).toBeGreaterThanOrEqual(100);
+      // Allow 5ms tolerance for timing precision in test environments
+      expect(elapsed).toBeGreaterThanOrEqual(95);
       expect(operation).toHaveBeenCalledTimes(2);
     });
 

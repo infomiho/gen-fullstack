@@ -48,54 +48,55 @@ export function StatusBadge({
   displayText,
   uppercase = false,
 }: StatusBadgeProps) {
-  const getStatusColor = () => {
+  const getStatusColors = () => {
     switch (status) {
       // App execution statuses
       case 'running':
-        return 'bg-green-100 text-green-800 border-green-200';
+        return { dot: 'bg-green-600', border: 'border-green-600' };
       case 'ready':
-        return 'bg-amber-100 text-amber-800 border-amber-200';
+        return { dot: 'bg-amber-600', border: 'border-amber-600' };
 
       // Intermediate app statuses (creating, installing, starting)
       case 'creating':
       case 'installing':
       case 'starting':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
+        return { dot: 'bg-blue-600', border: 'border-blue-600' };
 
       // Session statuses
       case 'generating':
-        return 'bg-blue-100 text-blue-700';
+        return { dot: 'bg-blue-600', border: 'border-blue-600' };
 
       case 'completed':
+        return { dot: 'bg-green-600', border: 'border-green-600' }; // Success - green
+
       case 'stopped':
-        return 'bg-gray-100 text-gray-700';
+        return { dot: 'bg-gray-600', border: 'border-gray-600' }; // Neutral - gray
 
       case 'failed':
-        return variant === 'app'
-          ? 'bg-red-100 text-red-800 border-red-200'
-          : 'bg-red-100 text-red-700';
+        return { dot: 'bg-red-600', border: 'border-red-600' }; // Error - red
 
       default:
-        return 'bg-gray-100 text-gray-600 border-gray-200';
+        return { dot: 'bg-gray-600', border: 'border-gray-600' };
     }
   };
 
-  // App variant includes border
-  const borderClass = variant === 'app' ? 'border' : '';
-  const paddingClass = variant === 'app' ? padding.compact : 'px-2 py-0.5';
+  const paddingClass = variant === 'app' ? padding.compact : 'px-2.5 py-1';
   const uppercaseClass = uppercase ? 'uppercase font-medium' : '';
+  const colors = getStatusColors();
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded ${paddingClass} ${borderClass} ${getStatusColor()} ${typography.caption} ${uppercaseClass}`}
+      className={`inline-flex items-center gap-1.5 rounded border ${paddingClass} ${colors.border} bg-white ${typography.caption} text-gray-700 ${uppercaseClass}`}
     >
-      {showLiveIndicator && status === 'generating' && (
+      {showLiveIndicator && status === 'generating' ? (
         <span className="relative flex h-2 w-2">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
           <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
         </span>
+      ) : (
+        <span className={`h-2 w-2 rounded-full ${colors.dot}`} />
       )}
-      {showLiveIndicator && status === 'generating' ? 'Live' : displayText || status}
+      {displayText || status}
     </span>
   );
 }

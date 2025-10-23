@@ -4,6 +4,7 @@ import { Alert } from './Alert';
 import { AppControls } from './AppControls';
 import { CapabilitiesList } from './CapabilitiesList';
 import { MetricsDisplay } from './MetricsDisplay';
+import { PromptDisplay } from './PromptDisplay';
 
 interface SessionData {
   session: {
@@ -79,11 +80,7 @@ export function SessionSidebar({
         {/* Prompt */}
         <div>
           <h3 className={`${typography.sectionHeader} mb-3`}>Prompt</h3>
-          <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
-            <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
-              {sessionData.session.prompt}
-            </p>
-          </div>
+          <PromptDisplay prompt={sessionData.session.prompt} />
         </div>
 
         {/* Warning for disconnected active sessions */}
