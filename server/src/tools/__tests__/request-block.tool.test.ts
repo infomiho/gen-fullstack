@@ -207,12 +207,12 @@ describe('requestBlock Tool', () => {
 
       expect(filesystemService.writeFile).toHaveBeenCalledWith(
         'test-session',
-        'server/auth.ts',
+        'server/src/auth.ts',
         expect.any(String),
       );
       expect(filesystemService.writeFile).toHaveBeenCalledWith(
         'test-session',
-        'server/auth-middleware.ts',
+        'server/src/auth-middleware.ts',
         expect.any(String),
       );
     });
@@ -225,12 +225,12 @@ describe('requestBlock Tool', () => {
 
       expect(filesystemService.writeFile).toHaveBeenCalledWith(
         'test-session',
-        'client/useAuth.tsx',
+        'client/src/useAuth.tsx',
         expect.any(String),
       );
       expect(filesystemService.writeFile).toHaveBeenCalledWith(
         'test-session',
-        'client/LoginForm.tsx',
+        'client/src/LoginForm.tsx',
         expect.any(String),
       );
     });
@@ -283,8 +283,8 @@ describe('requestBlock Tool', () => {
         mockOptions,
       );
 
-      expect(result).toContain('server/auth.ts');
-      expect(result).toContain('client/useAuth.tsx');
+      expect(result).toContain('server/src/auth.ts');
+      expect(result).toContain('client/src/useAuth.tsx');
       expect(result).toContain('prisma/blocks/auth-password.prisma');
     });
 
@@ -372,9 +372,9 @@ describe('requestBlock Tool', () => {
 
       vi.mocked(fs.readFile).mockResolvedValue(JSON.stringify(metadataWithNestedFiles));
 
-      // Mock auth.ts content with import
+      // Mock auth.ts content with import (path is now server/src/auth.ts after transformation)
       vi.mocked(filesystemService.readFile).mockImplementation(async (_, path) => {
-        if (path === 'server/auth.ts') {
+        if (path === 'server/src/auth.ts') {
           return "import { prisma } from './lib/prisma';";
         }
         throw new Error('File not found');
@@ -404,12 +404,12 @@ describe('requestBlock Tool', () => {
 
       vi.mocked(fs.readFile).mockResolvedValue(JSON.stringify(metadataWithComplete));
 
-      // Mock both files existing
+      // Mock both files existing (paths transformed to server/src/*)
       vi.mocked(filesystemService.readFile).mockImplementation(async (_, path) => {
-        if (path === 'server/auth.ts') {
+        if (path === 'server/src/auth.ts') {
           return "import { prisma } from './lib/prisma';";
         }
-        if (path === 'server/lib/prisma.ts') {
+        if (path === 'server/src/lib/prisma.ts') {
           return 'export const prisma = ...;';
         }
         return 'file content';
@@ -445,15 +445,15 @@ describe('requestBlock Tool', () => {
         mockOptions,
       );
 
-      // Should write to nested paths
+      // Should write to nested paths (transformed to server/src/*)
       expect(filesystemService.writeFile).toHaveBeenCalledWith(
         'test-session',
-        'server/lib/prisma.ts',
+        'server/src/lib/prisma.ts',
         expect.any(String),
       );
       expect(filesystemService.writeFile).toHaveBeenCalledWith(
         'test-session',
-        'server/utils/helper.ts',
+        'server/src/utils/helper.ts',
         expect.any(String),
       );
     });
@@ -471,7 +471,7 @@ describe('requestBlock Tool', () => {
       vi.mocked(fs.readFile).mockResolvedValue(JSON.stringify(metadata));
 
       vi.mocked(filesystemService.readFile).mockImplementation(async (_, path) => {
-        if (path === 'server/index.ts') {
+        if (path === 'server/src/index.ts') {
           return "const module = await import('./missing');";
         }
         throw new Error('File not found');
@@ -500,7 +500,7 @@ describe('requestBlock Tool', () => {
       vi.mocked(fs.readFile).mockResolvedValue(JSON.stringify(metadata));
 
       vi.mocked(filesystemService.readFile).mockImplementation(async (_, path) => {
-        if (path === 'server/index.ts') {
+        if (path === 'server/src/index.ts') {
           return "export * from './missing';";
         }
         throw new Error('File not found');
@@ -529,7 +529,7 @@ describe('requestBlock Tool', () => {
       vi.mocked(fs.readFile).mockResolvedValue(JSON.stringify(metadata));
 
       vi.mocked(filesystemService.readFile).mockImplementation(async (_, path) => {
-        if (path === 'server/index.ts') {
+        if (path === 'server/src/index.ts') {
           return "import type { User } from './missing';";
         }
         throw new Error('File not found');

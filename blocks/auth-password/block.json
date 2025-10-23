@@ -25,13 +25,13 @@
   "integrationGuide": {
     "steps": [
       "1. Install dependencies: npm install bcryptjs @types/bcryptjs",
-      "2. Merge Prisma models from prisma/schema.prisma into your schema",
+      "2. Merge Prisma models from prisma/blocks/auth-password.prisma into your main prisma/schema.prisma",
       "3. Run: npx prisma generate && npx prisma migrate dev --name add-auth",
       "4. Import and mount auth router in server/src/index.ts:",
-      "   import { authRouter } from './routes/auth-routes';",
+      "   import { authRouter } from './auth-routes';",
       "   app.use('/api/auth', authRouter);",
-      "5. Wrap your app in client with <AuthProvider>:",
-      "   import { AuthProvider } from './hooks/useAuth';",
+      "5. Wrap your app in client/src/App.tsx with <AuthProvider>:",
+      "   import { AuthProvider } from './useAuth';",
       "   <AuthProvider><App /></AuthProvider>",
       "6. Use useAuth() hook in components to access user, login, register, logout",
       "7. Use <ProtectedRoute> component to guard authenticated routes"

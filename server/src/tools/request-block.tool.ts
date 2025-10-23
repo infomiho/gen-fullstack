@@ -104,6 +104,24 @@ async function loadBlockMetadata(blockId: string): Promise<BlockMetadata> {
 }
 
 /**
+ * Transform block file path to destination path in generated app
+ * Block files are stored as: server/auth.ts, client/LoginForm.tsx
+ * But must be copied to: server/src/auth.ts, client/src/LoginForm.tsx
+ */
+function transformBlockFilePath(blockFilePath: string): string {
+  // server/foo.ts -> server/src/foo.ts
+  if (blockFilePath.startsWith('server/')) {
+    return blockFilePath.replace(/^server\//, 'server/src/');
+  }
+  // client/Foo.tsx -> client/src/Foo.tsx
+  if (blockFilePath.startsWith('client/')) {
+    return blockFilePath.replace(/^client\//, 'client/src/');
+  }
+  // prisma files and others remain unchanged
+  return blockFilePath;
+}
+
+/**
  * Copy block files to session sandbox
  */
 async function copyBlockFiles(
@@ -115,20 +133,22 @@ async function copyBlockFiles(
   const blockPath = path.join(blocksPath, blockId);
   const copiedFiles: string[] = [];
 
-  // Copy server files
+  // Copy server files (transform server/ -> server/src/)
   for (const file of metadata.files.server) {
     const sourcePath = path.join(blockPath, file);
     const content = await fs.readFile(sourcePath, 'utf-8');
-    await filesystemService.writeFile(sessionId, file, content);
-    copiedFiles.push(file);
+    const destPath = transformBlockFilePath(file);
+    await filesystemService.writeFile(sessionId, destPath, content);
+    copiedFiles.push(destPath);
   }
 
-  // Copy client files
+  // Copy client files (transform client/ -> client/src/)
   for (const file of metadata.files.client) {
     const sourcePath = path.join(blockPath, file);
     const content = await fs.readFile(sourcePath, 'utf-8');
-    await filesystemService.writeFile(sessionId, file, content);
-    copiedFiles.push(file);
+    const destPath = transformBlockFilePath(file);
+    await filesystemService.writeFile(sessionId, destPath, content);
+    copiedFiles.push(destPath);
   }
 
   // Copy prisma files (to prisma/blocks/ subdirectory)
