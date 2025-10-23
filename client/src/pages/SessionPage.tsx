@@ -162,7 +162,7 @@ function SessionPage() {
 
   // Determine if we're connected to the session room and receiving live updates
   // This should be true for any viewer who is connected and subscribed, regardless of generation status
-  const isConnectedToRoom = socket !== null && socket.connected && hasSubscribedRef.current;
+  const isConnectedToRoom = Boolean(socket?.connected && hasSubscribedRef.current);
 
   // For UI purposes (like showing "Live" badge), we want to know if this is an active generation session
   const isOwnSession = socket !== null && isActiveSession;

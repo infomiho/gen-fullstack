@@ -289,7 +289,7 @@ function parsePrismaErrors(output: string): Array<{
       }
       currentError = line;
     } else if (currentError && line.trim()) {
-      currentError += ' ' + line.trim();
+      currentError += ` ${line.trim()}`;
     }
   }
 
@@ -388,7 +388,8 @@ function parseTypeScriptErrors(output: string): Array<{
   // TypeScript error format: path/file.ts(line,column): error TSxxxx: message
   const errorRegex = /^(.+?)\((\d+),(\d+)\):\s+error\s+(TS\d+):\s+(.+)$/gm;
 
-  let match;
+  let match: RegExpExecArray | null = null;
+  // biome-ignore lint/suspicious/noAssignInExpressions: Standard regex exec pattern
   while ((match = errorRegex.exec(output)) !== null) {
     errors.push({
       file: match[1],

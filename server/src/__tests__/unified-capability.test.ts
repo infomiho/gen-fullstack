@@ -24,7 +24,7 @@ describe('UnifiedCodeGenerationCapability', () => {
         buildingBlocks: false,
         maxIterations: 1,
       });
-      expect(cap1['maxToolCalls']).toBe(25);
+      expect((cap1 as any).maxToolCalls).toBe(25);
 
       // Test maxIterations = 3 → 35 tool calls (20 + 3*5)
       const cap3 = new UnifiedCodeGenerationCapability('gpt-5-mini', mockIo, {
@@ -34,7 +34,7 @@ describe('UnifiedCodeGenerationCapability', () => {
         buildingBlocks: false,
         maxIterations: 3,
       });
-      expect(cap3['maxToolCalls']).toBe(35);
+      expect((cap3 as any).maxToolCalls).toBe(35);
 
       // Test maxIterations = 5 → 45 tool calls (20 + 5*5)
       const cap5 = new UnifiedCodeGenerationCapability('gpt-5-mini', mockIo, {
@@ -44,7 +44,7 @@ describe('UnifiedCodeGenerationCapability', () => {
         buildingBlocks: false,
         maxIterations: 5,
       });
-      expect(cap5['maxToolCalls']).toBe(45);
+      expect((cap5 as any).maxToolCalls).toBe(45);
     });
 
     it('should use default maxIterations value correctly', () => {
@@ -59,7 +59,7 @@ describe('UnifiedCodeGenerationCapability', () => {
         maxIterations: 3, // Explicit default
       });
 
-      expect(cap['maxToolCalls']).toBe(35); // 20 + (3 * 5)
+      expect((cap as any).maxToolCalls).toBe(35); // 20 + (3 * 5)
     });
 
     it('should calculate different budgets for different iteration counts', () => {
@@ -77,7 +77,7 @@ describe('UnifiedCodeGenerationCapability', () => {
           maxIterations: iterations,
         });
 
-        expect(cap['maxToolCalls']).toBe(expectedCalls[index]);
+        expect((cap as any).maxToolCalls).toBe(expectedCalls[index]);
       });
     });
   });
