@@ -57,11 +57,35 @@ WHEN TO USE BLOCKS:
 
 INTEGRATION WORKFLOW:
 1. Request block: requestBlock({ blockId: "auth-password" })
-2. Review integration guide in the response
-3. Install dependencies: executeCommand({ command: "npm install bcryptjs @types/bcryptjs" })
-4. Merge Prisma models into your schema
-5. Import and mount routes (server) or wrap with provider (client)
-6. Use exported functions/components in your code`;
+2. Review integration guide and **pay attention to any warnings**
+3. Merge Prisma models - read full instructions below
+4. Import and mount routes (server) or wrap with provider (client)
+5. Use exported functions/components in your code
+
+**CRITICAL INTEGRATION RULES:**
+
+**Prisma Schema Merging:**
+- Building blocks provide BASE models that you MUST adapt to your app
+- Example: auth-password provides User with 'username' field
+  → If your app uses 'email' instead, MODIFY the User model accordingly
+  → Update auth functions to use your field names
+- For RELATIONS: Add opposite relation fields to BOTH models
+  → If ShareLink references User: Add \`shareLinks ShareLink[]\` to User
+  → If Vote references User: Add \`votes Vote[]\` to User
+  → BOTH sides of every relation are REQUIRED
+- Common mistake: Copying block's User model without adapting to your needs
+  ✅ CORRECT: Merge fields, adapt to your domain, ensure all relations are complete
+
+**File Structure:**
+- All copied files preserve their directory structure automatically
+- Example: Block file \`server/lib/prisma.ts\` → Copied to \`server/lib/prisma.ts\`
+- Import paths work as-is since structure is preserved
+- If you see warnings about missing imports, check the integration guide
+
+**Verification:**
+- After requesting a block, the tool automatically checks for missing dependencies
+- If you see warnings in the integration guide, address them immediately
+- Most common warning: Missing files that are imported but not listed in block.json`;
 
 /**
  * Critical warning about domain-specific implementation

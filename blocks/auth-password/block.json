@@ -8,7 +8,12 @@
     "@types/bcryptjs": "^2.4.6"
   },
   "files": {
-    "server": ["server/auth.ts", "server/auth-middleware.ts", "server/auth-routes.ts"],
+    "server": [
+      "server/auth.ts",
+      "server/auth-middleware.ts",
+      "server/auth-routes.ts",
+      "server/lib/prisma.ts"
+    ],
     "client": [
       "client/useAuth.tsx",
       "client/LoginForm.tsx",

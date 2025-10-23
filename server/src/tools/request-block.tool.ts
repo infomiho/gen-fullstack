@@ -145,10 +145,186 @@ async function copyBlockFiles(
 }
 
 /**
+ * Extract all relative imports from TypeScript/JavaScript content
+ * Handles various import styles: import/export from, dynamic imports, type imports
+ */
+function extractRelativeImports(content: string): string[] {
+  const imports = new Set<string>();
+
+  // Pattern 1: import/export from statements
+  const importFromPattern = /(?:import|export)\s+(?:type\s+)?.*?from\s+['"](\.[^'"]+)['"]/g;
+  for (const match of content.matchAll(importFromPattern)) {
+    imports.add(match[1]);
+  }
+
+  // Pattern 2: dynamic imports
+  const dynamicImportPattern = /import\s*\(\s*['"](\.[^'"]+)['"]\s*\)/g;
+  for (const match of content.matchAll(dynamicImportPattern)) {
+    imports.add(match[1]);
+  }
+
+  // Pattern 3: re-exports
+  const reExportPattern = /export\s+\*\s+from\s+['"](\.[^'"]+)['"]/g;
+  for (const match of content.matchAll(reExportPattern)) {
+    imports.add(match[1]);
+  }
+
+  return Array.from(imports);
+}
+
+/**
+ * Build cache of file paths and contents from copied files
+ */
+async function buildFileCache(
+  sessionId: string,
+  copiedFiles: string[],
+  maxFileSize: number,
+): Promise<{
+  fileCache: Set<string>;
+  fileContents: Map<string, string>;
+  warnings: string[];
+}> {
+  const fileCache = new Set<string>();
+  const fileContents = new Map<string, string>();
+  const warnings: string[] = [];
+
+  for (const file of copiedFiles) {
+    fileCache.add(file);
+    const withoutExt = file.replace(/\.(ts|tsx|js|jsx)$/, '');
+    fileCache.add(withoutExt);
+
+    const isCodeFile =
+      file.endsWith('.ts') ||
+      file.endsWith('.tsx') ||
+      file.endsWith('.js') ||
+      file.endsWith('.jsx');
+
+    if (isCodeFile) {
+      try {
+        const content = await filesystemService.readFile(sessionId, file);
+
+        if (content.length > maxFileSize) {
+          warnings.push(
+            `⚠️ File ${file} is too large to verify imports (${content.length} bytes, max ${maxFileSize})`,
+          );
+          continue;
+        }
+
+        fileContents.set(file, content);
+      } catch (_error) {
+        warnings.push(`❌ CRITICAL: File ${file} was supposed to be copied but doesn't exist`);
+      }
+    }
+  }
+
+  return { fileCache, fileContents, warnings };
+}
+
+/**
+ * Check if an import path is safe (no path traversal)
+ */
+function isSafeImportPath(
+  resolvedPath: string,
+  sessionId: string,
+  file: string,
+  importPath: string,
+): boolean {
+  if (resolvedPath.includes('..')) {
+    databaseLogger.warn(
+      { sessionId, file, importPath },
+      'Suspicious import path with parent directory reference',
+    );
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Check if imported file exists in the file cache
+ */
+function checkImportExists(resolvedPath: string, fileCache: Set<string>): boolean {
+  const possibleExtensions = ['', '.ts', '.tsx', '.js', '.jsx'];
+  return possibleExtensions.some((ext) => fileCache.has(resolvedPath + ext));
+}
+
+/**
+ * Verify imports for a single file
+ */
+function verifyFileImports(
+  sessionId: string,
+  file: string,
+  content: string,
+  fileCache: Set<string>,
+): string[] {
+  const warnings: string[] = [];
+  const imports = extractRelativeImports(content);
+
+  for (const importPath of imports) {
+    const dir = path.dirname(file);
+    const resolvedPath = path.normalize(path.join(dir, importPath));
+
+    if (!isSafeImportPath(resolvedPath, sessionId, file, importPath)) {
+      continue;
+    }
+
+    if (!checkImportExists(resolvedPath, fileCache)) {
+      warnings.push(
+        `⚠️ File ${file} imports '${importPath}' but this file doesn't exist. Check if it should be added to block.json or if the import path is correct.`,
+      );
+    }
+  }
+
+  return warnings;
+}
+
+/**
+ * Verify that all copied files exist and check for missing dependencies
+ * @returns Array of warnings if any issues are detected
+ */
+async function verifyBlockIntegration(sessionId: string, copiedFiles: string[]): Promise<string[]> {
+  const MAX_FILE_SIZE = 1_000_000; // 1MB limit to prevent regex catastrophic backtracking
+
+  // Build file cache
+  const { fileCache, fileContents, warnings } = await buildFileCache(
+    sessionId,
+    copiedFiles,
+    MAX_FILE_SIZE,
+  );
+
+  // Verify imports for each file
+  for (const [file, content] of fileContents.entries()) {
+    try {
+      const fileWarnings = verifyFileImports(sessionId, file, content, fileCache);
+      warnings.push(...fileWarnings);
+    } catch (error) {
+      databaseLogger.warn({ error, sessionId, file }, 'Failed to verify imports for file');
+      warnings.push(
+        `⚠️ Failed to verify imports in ${file}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    }
+  }
+
+  return warnings;
+}
+
+/**
  * Format integration guide as markdown
  */
-function formatIntegrationGuide(metadata: BlockMetadata, copiedFiles: string[]): string {
+function formatIntegrationGuide(
+  metadata: BlockMetadata,
+  copiedFiles: string[],
+  warnings: string[],
+): string {
   let guide = `# ${metadata.name} Block Copied\n\n`;
+
+  // Show warnings first if any
+  if (warnings.length > 0) {
+    guide += `## ⚠️ Warnings\n`;
+    for (const warning of warnings) {
+      guide += `${warning}\n`;
+    }
+    guide += `\n`;
+  }
 
   guide += `## Files Copied\n`;
   for (const file of copiedFiles) {
@@ -219,6 +395,9 @@ Use this to quickly add common features without writing boilerplate code.`,
       // Copy block files to session sandbox
       const copiedFiles = await copyBlockFiles(sessionId, blockId, metadata);
 
+      // Verify block integration
+      const warnings = await verifyBlockIntegration(sessionId, copiedFiles);
+
       // Emit file_updated events for each copied file (for UI update)
       if (io) {
         for (const file of copiedFiles) {
@@ -237,17 +416,29 @@ Use this to quickly add common features without writing boilerplate code.`,
         }
       }
 
-      // Format integration guide
-      const guide = formatIntegrationGuide(metadata, copiedFiles);
+      // Format integration guide with warnings
+      const guide = formatIntegrationGuide(metadata, copiedFiles, warnings);
 
       databaseLogger.info(
         {
           sessionId,
           blockId,
           filesCount: copiedFiles.length,
+          warningsCount: warnings.length,
         },
         'Block requested and copied',
       );
+
+      if (warnings.length > 0) {
+        databaseLogger.warn(
+          {
+            sessionId,
+            blockId,
+            warnings,
+          },
+          'Block integration has warnings',
+        );
+      }
 
       return guide;
     } catch (error) {

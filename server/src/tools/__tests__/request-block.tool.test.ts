@@ -359,6 +359,251 @@ describe('requestBlock Tool', () => {
     });
   });
 
+  describe('Block Integration Verification', () => {
+    it('should warn if copied file imports missing dependency', async () => {
+      const metadataWithNestedFiles = {
+        ...mockBlockMetadata,
+        files: {
+          server: ['server/auth.ts'], // auth.ts imports from ./lib/prisma
+          client: [],
+          prisma: [],
+        },
+      };
+
+      vi.mocked(fs.readFile).mockResolvedValue(JSON.stringify(metadataWithNestedFiles));
+
+      // Mock auth.ts content with import
+      vi.mocked(filesystemService.readFile).mockImplementation(async (_, path) => {
+        if (path === 'server/auth.ts') {
+          return "import { prisma } from './lib/prisma';";
+        }
+        throw new Error('File not found');
+      });
+
+      vi.mocked(filesystemService.writeFile).mockResolvedValue('File written');
+
+      const result = await requestBlock.execute?.(
+        { blockId: 'auth-password', reason: 'Testing block request' },
+        mockOptions,
+      );
+
+      // Should include warning about missing import
+      expect(result).toContain('⚠️');
+      expect(result).toContain('./lib/prisma');
+    });
+
+    it('should not warn if all dependencies are present', async () => {
+      const metadataWithComplete = {
+        ...mockBlockMetadata,
+        files: {
+          server: ['server/auth.ts', 'server/lib/prisma.ts'],
+          client: [],
+          prisma: [],
+        },
+      };
+
+      vi.mocked(fs.readFile).mockResolvedValue(JSON.stringify(metadataWithComplete));
+
+      // Mock both files existing
+      vi.mocked(filesystemService.readFile).mockImplementation(async (_, path) => {
+        if (path === 'server/auth.ts') {
+          return "import { prisma } from './lib/prisma';";
+        }
+        if (path === 'server/lib/prisma.ts') {
+          return 'export const prisma = ...;';
+        }
+        return 'file content';
+      });
+
+      vi.mocked(filesystemService.writeFile).mockResolvedValue('File written');
+
+      const result = await requestBlock.execute?.(
+        { blockId: 'auth-password', reason: 'Testing block request' },
+        mockOptions,
+      );
+
+      // Should not include warnings section
+      expect(result).not.toContain('⚠️ Warnings');
+    });
+
+    it('should preserve nested directory structure', async () => {
+      const metadataWithNested = {
+        ...mockBlockMetadata,
+        files: {
+          server: ['server/lib/prisma.ts', 'server/utils/helper.ts'],
+          client: [],
+          prisma: [],
+        },
+      };
+
+      vi.mocked(fs.readFile).mockResolvedValue(JSON.stringify(metadataWithNested));
+      vi.mocked(filesystemService.readFile).mockResolvedValue('file content');
+      vi.mocked(filesystemService.writeFile).mockResolvedValue('File written');
+
+      await requestBlock.execute?.(
+        { blockId: 'auth-password', reason: 'Testing block request' },
+        mockOptions,
+      );
+
+      // Should write to nested paths
+      expect(filesystemService.writeFile).toHaveBeenCalledWith(
+        'test-session',
+        'server/lib/prisma.ts',
+        expect.any(String),
+      );
+      expect(filesystemService.writeFile).toHaveBeenCalledWith(
+        'test-session',
+        'server/utils/helper.ts',
+        expect.any(String),
+      );
+    });
+
+    it('should detect dynamic imports', async () => {
+      const metadata = {
+        ...mockBlockMetadata,
+        files: {
+          server: ['server/index.ts'],
+          client: [],
+          prisma: [],
+        },
+      };
+
+      vi.mocked(fs.readFile).mockResolvedValue(JSON.stringify(metadata));
+
+      vi.mocked(filesystemService.readFile).mockImplementation(async (_, path) => {
+        if (path === 'server/index.ts') {
+          return "const module = await import('./missing');";
+        }
+        throw new Error('File not found');
+      });
+
+      vi.mocked(filesystemService.writeFile).mockResolvedValue('File written');
+
+      const result = await requestBlock.execute?.(
+        { blockId: 'auth-password', reason: 'Testing block request' },
+        mockOptions,
+      );
+
+      expect(result).toContain('./missing');
+    });
+
+    it('should detect re-exports', async () => {
+      const metadata = {
+        ...mockBlockMetadata,
+        files: {
+          server: ['server/index.ts'],
+          client: [],
+          prisma: [],
+        },
+      };
+
+      vi.mocked(fs.readFile).mockResolvedValue(JSON.stringify(metadata));
+
+      vi.mocked(filesystemService.readFile).mockImplementation(async (_, path) => {
+        if (path === 'server/index.ts') {
+          return "export * from './missing';";
+        }
+        throw new Error('File not found');
+      });
+
+      vi.mocked(filesystemService.writeFile).mockResolvedValue('File written');
+
+      const result = await requestBlock.execute?.(
+        { blockId: 'auth-password', reason: 'Testing block request' },
+        mockOptions,
+      );
+
+      expect(result).toContain('./missing');
+    });
+
+    it('should detect type imports', async () => {
+      const metadata = {
+        ...mockBlockMetadata,
+        files: {
+          server: ['server/index.ts'],
+          client: [],
+          prisma: [],
+        },
+      };
+
+      vi.mocked(fs.readFile).mockResolvedValue(JSON.stringify(metadata));
+
+      vi.mocked(filesystemService.readFile).mockImplementation(async (_, path) => {
+        if (path === 'server/index.ts') {
+          return "import type { User } from './missing';";
+        }
+        throw new Error('File not found');
+      });
+
+      vi.mocked(filesystemService.writeFile).mockResolvedValue('File written');
+
+      const result = await requestBlock.execute?.(
+        { blockId: 'auth-password', reason: 'Testing block request' },
+        mockOptions,
+      );
+
+      expect(result).toContain('./missing');
+    });
+
+    it('should warn about files that are too large', async () => {
+      const metadata = {
+        ...mockBlockMetadata,
+        files: {
+          server: ['server/huge.ts'],
+          client: [],
+          prisma: [],
+        },
+      };
+
+      vi.mocked(fs.readFile).mockResolvedValue(JSON.stringify(metadata));
+
+      // Mock a file larger than 1MB
+      const hugeContent = 'x'.repeat(1_000_001);
+      vi.mocked(filesystemService.readFile).mockResolvedValue(hugeContent);
+      vi.mocked(filesystemService.writeFile).mockResolvedValue('File written');
+
+      const result = await requestBlock.execute?.(
+        { blockId: 'auth-password', reason: 'Testing block request' },
+        mockOptions,
+      );
+
+      expect(result).toContain('too large to verify');
+    });
+
+    it('should skip verification for path traversal attempts', async () => {
+      const metadata = {
+        ...mockBlockMetadata,
+        files: {
+          server: ['server/malicious.ts'],
+          client: [],
+          prisma: [],
+        },
+      };
+
+      vi.mocked(fs.readFile).mockResolvedValue(JSON.stringify(metadata));
+
+      vi.mocked(filesystemService.readFile).mockImplementation(async (_, path) => {
+        if (path === 'server/malicious.ts') {
+          return "import { evil } from '../../../../../etc/passwd';";
+        }
+        throw new Error('File not found');
+      });
+
+      vi.mocked(filesystemService.writeFile).mockResolvedValue('File written');
+
+      // Should not crash or warn about the malicious import (it's filtered out)
+      const result = await requestBlock.execute?.(
+        { blockId: 'auth-password', reason: 'Testing block request' },
+        mockOptions,
+      );
+
+      // Should complete without error
+      expect(result).toBeDefined();
+      // Should NOT include the malicious path in warnings
+      expect(result).not.toContain('etc/passwd');
+    });
+  });
+
   describe('Tool Definition', () => {
     it('should have correct tool description', () => {
       expect(requestBlock.description).toContain('Request a pre-built building block');

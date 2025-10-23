@@ -331,12 +331,134 @@ export class ErrorFixingCapability extends BaseCapability {
     const systemPrompt = createFixPrompt(
       'Prisma schema validation',
       'A Prisma schema was generated but has validation errors.',
-      'Fix the errors in prisma/schema.prisma. IMPORTANT: Prisma relation errors often require adding corresponding fields to BOTH models in the relationship. For example, if GameSession.host references Player with @relation("SessionHost"), you must add a hostedSessions field to Player with the same relation name.',
+      `Fix the errors in prisma/schema.prisma.
+
+**CRITICAL: Prisma Relation Field Rules**
+
+Every relation field MUST have an opposite field in the related model. Here are the 5 most common error patterns:
+
+**1️⃣ Missing Opposite Relation Field** (MOST COMMON)
+
+❌ WRONG:
+\`\`\`prisma
+model User {
+  id Int @id @default(autoincrement())
+  // Missing: shareLinks ShareLink[]
+}
+model ShareLink {
+  ownerId Int?
+  owner User? @relation(fields: [ownerId], references: [id])
+}
+\`\`\`
+
+✅ CORRECT:
+\`\`\`prisma
+model User {
+  id Int @id @default(autoincrement())
+  shareLinks ShareLink[]  // ← Add this opposite field
+}
+model ShareLink {
+  ownerId Int?
+  owner User? @relation(fields: [ownerId], references: [id])
+}
+\`\`\`
+
+**2️⃣ Field Type Mismatch**
+
+❌ WRONG:
+\`\`\`prisma
+model User {
+  id String @id @default(uuid())  // String ID
+  posts Post[]
+}
+model Post {
+  authorId Int  // ← Int doesn't match String
+  author User @relation(fields: [authorId], references: [id])
+}
+\`\`\`
+
+✅ CORRECT: Make authorId a String to match User.id
+\`\`\`prisma
+model Post {
+  authorId String  // ← Now matches User.id type
+  author User @relation(fields: [authorId], references: [id])
+}
+\`\`\`
+
+**3️⃣ Ambiguous Relations** (Same Models, Multiple Relations)
+
+❌ WRONG:
+\`\`\`prisma
+model User {
+  sentMessages Message[]
+  receivedMessages Message[]
+}
+model Message {
+  senderId Int
+  sender User @relation(fields: [senderId], references: [id])  // ⚠️ Which array?
+  recipientId Int
+  recipient User @relation(fields: [recipientId], references: [id])  // ⚠️ Which array?
+}
+\`\`\`
+
+✅ CORRECT: Name each relation
+\`\`\`prisma
+model User {
+  sentMessages Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
+}
+model Message {
+  senderId Int
+  sender User @relation("SentMessages", fields: [senderId], references: [id])
+  recipientId Int
+  recipient User @relation("ReceivedMessages", fields: [recipientId], references: [id])
+}
+\`\`\`
+
+**4️⃣ Invalid @default on Relation Fields**
+
+❌ WRONG:
+\`\`\`prisma
+model Post {
+  author User @default(...)  // ← Can't use @default on relation fields
+}
+\`\`\`
+
+✅ CORRECT: Use @default only on scalar fields (authorId)
+\`\`\`prisma
+model Post {
+  authorId Int @default(1)  // ← @default on scalar field is OK
+  author User @relation(fields: [authorId], references: [id])
+}
+\`\`\`
+
+**5️⃣ Self-Relations Without Named Relations**
+
+❌ WRONG:
+\`\`\`prisma
+model User {
+  managerId Int?
+  manager User? @relation(fields: [managerId], references: [id])
+  subordinates User[]  // ⚠️ Ambiguous
+}
+\`\`\`
+
+✅ CORRECT: Name the relation
+\`\`\`prisma
+model User {
+  managerId Int?
+  manager User? @relation("Management", fields: [managerId], references: [id])
+  subordinates User[] @relation("Management")
+}
+\`\`\`
+
+**ERROR PRIORITY: Fix relation errors FIRST** - they prevent \`prisma generate\` which blocks TypeScript validation.`,
       [
-        'Invalid field types',
-        'Missing relation fields - requires adding opposite relation field to related model',
-        'Incorrect syntax',
-        'Invalid model names or constraints',
+        'Missing opposite relation field (add field to related model)',
+        'Field type mismatches between relation and ID fields',
+        'Ambiguous relations (add @relation names)',
+        'Invalid @default on relation fields',
+        'Self-relations without named @relation',
       ],
     );
 
