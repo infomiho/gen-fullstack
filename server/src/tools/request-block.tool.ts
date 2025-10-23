@@ -193,6 +193,13 @@ function extractRelativeImports(content: string): string[] {
 }
 
 /**
+ * Check if a file is a TypeScript/JavaScript code file
+ */
+function isCodeFile(filePath: string): boolean {
+  return /\.(ts|tsx|js|jsx)$/.test(filePath);
+}
+
+/**
  * Build cache of file paths and contents from copied files
  */
 async function buildFileCache(
@@ -213,13 +220,7 @@ async function buildFileCache(
     const withoutExt = file.replace(/\.(ts|tsx|js|jsx)$/, '');
     fileCache.add(withoutExt);
 
-    const isCodeFile =
-      file.endsWith('.ts') ||
-      file.endsWith('.tsx') ||
-      file.endsWith('.js') ||
-      file.endsWith('.jsx');
-
-    if (isCodeFile) {
+    if (isCodeFile(file)) {
       try {
         const content = await filesystemService.readFile(sessionId, file);
 
@@ -380,6 +381,94 @@ function formatIntegrationGuide(
 }
 
 /**
+ * Helper: Install block dependencies to appropriate package.json
+ */
+async function installBlockDependencies(
+  sessionId: string,
+  blockId: string,
+  dependencies: Record<string, string>,
+  copiedFiles: string[],
+  warnings: string[],
+) {
+  if (Object.keys(dependencies).length === 0) {
+    return;
+  }
+
+  try {
+    const hasServerFiles = copiedFiles.some((f) => f.startsWith('server/'));
+    const hasClientFiles = copiedFiles.some((f) => f.startsWith('client/'));
+
+    if (hasServerFiles) {
+      await filesystemService.updatePackageJson(sessionId, 'server', dependencies, undefined);
+      databaseLogger.info(
+        { sessionId, blockId, dependencies },
+        'Auto-installed block dependencies to server',
+      );
+    }
+
+    if (hasClientFiles && !hasServerFiles) {
+      await filesystemService.updatePackageJson(sessionId, 'client', dependencies, undefined);
+      databaseLogger.info(
+        { sessionId, blockId, dependencies },
+        'Auto-installed block dependencies to client',
+      );
+    }
+  } catch (error) {
+    databaseLogger.warn({ error, sessionId, blockId }, 'Failed to auto-install block dependencies');
+    warnings.push(
+      `⚠️ CRITICAL: Failed to auto-install dependencies. You MUST manually add these to package.json using updatePackageJson tool: ${Object.keys(dependencies).join(', ')}`,
+    );
+  }
+}
+
+/**
+ * Helper: Emit file_updated events for copied files
+ */
+async function emitFileUpdates(
+  sessionId: string,
+  copiedFiles: string[],
+  io: ReturnType<typeof extractToolContext>['io'],
+) {
+  if (!io) return;
+
+  for (const file of copiedFiles) {
+    try {
+      const content = await filesystemService.readFile(sessionId, file);
+      io.to(sessionId).emit('file_updated', {
+        path: file,
+        content,
+      });
+    } catch (error) {
+      databaseLogger.warn({ error, sessionId, file }, 'Failed to emit file_updated for block file');
+    }
+  }
+}
+
+/**
+ * Helper: Log block request results
+ */
+function logBlockResults(
+  sessionId: string,
+  blockId: string,
+  copiedFiles: string[],
+  warnings: string[],
+) {
+  databaseLogger.info(
+    {
+      sessionId,
+      blockId,
+      filesCount: copiedFiles.length,
+      warningsCount: warnings.length,
+    },
+    'Block requested and copied',
+  );
+
+  if (warnings.length > 0) {
+    databaseLogger.warn({ sessionId, blockId, warnings }, 'Block integration has warnings');
+  }
+}
+
+/**
  * Request a building block to be copied to the session workspace
  */
 export const requestBlock = tool({
@@ -409,103 +498,21 @@ Use this to quickly add common features without writing boilerplate code.`,
     const { sessionId, io } = extractToolContext(context);
 
     try {
-      // Load block metadata
       const metadata = await loadBlockMetadata(blockId);
-
-      // Copy block files to session sandbox
       const copiedFiles = await copyBlockFiles(sessionId, blockId, metadata);
-
-      // Verify block integration (returns warnings array)
       const warnings = await verifyBlockIntegration(sessionId, copiedFiles);
 
-      // Auto-install block dependencies (if any)
-      if (Object.keys(metadata.dependencies).length > 0) {
-        try {
-          // Determine which dependencies go to server vs client based on copied files
-          const hasServerFiles = copiedFiles.some((f) => f.startsWith('server/'));
-          const hasClientFiles = copiedFiles.some((f) => f.startsWith('client/'));
-
-          // For now, assume all block dependencies go to server (most common case)
-          // In the future, block.json could specify client vs server dependencies separately
-          if (hasServerFiles) {
-            await filesystemService.updatePackageJson(
-              sessionId,
-              'server',
-              metadata.dependencies,
-              undefined,
-            );
-            databaseLogger.info(
-              { sessionId, blockId, dependencies: metadata.dependencies },
-              'Auto-installed block dependencies to server',
-            );
-          }
-
-          // If client files exist but no server files, add to client
-          if (hasClientFiles && !hasServerFiles) {
-            await filesystemService.updatePackageJson(
-              sessionId,
-              'client',
-              metadata.dependencies,
-              undefined,
-            );
-            databaseLogger.info(
-              { sessionId, blockId, dependencies: metadata.dependencies },
-              'Auto-installed block dependencies to client',
-            );
-          }
-        } catch (error) {
-          databaseLogger.warn(
-            { error, sessionId, blockId },
-            'Failed to auto-install block dependencies',
-          );
-          // Add critical warning so LLM knows to handle this manually
-          warnings.push(
-            `⚠️ CRITICAL: Failed to auto-install dependencies. You MUST manually add these to package.json using updatePackageJson tool: ${Object.keys(metadata.dependencies).join(', ')}`,
-          );
-        }
-      }
-
-      // Emit file_updated events for each copied file (for UI update)
-      if (io) {
-        for (const file of copiedFiles) {
-          try {
-            const content = await filesystemService.readFile(sessionId, file);
-            io.to(sessionId).emit('file_updated', {
-              path: file,
-              content,
-            });
-          } catch (error) {
-            databaseLogger.warn(
-              { error, sessionId, file },
-              'Failed to emit file_updated for block file',
-            );
-          }
-        }
-      }
-
-      // Format integration guide with warnings
-      const guide = formatIntegrationGuide(metadata, copiedFiles, warnings);
-
-      databaseLogger.info(
-        {
-          sessionId,
-          blockId,
-          filesCount: copiedFiles.length,
-          warningsCount: warnings.length,
-        },
-        'Block requested and copied',
+      await installBlockDependencies(
+        sessionId,
+        blockId,
+        metadata.dependencies,
+        copiedFiles,
+        warnings,
       );
+      await emitFileUpdates(sessionId, copiedFiles, io);
 
-      if (warnings.length > 0) {
-        databaseLogger.warn(
-          {
-            sessionId,
-            blockId,
-            warnings,
-          },
-          'Block integration has warnings',
-        );
-      }
+      const guide = formatIntegrationGuide(metadata, copiedFiles, warnings);
+      logBlockResults(sessionId, blockId, copiedFiles, warnings);
 
       return guide;
     } catch (error) {

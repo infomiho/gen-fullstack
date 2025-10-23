@@ -15,6 +15,11 @@ import { extractToolContext } from './tool-utils.js';
  */
 
 /**
+ * Tool execution context type
+ */
+type ToolContext = ReturnType<typeof extractToolContext>;
+
+/**
  * Write content to a file
  *
  * Creates or overwrites a file with the specified content.
@@ -368,22 +373,21 @@ export const validatePrismaSchema = tool({
 });
 
 /**
- * Parse TypeScript compiler errors into structured format
+ * TypeScript compiler error structure
  */
-function parseTypeScriptErrors(output: string): Array<{
+type TypeScriptError = {
   file: string;
   line: number;
   column: number;
   code: string;
   message: string;
-}> {
-  const errors: Array<{
-    file: string;
-    line: number;
-    column: number;
-    code: string;
-    message: string;
-  }> = [];
+};
+
+/**
+ * Parse TypeScript compiler errors into structured format
+ */
+function parseTypeScriptErrors(output: string): TypeScriptError[] {
+  const errors: TypeScriptError[] = [];
 
   // TypeScript error format: path/file.ts(line,column): error TSxxxx: message
   const errorRegex = /^(.+?)\((\d+),(\d+)\):\s+error\s+(TS\d+):\s+(.+)$/gm;
@@ -401,6 +405,77 @@ function parseTypeScriptErrors(output: string): Array<{
   }
 
   return errors;
+}
+
+/**
+ * Helper: Format TypeScript errors for a specific target
+ */
+function formatTypeScriptErrors(parsedErrors: TypeScriptError[]) {
+  return parsedErrors.length > 0
+    ? parsedErrors
+        .map((e) => `${e.file}:${e.line}:${e.column} - ${e.code}: ${e.message}`)
+        .join('\n')
+    : '';
+}
+
+/**
+ * Helper: Run TypeScript validation for a target
+ */
+async function validateTarget(sessionId: string, target: 'client' | 'server') {
+  const result = await commandService.executeCommand(
+    sessionId,
+    `npx tsc --noEmit --project ${target}/tsconfig.json`,
+  );
+  const output = result.stderr || result.stdout;
+  const parsedErrors = parseTypeScriptErrors(output);
+
+  return {
+    target,
+    passed: result.exitCode === 0,
+    errorCount: parsedErrors.length,
+    errors: formatTypeScriptErrors(parsedErrors),
+  };
+}
+
+/**
+ * Helper: Format validation results summary
+ */
+function formatValidationSummary(
+  results: Array<{ target: string; passed: boolean; errorCount: number; errors: string }>,
+  target: string,
+  sessionId: string,
+  io: ToolContext['io'],
+) {
+  const allPassed = results.every((r) => r.passed);
+  const totalErrors = results.reduce((sum, r) => sum + r.errorCount, 0);
+
+  if (allPassed) {
+    if (io) {
+      io.to(sessionId).emit('llm_message', {
+        id: `${Date.now()}-system`,
+        role: 'system',
+        content: `✓ TypeScript validation passed for ${target}`,
+        timestamp: Date.now(),
+      });
+    }
+    return `All TypeScript checks passed for ${target}. No type errors found.`;
+  }
+
+  const errorSummary = results
+    .filter((r) => !r.passed)
+    .map((r) => `${r.target.toUpperCase()} (${r.errorCount} errors):\n${r.errors}`)
+    .join('\n\n');
+
+  if (io) {
+    io.to(sessionId).emit('llm_message', {
+      id: `${Date.now()}-system`,
+      role: 'system',
+      content: `✗ TypeScript validation failed for ${target} (${totalErrors} errors)`,
+      timestamp: Date.now(),
+    });
+  }
+
+  return `TypeScript validation failed (${totalErrors} errors). Fix these:\n\n${errorSummary}`;
 }
 
 /**
@@ -424,82 +499,18 @@ export const validateTypeScript = tool({
   execute: async ({ target }, { experimental_context: context }) => {
     const { sessionId, io } = extractToolContext(context);
 
-    const results: { target: string; passed: boolean; errorCount: number; errors: string }[] = [];
-
     try {
-      if (target === 'client' || target === 'both') {
-        const clientResult = await commandService.executeCommand(
-          sessionId,
-          'npx tsc --noEmit --project client/tsconfig.json',
-        );
-        const output = clientResult.stderr || clientResult.stdout;
-        const parsedErrors = parseTypeScriptErrors(output);
+      const results = [];
 
-        results.push({
-          target: 'client',
-          passed: clientResult.exitCode === 0,
-          errorCount: parsedErrors.length,
-          errors:
-            parsedErrors.length > 0
-              ? parsedErrors
-                  .map((e) => `${e.file}:${e.line}:${e.column} - ${e.code}: ${e.message}`)
-                  .join('\n')
-              : '',
-        });
+      if (target === 'client' || target === 'both') {
+        results.push(await validateTarget(sessionId, 'client'));
       }
 
       if (target === 'server' || target === 'both') {
-        const serverResult = await commandService.executeCommand(
-          sessionId,
-          'npx tsc --noEmit --project server/tsconfig.json',
-        );
-        const output = serverResult.stderr || serverResult.stdout;
-        const parsedErrors = parseTypeScriptErrors(output);
-
-        results.push({
-          target: 'server',
-          passed: serverResult.exitCode === 0,
-          errorCount: parsedErrors.length,
-          errors:
-            parsedErrors.length > 0
-              ? parsedErrors
-                  .map((e) => `${e.file}:${e.line}:${e.column} - ${e.code}: ${e.message}`)
-                  .join('\n')
-              : '',
-        });
+        results.push(await validateTarget(sessionId, 'server'));
       }
 
-      // Format results
-      const allPassed = results.every((r) => r.passed);
-      const totalErrors = results.reduce((sum, r) => sum + r.errorCount, 0);
-
-      if (allPassed) {
-        if (io) {
-          io.to(sessionId).emit('llm_message', {
-            id: `${Date.now()}-system`,
-            role: 'system',
-            content: `✓ TypeScript validation passed for ${target}`,
-            timestamp: Date.now(),
-          });
-        }
-        return `All TypeScript checks passed for ${target}. No type errors found.`;
-      } else {
-        const errorSummary = results
-          .filter((r) => !r.passed)
-          .map((r) => `${r.target.toUpperCase()} (${r.errorCount} errors):\n${r.errors}`)
-          .join('\n\n');
-
-        if (io) {
-          io.to(sessionId).emit('llm_message', {
-            id: `${Date.now()}-system`,
-            role: 'system',
-            content: `✗ TypeScript validation failed for ${target} (${totalErrors} errors)`,
-            timestamp: Date.now(),
-          });
-        }
-
-        return `TypeScript validation failed (${totalErrors} errors). Fix these:\n\n${errorSummary}`;
-      }
+      return formatValidationSummary(results, target, sessionId, io);
     } catch (error) {
       const errorMsg =
         error instanceof Error ? error.message : 'Unknown error during TypeScript validation';

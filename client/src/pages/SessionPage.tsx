@@ -105,6 +105,81 @@ export async function clientLoader({ params }: LoaderFunctionArgs) {
 }
 
 /**
+ * Helper: Determine active tab from URL parameter
+ */
+function getActiveTab(tab: string | undefined) {
+  const validTabs = ['timeline', 'files', 'preview'] as const;
+  type ValidTab = (typeof validTabs)[number];
+
+  function isValidTab(value: string | undefined): value is ValidTab {
+    return validTabs.includes(value as ValidTab);
+  }
+
+  return isValidTab(tab) ? tab : 'timeline';
+}
+
+/**
+ * Helper: Subscribe to session WebSocket events
+ */
+function useSessionSubscription(
+  socket: ReturnType<typeof useWebSocket>['socket'],
+  sessionId: string | undefined,
+  hasSubscribedRef: React.MutableRefObject<boolean>,
+) {
+  useEffect(() => {
+    if (!socket || !sessionId) return;
+
+    const subscribeToSession = () => {
+      if (!hasSubscribedRef.current) {
+        hasSubscribedRef.current = true;
+        socket.emit('subscribe_to_session', { sessionId });
+        socket.emit('get_app_status', { sessionId });
+      }
+    };
+
+    if (socket.connected) {
+      subscribeToSession();
+    }
+
+    const handleReconnect = () => {
+      hasSubscribedRef.current = false;
+      subscribeToSession();
+    };
+
+    const handleDisconnect = () => {
+      hasSubscribedRef.current = false;
+    };
+
+    socket.on('connect', handleReconnect);
+    socket.on('disconnect', handleDisconnect);
+
+    return () => {
+      socket.off('connect', handleReconnect);
+      socket.off('disconnect', handleDisconnect);
+      hasSubscribedRef.current = false;
+    };
+  }, [socket, sessionId, hasSubscribedRef]);
+}
+
+/**
+ * Helper: Show disconnection toast
+ */
+function useDisconnectionToast(
+  isConnected: boolean,
+  isActiveSession: boolean,
+  showToast: ReturnType<typeof useToast>['showToast'],
+) {
+  const previouslyConnectedRef = useRef(false);
+
+  useEffect(() => {
+    if (previouslyConnectedRef.current && !isConnected && isActiveSession) {
+      showToast('Connection lost', 'Attempting to reconnect...', 'warning');
+    }
+    previouslyConnectedRef.current = isConnected;
+  }, [isConnected, isActiveSession, showToast]);
+}
+
+/**
  * SessionPage - View persisted session
  *
  * Displays a readonly view of a persisted session with its timeline and files.
@@ -133,17 +208,8 @@ function SessionPage() {
 
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const hasSubscribedRef = useRef(false);
-  const previouslyConnectedRef = useRef(false);
 
-  // Derive active tab from URL, default to 'timeline'
-  const validTabs = ['timeline', 'files', 'preview'] as const;
-  type ValidTab = (typeof validTabs)[number];
-
-  function isValidTab(value: string | undefined): value is ValidTab {
-    return validTabs.includes(value as ValidTab);
-  }
-
-  const activeTab: ValidTab = isValidTab(tab) ? tab : 'timeline';
+  const activeTab = getActiveTab(tab);
 
   // Scroll to top when switching to preview tab
   useEffect(() => {
@@ -152,19 +218,12 @@ function SessionPage() {
     }
   }, [activeTab]);
 
-  // Determine if session is actively generating:
-  // - If socket is connected: use real-time WebSocket state (isGeneratingWebSocket)
-  // - If socket is disconnected: fall back to database status from loader
-  // This ensures the "Generating..." indicator updates immediately when generation completes
+  // Determine if session is actively generating
   const isActiveSession = socket
     ? isGeneratingWebSocket
     : sessionData.session.status === 'generating';
 
-  // Determine if we're connected to the session room and receiving live updates
-  // This should be true for any viewer who is connected and subscribed, regardless of generation status
   const isConnectedToRoom = Boolean(socket?.connected && hasSubscribedRef.current);
-
-  // For UI purposes (like showing "Live" badge), we want to know if this is an active generation session
   const isOwnSession = socket !== null && isActiveSession;
 
   // Use custom hook to handle data merging
@@ -179,68 +238,17 @@ function SessionPage() {
     isConnectedToRoom,
   });
 
-  // Subscribe to session room and request app status when page loads or socket reconnects
-  // Use ref to prevent duplicate subscriptions in React Strict Mode (development)
-  useEffect(() => {
-    if (!socket || !sessionId) return;
+  useSessionSubscription(socket, sessionId, hasSubscribedRef);
+  useDisconnectionToast(isConnected, isActiveSession, showToast);
 
-    const subscribeToSession = () => {
-      if (!hasSubscribedRef.current) {
-        hasSubscribedRef.current = true;
-        // Subscribe to this session's room for real-time updates
-        socket.emit('subscribe_to_session', { sessionId });
-        // Request current app status
-        socket.emit('get_app_status', { sessionId });
-      }
-    };
-
-    // Subscribe on mount if socket is already connected
-    if (socket.connected) {
-      subscribeToSession();
-    }
-
-    // Resubscribe on reconnection
-    const handleReconnect = () => {
-      hasSubscribedRef.current = false; // Reset flag to allow resubscription
-      subscribeToSession();
-    };
-
-    // Handle disconnection (reset ref so we can resubscribe on reconnect)
-    const handleDisconnect = () => {
-      hasSubscribedRef.current = false;
-    };
-
-    socket.on('connect', handleReconnect);
-    socket.on('disconnect', handleDisconnect);
-
-    // Reset subscription flag when sessionId changes or component unmounts
-    return () => {
-      socket.off('connect', handleReconnect);
-      socket.off('disconnect', handleDisconnect);
-      hasSubscribedRef.current = false;
-    };
-  }, [socket, sessionId]);
-
-  // Show toast notification when connection is lost during an active session
-  useEffect(() => {
-    // Track connection state and show toast only when transitioning from connected to disconnected
-    if (previouslyConnectedRef.current && !isConnected && isActiveSession) {
-      showToast('Connection lost', 'Attempting to reconnect...', 'warning');
-    }
-    previouslyConnectedRef.current = isConnected;
-  }, [isConnected, isActiveSession, showToast]);
-
-  // Cleanup stores when sessionId changes to prevent memory leaks
-  // This ensures each session has fresh state without accumulating data from previous sessions
-  // biome-ignore lint/correctness/useExhaustiveDependencies: sessionId is intentionally included to reset stores when navigating between sessions
+  // Cleanup stores when sessionId changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: sessionId is intentionally included to reset stores
   useEffect(() => {
     return () => {
-      // Reset generation store to clear messages, tool calls, files
       useGenerationStore.getState().reset();
-      // Reset app store to clear logs and build events
       useAppStore.getState().reset();
     };
-  }, [sessionId]); // Reset when session changes
+  }, [sessionId]);
 
   return (
     <div className="grid h-screen grid-rows-[auto_1fr] bg-white">
