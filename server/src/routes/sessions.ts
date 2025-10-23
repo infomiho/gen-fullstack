@@ -60,6 +60,92 @@ router.get('/:sessionId', async (req, res) => {
 });
 
 /**
+ * GET /api/sessions/:sessionId/replay-data
+ *
+ * Get all data needed for replay mode
+ * Returns session with pre-calculated duration and all timeline items/files
+ */
+router.get('/:sessionId/replay-data', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+
+    // Fetch session, timeline, and files in parallel
+    const [session, timeline, files] = await Promise.all([
+      databaseService.getSession(sessionId),
+      databaseService.getTimelineItems(sessionId),
+      databaseService.getFiles(sessionId),
+    ]);
+
+    if (!session) {
+      res.status(404).json({ error: 'Session not found' });
+      return;
+    }
+
+    // Only allow replay for completed or failed sessions
+    if (session.status === 'generating') {
+      res.status(400).json({ error: 'Cannot replay session that is still generating' });
+      return;
+    }
+
+    // Calculate duration
+    const sessionStartTime = session.createdAt.getTime();
+    const lastEventTime =
+      timeline.length > 0
+        ? Math.max(...timeline.map((item) => new Date(item.timestamp).getTime()))
+        : sessionStartTime;
+    const duration = lastEventTime - sessionStartTime;
+
+    // Transform timeline items for replay
+    const timelineItems = timeline.map((item) => {
+      let data: Record<string, unknown> = {};
+
+      if (item.type === 'message') {
+        data = {
+          role: item.role,
+          content: item.content,
+        };
+      } else if (item.type === 'tool_call') {
+        data = {
+          name: item.toolName,
+          parameters: item.toolArgs ? JSON.parse(item.toolArgs) : {},
+        };
+      } else if (item.type === 'tool_result') {
+        data = {
+          toolCallId: item.toolResultFor,
+          toolName: item.toolName,
+          result: item.result,
+        };
+      }
+
+      return {
+        id: String(item.id),
+        type: item.type,
+        timestamp: new Date(item.timestamp).getTime(),
+        data,
+      };
+    });
+
+    // Transform files for replay
+    const replayFiles = files.map((file) => ({
+      path: file.path,
+      timestamp: file.createdAt.getTime(),
+      content: file.content,
+    }));
+
+    res.json({
+      sessionStartTime,
+      duration,
+      timelineItems,
+      files: replayFiles,
+    });
+  } catch (error) {
+    routesLogger.error({ error, sessionId: req.params.sessionId }, 'Failed to get replay data');
+    const message = error instanceof Error ? error.message : 'Failed to get replay data';
+    res.status(500).json({ error: message });
+  }
+});
+
+/**
  * DELETE /api/sessions/:sessionId
  *
  * Delete a session and all its associated data (timeline + files)

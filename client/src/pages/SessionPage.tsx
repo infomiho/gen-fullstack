@@ -13,14 +13,18 @@ import { AppPreview } from '../components/AppPreview';
 import { ErrorBoundary as ErrorBoundaryComponent } from '../components/ErrorBoundary';
 import { FileWorkspace } from '../components/FileWorkspace';
 import { LogViewer } from '../components/LogViewer';
+import { ReplayControls } from '../components/ReplayControls';
 import { SessionHeader } from '../components/SessionHeader';
 import { SessionSidebar } from '../components/SessionSidebar';
 import { Timeline } from '../components/Timeline';
+import { TimelineScrubber } from '../components/TimelineScrubber';
 import { useToast } from '../components/ToastProvider';
 import { useSessionData } from '../hooks/useSessionData';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { focus, padding, spacing, transitions, typography } from '../lib/design-tokens';
 import { useAppStore, useGenerationStore } from '../stores';
+import { useReplayStore } from '../stores/replay.store';
+import { useReplayMode } from '../hooks/useReplayMode';
 
 const SERVER_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
@@ -186,6 +190,7 @@ function useDisconnectionToast(
  * If the session is still active (status === 'generating'), it connects to WebSocket
  * for real-time updates and merges them with the persisted data.
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Main page component handles multiple concerns (routing, data loading, replay mode)
 function SessionPage() {
   const { sessionId, tab } = useParams<{ sessionId: string; tab?: string }>();
   const navigate = useNavigate();
@@ -206,10 +211,47 @@ function SessionPage() {
     saveFile,
   } = useWebSocket();
 
+  const { exitReplayMode, enterReplayMode: enterReplay } = useReplayStore();
+
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const hasSubscribedRef = useRef(false);
 
   const activeTab = getActiveTab(tab);
+
+  // Handler to enter replay mode
+  const handleEnterReplayMode = async () => {
+    if (!sessionId) return;
+
+    // Only allow replay for completed or failed sessions
+    if (sessionData.session.status === 'generating') {
+      showToast('Cannot replay', 'Cannot replay session that is still generating', 'error');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${SERVER_URL}/api/sessions/${sessionId}/replay-data`);
+
+      if (!response.ok) {
+        throw new Error(`Failed to load replay data: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      enterReplay(sessionId, data);
+      showToast('Replay mode', 'Entered replay mode', 'success');
+    } catch (_error) {
+      showToast('Error', 'Failed to load replay data', 'error');
+      // Error already shown to user via toast
+    }
+  };
+
+  // Handler to exit replay mode
+  const handleExitReplayMode = () => {
+    exitReplayMode();
+    showToast('Replay mode', 'Exited replay mode', 'success');
+  };
+
+  // Use replay mode hook for playback logic and filtered data
+  const { isReplayMode, replayData } = useReplayMode();
 
   // Scroll to top when switching to preview tab
   useEffect(() => {
@@ -226,8 +268,8 @@ function SessionPage() {
   const isConnectedToRoom = Boolean(socket?.connected && hasSubscribedRef.current);
   const isOwnSession = socket !== null && isActiveSession;
 
-  // Use custom hook to handle data merging
-  const { messages, toolCalls, toolResults, files } = useSessionData({
+  // Use custom hook to handle data merging (unless in replay mode)
+  const persistedData = useSessionData({
     timeline: sessionData.timeline,
     persistedFiles: sessionData.files,
     liveMessages,
@@ -237,6 +279,12 @@ function SessionPage() {
     isActiveSession,
     isConnectedToRoom,
   });
+
+  // Use replay data if in replay mode, otherwise use persisted/live data
+  const messages = isReplayMode ? replayData.messages : persistedData.messages;
+  const toolCalls = isReplayMode ? replayData.toolCalls : persistedData.toolCalls;
+  const toolResults = isReplayMode ? replayData.toolResults : persistedData.toolResults;
+  const files = isReplayMode ? replayData.files : persistedData.files;
 
   useSessionSubscription(socket, sessionId, hasSubscribedRef);
   useDisconnectionToast(isConnected, isActiveSession, showToast);
@@ -275,60 +323,101 @@ function SessionPage() {
         <div className="grid grid-rows-[auto_1fr] overflow-hidden">
           {/* Tabs */}
           <div className="border-b">
-            <div className="flex px-4">
-              <button
-                type="button"
-                className={`border-b-2 px-3 py-2 ${typography.label} ${transitions.colors} ${focus.ring} ${
-                  activeTab === 'timeline'
-                    ? 'border-gray-900 text-gray-900'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-                onClick={() => navigate(`/${sessionId}`)}
-              >
-                Timeline{' '}
-                {messages.length + toolCalls.length > 0 &&
-                  `(${messages.length + toolCalls.length})`}
-              </button>
-              <button
-                type="button"
-                className={`border-b-2 px-3 py-2 ${typography.label} ${transitions.colors} ${focus.ring} ${
-                  activeTab === 'files'
-                    ? 'border-gray-900 text-gray-900'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-                onClick={() => navigate(`/${sessionId}/files`)}
-              >
-                Files {files.length > 0 && `(${files.length})`}
-              </button>
-              <button
-                type="button"
-                className={`border-b-2 px-3 py-2 ${typography.label} ${transitions.colors} ${focus.ring} ${
-                  activeTab === 'preview'
-                    ? 'border-gray-900 text-gray-900'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-                onClick={() => navigate(`/${sessionId}/preview`)}
-              >
-                Preview{' '}
-                {appStatus?.status && appStatus.status !== 'stopped' && (
-                  <span className="ml-1 text-xs">({appStatus.status})</span>
+            <div className="flex items-center justify-between px-4">
+              <div className="flex">
+                <button
+                  type="button"
+                  className={`border-b-2 px-3 py-2 ${typography.label} ${transitions.colors} ${focus.ring} ${
+                    activeTab === 'timeline'
+                      ? 'border-gray-900 text-gray-900'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                  onClick={() => navigate(`/${sessionId}`)}
+                >
+                  Timeline{' '}
+                  {messages.length + toolCalls.length > 0 &&
+                    `(${messages.length + toolCalls.length})`}
+                </button>
+                <button
+                  type="button"
+                  className={`border-b-2 px-3 py-2 ${typography.label} ${transitions.colors} ${focus.ring} ${
+                    activeTab === 'files'
+                      ? 'border-gray-900 text-gray-900'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                  onClick={() => navigate(`/${sessionId}/files`)}
+                >
+                  Files {files.length > 0 && `(${files.length})`}
+                </button>
+                <button
+                  type="button"
+                  className={`border-b-2 px-3 py-2 ${typography.label} ${transitions.colors} ${focus.ring} ${
+                    activeTab === 'preview'
+                      ? 'border-gray-900 text-gray-900'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                  onClick={() => navigate(`/${sessionId}/preview`)}
+                >
+                  Preview{' '}
+                  {appStatus?.status && appStatus.status !== 'stopped' && (
+                    <span className="ml-1 text-xs">({appStatus.status})</span>
+                  )}
+                </button>
+              </div>
+
+              {/* Replay Mode Toggle */}
+              {activeTab === 'timeline' &&
+                sessionData.session.status !== 'generating' &&
+                !isReplayMode && (
+                  <button
+                    type="button"
+                    onClick={handleEnterReplayMode}
+                    className="rounded border border-gray-300 bg-white px-3 py-1 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    Replay Mode
+                  </button>
                 )}
-              </button>
+
+              {isReplayMode && (
+                <div className="flex items-center gap-2">
+                  <span className="rounded bg-purple-100 px-2 py-1 text-xs font-medium text-purple-800">
+                    REPLAY MODE
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleExitReplayMode}
+                    className="rounded border border-gray-300 bg-white px-3 py-1 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    Exit Replay
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Content */}
           <div className="overflow-hidden">
             {activeTab === 'timeline' ? (
-              <div className={`h-full overflow-y-auto ${padding.panel}`}>
-                <ErrorBoundaryComponent>
-                  <Timeline
-                    messages={messages}
-                    toolCalls={toolCalls}
-                    toolResults={toolResults}
-                    isGenerating={isActiveSession}
-                  />
-                </ErrorBoundaryComponent>
+              <div className="grid h-full grid-rows-[auto_auto_1fr] overflow-hidden">
+                {/* Replay Controls */}
+                {isReplayMode && (
+                  <>
+                    <ReplayControls />
+                    <TimelineScrubber />
+                  </>
+                )}
+
+                {/* Timeline Content */}
+                <div className={`overflow-y-auto ${padding.panel}`}>
+                  <ErrorBoundaryComponent>
+                    <Timeline
+                      messages={messages}
+                      toolCalls={toolCalls}
+                      toolResults={toolResults}
+                      isGenerating={isActiveSession}
+                    />
+                  </ErrorBoundaryComponent>
+                </div>
               </div>
             ) : activeTab === 'files' ? (
               <div className="h-full">
