@@ -5,7 +5,6 @@ import { StatusBadge } from './StatusBadge';
 interface SessionHeaderProps {
   sessionId: string | undefined;
   status: 'generating' | 'completed' | 'failed';
-  isConnected: boolean;
   isOwnSession: boolean;
 }
 
@@ -16,15 +15,9 @@ interface SessionHeaderProps {
  * - App title and home link
  * - Session ID
  * - Session status badge (with live indicator for active sessions)
- * - Connection status indicator
  */
-export function SessionHeader({
-  sessionId,
-  status,
-  isConnected,
-  isOwnSession,
-}: SessionHeaderProps) {
-  const showLiveBadge = status === 'generating' && isConnected && isOwnSession;
+export function SessionHeader({ sessionId, status, isOwnSession }: SessionHeaderProps) {
+  const showLiveBadge = status === 'generating' && isOwnSession;
 
   return (
     <header className={`border-b ${padding.page}`}>
@@ -40,12 +33,6 @@ export function SessionHeader({
         </div>
         <div className="flex items-center gap-3">
           <StatusBadge status={status} variant="session" showLiveIndicator={showLiveBadge} />
-          <div className="flex items-center gap-1.5">
-            <div
-              className={`h-1.5 w-1.5 rounded-full ${isConnected ? 'bg-gray-900' : 'bg-gray-300'}`}
-            />
-            <span className={typography.caption}>{isConnected ? 'connected' : 'disconnected'}</span>
-          </div>
         </div>
       </div>
     </header>

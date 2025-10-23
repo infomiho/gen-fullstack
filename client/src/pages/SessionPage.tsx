@@ -16,6 +16,7 @@ import { LogViewer } from '../components/LogViewer';
 import { SessionHeader } from '../components/SessionHeader';
 import { SessionSidebar } from '../components/SessionSidebar';
 import { Timeline } from '../components/Timeline';
+import { useToast } from '../components/ToastProvider';
 import { useSessionData } from '../hooks/useSessionData';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { focus, padding, spacing, transitions, typography } from '../lib/design-tokens';
@@ -114,6 +115,7 @@ function SessionPage() {
   const { sessionId, tab } = useParams<{ sessionId: string; tab?: string }>();
   const navigate = useNavigate();
   const sessionData = useLoaderData() as SessionData;
+  const { showToast } = useToast();
   const {
     socket,
     isConnected,
@@ -131,6 +133,7 @@ function SessionPage() {
 
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const hasSubscribedRef = useRef(false);
+  const previouslyConnectedRef = useRef(false);
 
   // Derive active tab from URL, default to 'timeline'
   const validTabs = ['timeline', 'files', 'preview'] as const;
@@ -214,6 +217,15 @@ function SessionPage() {
     };
   }, [socket, sessionId]);
 
+  // Show toast notification when connection is lost during an active session
+  useEffect(() => {
+    // Track connection state and show toast only when transitioning from connected to disconnected
+    if (previouslyConnectedRef.current && !isConnected && isActiveSession) {
+      showToast('Connection lost', 'Attempting to reconnect...', 'warning');
+    }
+    previouslyConnectedRef.current = isConnected;
+  }, [isConnected, isActiveSession, showToast]);
+
   // Cleanup stores when sessionId changes to prevent memory leaks
   // This ensures each session has fresh state without accumulating data from previous sessions
   // biome-ignore lint/correctness/useExhaustiveDependencies: sessionId is intentionally included to reset stores when navigating between sessions
@@ -231,7 +243,6 @@ function SessionPage() {
       <SessionHeader
         sessionId={sessionId}
         status={sessionData.session.status}
-        isConnected={isConnected}
         isOwnSession={isOwnSession}
       />
 
