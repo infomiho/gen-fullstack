@@ -97,7 +97,9 @@ export function getReplayToolResults(
         item.data.result !== undefined,
     )
     .map((item) => ({
-      id: item.id,
+      // Format ID as "result-{toolCallId}" to match live mode format
+      // This allows Timeline component to match results to tool calls
+      id: item.data.toolCallId ? `result-${item.data.toolCallId}` : item.id,
       toolName: item.data.toolName || '',
       result: item.data.result as string,
       timestamp: item.timestamp,

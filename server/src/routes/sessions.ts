@@ -98,6 +98,7 @@ router.get('/:sessionId/replay-data', async (req, res) => {
     // Transform timeline items for replay
     const timelineItems = timeline.map((item) => {
       let data: Record<string, unknown> = {};
+      let id = String(item.id);
 
       if (item.type === 'message') {
         data = {
@@ -105,6 +106,8 @@ router.get('/:sessionId/replay-data', async (req, res) => {
           content: item.content,
         };
       } else if (item.type === 'tool_call') {
+        // Use toolCallId as the ID for tool calls (e.g., "toolu_123")
+        id = item.toolCallId || String(item.id);
         data = {
           name: item.toolName,
           parameters: item.toolArgs ? JSON.parse(item.toolArgs) : {},
@@ -118,7 +121,7 @@ router.get('/:sessionId/replay-data', async (req, res) => {
       }
 
       return {
-        id: String(item.id),
+        id,
         type: item.type,
         timestamp: new Date(item.timestamp).getTime(),
         data,

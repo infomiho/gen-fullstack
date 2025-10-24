@@ -231,6 +231,45 @@ describe('replay-utils', () => {
       expect(result).toHaveLength(1);
       expect(result[0].toolName).toBe('');
     });
+
+    it('should format result ID as "result-{toolCallId}" when toolCallId is present', () => {
+      const items = [
+        {
+          id: 'db-row-123',
+          type: 'tool_result' as const,
+          timestamp: 2000,
+          data: {
+            result: 'Success',
+            toolName: 'readFile',
+            toolCallId: 'toolu_abc123',
+          },
+        },
+      ];
+
+      const result = getReplayToolResults(items, sessionStartTime, 5000);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('result-toolu_abc123');
+    });
+
+    it('should fallback to original ID when toolCallId is missing', () => {
+      const items = [
+        {
+          id: 'db-row-456',
+          type: 'tool_result' as const,
+          timestamp: 2000,
+          data: {
+            result: 'Success',
+            toolName: 'readFile',
+          },
+        },
+      ];
+
+      const result = getReplayToolResults(items, sessionStartTime, 5000);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('db-row-456');
+    });
   });
 
   describe('getReplayFiles', () => {
