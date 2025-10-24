@@ -8,7 +8,7 @@ import { PromptInput } from './PromptInput';
  * It's a controlled textarea component that manages the prompt text.
  */
 const meta: Meta<typeof PromptInput> = {
-  title: 'Components/PromptInput',
+  title: 'UI/Session/PromptInput',
   component: PromptInput,
   parameters: {
     layout: 'padded',
@@ -83,8 +83,8 @@ export const UserCanType: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    // Find the textarea
-    const textarea = canvas.getByPlaceholderText(/Describe the app you want to build/i);
+    // Find the textarea by role (placeholder is animated, so can't rely on it)
+    const textarea = canvas.getByRole('textbox');
 
     // Type into the textarea
     await userEvent.type(textarea, 'Create a todo app with React');
@@ -107,7 +107,8 @@ export const DisabledDuringGeneration: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    const textarea = canvas.getByPlaceholderText(/Describe the app you want to build/i);
+    // Find textarea by role (placeholder is animated, so can't rely on it)
+    const textarea = canvas.getByRole('textbox');
 
     // Textarea should be disabled
     await expect(textarea).toBeDisabled();

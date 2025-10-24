@@ -6,7 +6,7 @@ import { FileViewer } from './FileViewer';
  * It shows a file header with the path and the content below.
  */
 const meta: Meta<typeof FileViewer> = {
-  title: 'Components/FileViewer',
+  title: 'UI/Editor/FileViewer',
   component: FileViewer,
   parameters: {
     layout: 'fullscreen',

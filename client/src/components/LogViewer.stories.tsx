@@ -8,7 +8,7 @@ import { LogViewer } from './LogViewer';
  * Shows logs in a terminal-style interface with timestamps and level indicators.
  */
 const meta: Meta<typeof LogViewer> = {
-  title: 'Components/LogViewer',
+  title: 'UI/App Execution/LogViewer',
   component: LogViewer,
   parameters: {
     layout: 'padded',

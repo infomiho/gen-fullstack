@@ -3,7 +3,7 @@ import { HelpCircle } from 'lucide-react';
 import { HoverInfo } from './HoverInfo';
 
 const meta = {
-  title: 'Components/HoverInfo',
+  title: 'UI/Primitives/HoverInfo',
   component: HoverInfo,
   parameters: {
     layout: 'centered',

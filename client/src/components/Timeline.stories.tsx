@@ -7,7 +7,7 @@ import { Timeline } from './Timeline';
  * Users can click on tool calls to view detailed parameters and results in a modal.
  */
 const meta: Meta<typeof Timeline> = {
-  title: 'Components/Timeline',
+  title: 'UI/Timeline/Timeline',
   component: Timeline,
   parameters: {
     layout: 'padded',

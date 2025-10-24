@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { CapabilitySection } from './CapabilitySection';
 
 const meta = {
-  title: 'Components/CapabilitySection',
+  title: 'UI/Capabilities/CapabilitySection',
   component: CapabilitySection,
   parameters: {
     layout: 'padded',

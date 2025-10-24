@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { FilterButton } from './FilterButton';
 
 const meta = {
-  title: 'Components/FilterButton',
+  title: 'UI/Primitives/FilterButton',
   component: FilterButton,
   parameters: {
     layout: 'centered',

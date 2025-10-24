@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { CapabilitiesList } from './CapabilitiesList';
 
 const meta = {
-  title: 'Components/CapabilitiesList',
+  title: 'UI/Capabilities/CapabilitiesList',
   component: CapabilitiesList,
   parameters: {
     layout: 'padded',

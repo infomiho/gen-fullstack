@@ -3,7 +3,7 @@ import { SessionSidebar } from './SessionSidebar';
 import type { AppInfo } from '@gen-fullstack/shared';
 
 const meta = {
-  title: 'Components/SessionSidebar',
+  title: 'UI/Session/SessionSidebar',
   component: SessionSidebar,
   parameters: {
     layout: 'fullscreen',

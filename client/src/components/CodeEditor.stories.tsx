@@ -7,7 +7,7 @@ import { CodeEditor } from './CodeEditor';
  * Supports TypeScript, JavaScript, JSON, CSS, HTML, and more.
  */
 const meta: Meta<typeof CodeEditor> = {
-  title: 'Components/CodeEditor',
+  title: 'UI/Editor/CodeEditor',
   component: CodeEditor,
   parameters: {
     layout: 'fullscreen',

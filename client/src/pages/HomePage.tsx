@@ -101,7 +101,12 @@ function HomePage() {
       <main className="max-w-5xl mx-auto px-6 py-16">
         {/* Title */}
         <div className="text-center mb-12">
-          <h1 className="text-5xl font-bold text-gray-900">Gen Fullstack</h1>
+          <h1 className="text-5xl font-bold text-gray-900">
+            Gen{' '}
+            <span className="bg-gradient-to-b from-[#1488FC] to-[#03305D] dark:from-white dark:to-[#1488FC] bg-clip-text text-transparent">
+              Fullstack
+            </span>
+          </h1>
         </div>
 
         {/* Generation form */}

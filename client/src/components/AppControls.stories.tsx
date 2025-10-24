@@ -7,7 +7,7 @@ import { AppControls } from './AppControls';
  * Button text, icon, and state adapt based on current app status and generation state.
  */
 const meta: Meta<typeof AppControls> = {
-  title: 'Components/AppControls',
+  title: 'UI/App Execution/AppControls',
   component: AppControls,
   parameters: {
     layout: 'padded',

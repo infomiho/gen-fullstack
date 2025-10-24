@@ -4,7 +4,7 @@ import React from 'react';
 import { PreviewControls } from './PreviewControls';
 
 const meta = {
-  title: 'Components/PreviewControls',
+  title: 'UI/App Execution/PreviewControls',
   component: PreviewControls,
   parameters: {
     layout: 'padded',

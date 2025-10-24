@@ -25,9 +25,12 @@ export function SessionHeader({ sessionId, status, isOwnSession }: SessionHeader
         <div className="flex items-center gap-3">
           <Link
             to="/"
-            className={`${typography.label} text-lg text-gray-900 hover:text-gray-700 ${transitions.colors}`}
+            className={`${typography.label} text-lg hover:opacity-80 ${transitions.colors}`}
           >
-            Gen Fullstack
+            <span className="text-gray-900">Gen </span>
+            <span className="bg-gradient-to-b from-[#1488FC] to-[#03305D] dark:from-white dark:to-[#1488FC] bg-clip-text text-transparent">
+              Fullstack
+            </span>
           </Link>
           <span className={typography.caption}>Session: {sessionId}</span>
         </div>

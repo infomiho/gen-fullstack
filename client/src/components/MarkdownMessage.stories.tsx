@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { MarkdownMessage } from './MarkdownMessage';
 
 const meta = {
-  title: 'Components/MarkdownMessage',
+  title: 'UI/Timeline/MarkdownMessage',
   component: MarkdownMessage,
   parameters: {
     layout: 'padded',

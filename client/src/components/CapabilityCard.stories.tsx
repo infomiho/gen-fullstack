@@ -5,7 +5,7 @@ import { capabilityIcons } from '../lib/design-tokens';
 import { CapabilityCard } from './CapabilityCard';
 
 const meta = {
-  title: 'Components/CapabilityCard',
+  title: 'UI/Capabilities/CapabilityCard',
   component: CapabilityCard,
   parameters: {
     layout: 'padded',

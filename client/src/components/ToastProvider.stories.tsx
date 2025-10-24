@@ -8,7 +8,7 @@ import { ToastProvider, useToast } from './ToastProvider';
  * Toasts auto-dismiss after 5 seconds and support success, error, warning, and info types.
  */
 const meta: Meta<typeof ToastProvider> = {
-  title: 'Components/ToastProvider',
+  title: 'UI/Error Handling/ToastProvider',
   component: ToastProvider,
   parameters: {
     layout: 'centered',
