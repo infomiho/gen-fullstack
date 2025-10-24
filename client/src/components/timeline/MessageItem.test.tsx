@@ -12,19 +12,19 @@ describe('MessageItem', () => {
   };
 
   describe('Message roles', () => {
-    it('renders assistant message with bot icon and blue styling', () => {
+    it('renders assistant message with bot icon and assistant styling', () => {
       const message: LLMMessage = { ...baseMessage, role: 'assistant' };
       const { container } = render(<MessageItem message={message} />);
 
       expect(screen.getByText('Test message content')).toBeInTheDocument();
 
-      // Check for bot icon and blue styling
+      // Check for bot icon and assistant styling
       const roleLabel = container.querySelector('.uppercase');
       expect(roleLabel).toBeTruthy();
       expect(roleLabel?.textContent).toBe('assistant');
 
-      const messageContainer = container.querySelector('.bg-blue-50');
-      expect(messageContainer).toHaveClass('border-blue-100');
+      const messageContainer = container.querySelector('.bg-assistant-bg');
+      expect(messageContainer).toHaveClass('border-assistant-border');
     });
 
     it('renders user message with user icon and gray styling', () => {

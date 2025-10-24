@@ -38,11 +38,11 @@ interface EmptyStateProps {
  */
 export function EmptyState({ icon, title, description, action, className = '' }: EmptyStateProps) {
   return (
-    <div className={`flex h-full items-center justify-center text-gray-400 ${className}`}>
+    <div className={`flex h-full items-center justify-center text-muted-foreground ${className}`}>
       <div className="text-center">
         {icon && <div className="flex justify-center mb-4 opacity-50">{icon}</div>}
-        <p className="text-sm text-gray-500">{title}</p>
-        {description && <p className="mt-1 text-xs text-gray-400">{description}</p>}
+        <p className="text-sm text-muted-foreground">{title}</p>
+        {description && <p className="mt-1 text-xs text-muted-foreground">{description}</p>}
         {action && <div className="mt-4">{action}</div>}
       </div>
     </div>

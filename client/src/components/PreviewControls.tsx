@@ -32,12 +32,12 @@ export function PreviewControls({
       <button
         type="button"
         onClick={onReload}
-        className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+        className="p-1.5 hover:bg-muted rounded transition-colors"
         title="Reload preview"
         aria-label="Reload preview"
       >
         <svg
-          className="w-4 h-4 text-gray-600"
+          className="w-4 h-4 text-muted-foreground"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -55,13 +55,13 @@ export function PreviewControls({
       <button
         type="button"
         onClick={onToggleFullscreen}
-        className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+        className="p-1.5 hover:bg-muted rounded transition-colors"
         title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
         aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
       >
         {!isFullscreen ? (
           <svg
-            className="w-4 h-4 text-gray-600"
+            className="w-4 h-4 text-muted-foreground"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -77,7 +77,7 @@ export function PreviewControls({
           </svg>
         ) : (
           <svg
-            className="w-4 h-4 text-gray-600"
+            className="w-4 h-4 text-muted-foreground"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"

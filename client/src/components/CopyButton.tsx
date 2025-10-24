@@ -51,13 +51,13 @@ export function CopyButton({
     <button
       type="button"
       onClick={handleCopy}
-      className={`flex-shrink-0 p-1.5 rounded ${transitions.colors} hover:bg-gray-100 ${focus.ring} ${className}`}
+      className={`flex-shrink-0 p-1.5 rounded ${transitions.colors} hover:bg-muted ${focus.ring} ${className}`}
       title={copied ? 'Copied!' : title}
     >
       {copied ? (
         <Check size={iconSize} className="text-green-600" />
       ) : (
-        <Copy size={iconSize} className="text-gray-400" />
+        <Copy size={iconSize} className="text-muted-foreground" />
       )}
     </button>
   );

@@ -96,12 +96,12 @@ function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-background">
       {/* Main content - Centered */}
       <main className="max-w-5xl mx-auto px-6 py-16">
         {/* Title */}
         <div className="text-center mb-12">
-          <h1 className="text-5xl font-bold text-gray-900">
+          <h1 className="text-5xl font-bold text-foreground">
             Gen{' '}
             <span className="bg-gradient-to-b from-[#1488FC] to-[#03305D] dark:from-white dark:to-[#1488FC] bg-clip-text text-transparent">
               Fullstack
@@ -134,7 +134,7 @@ function HomePage() {
                 type="button"
                 onClick={handleGenerate}
                 disabled={isGenerating || !isConnected || !prompt.trim()}
-                className={`w-full flex items-center justify-center gap-2 rounded border border-gray-900 bg-gray-900 px-4 py-3 text-base font-medium text-white ${transitions.colors} hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:border-gray-300 ${focus.ring}`}
+                className={`w-full flex items-center justify-center gap-2 rounded border border-primary bg-primary px-4 py-3 text-base font-medium text-primary-foreground ${transitions.colors} hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-muted disabled:border-muted disabled:text-muted-foreground ${focus.ring}`}
               >
                 <Send size={16} />
                 Generate
@@ -148,18 +148,20 @@ function HomePage() {
           <h3 className={`mb-4 ${typography.sectionHeader}`}>
             Previous Sessions
             {sessions.length > 0 && (
-              <span className="ml-2 text-sm text-gray-500 font-normal">({sessions.length})</span>
+              <span className="ml-2 text-sm text-muted-foreground font-normal">
+                ({sessions.length})
+              </span>
             )}
           </h3>
 
           {loadingSessions ? (
             <div className="text-center py-12">
-              <p className={`${typography.body} text-gray-500`}>Loading sessions...</p>
+              <p className={`${typography.bodySecondary}`}>Loading sessions...</p>
             </div>
           ) : sessions.length === 0 ? (
-            <div className="text-center py-12 border border-dashed border-gray-200 rounded-lg">
-              <p className={`${typography.body} text-gray-500 mb-2`}>No previous sessions yet</p>
-              <p className={`${typography.caption} text-gray-400`}>
+            <div className="text-center py-12 border border-dashed border-border rounded-lg">
+              <p className={`${typography.bodySecondary} mb-2`}>No previous sessions yet</p>
+              <p className={`${typography.caption}`}>
                 Start by creating your first application above
               </p>
             </div>
@@ -174,7 +176,7 @@ function HomePage() {
 
                       {/* Bottom row: timestamp (left) and status (right) */}
                       <div className="flex items-center justify-between gap-4">
-                        <span className={`${typography.caption} text-gray-500`}>
+                        <span className={`${typography.caption}`}>
                           {formatDate(session.createdAt)}
                         </span>
                         <StatusBadge status={session.status} />

@@ -348,8 +348,8 @@ describe('LogViewer', () => {
     it('should have "All" filter active by default', () => {
       render(<LogViewer logs={mockLogs} />);
       const allButton = screen.getByRole('button', { name: 'All' });
-      // Gray variant: active state is bg-gray-900
-      expect(allButton).toHaveClass('bg-gray-900', 'text-white');
+      // Gray variant: active state is bg-primary
+      expect(allButton).toHaveClass('bg-primary', 'text-primary-foreground');
     });
   });
 

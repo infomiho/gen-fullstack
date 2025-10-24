@@ -84,7 +84,7 @@ export function LogViewer({ logs }: LogViewerProps) {
           </div>
 
           {/* Auto-scroll Toggle */}
-          <label className="flex items-center gap-2 text-xs text-gray-600">
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
             <input
               type="checkbox"
               checked={autoScroll}
@@ -99,7 +99,7 @@ export function LogViewer({ logs }: LogViewerProps) {
       {/* Log Container */}
       <div
         ref={logContainerRef}
-        className={`overflow-y-auto border border-gray-200 bg-gray-900 ${radius.md} font-mono text-xs`}
+        className={`overflow-y-auto border border-border bg-gray-900 ${radius.md} font-mono text-xs`}
         style={{ height: '400px' }}
       >
         {filteredLogs.length === 0 ? (
@@ -131,7 +131,7 @@ export function LogViewer({ logs }: LogViewerProps) {
       </div>
 
       {/* Log Count */}
-      <div className="flex justify-between text-xs text-gray-500">
+      <div className="flex justify-between text-xs text-muted-foreground">
         <span>
           Showing {filteredLogs.length} of {logs.length} logs
         </span>

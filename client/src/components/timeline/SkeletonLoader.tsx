@@ -10,11 +10,11 @@ import { padding, radius, typography } from '../../lib/design-tokens';
 export function SkeletonLoader() {
   return (
     <div
-      className={`${radius.md} ${padding.card} border border-gray-200 bg-white flex items-center justify-center gap-3`}
+      className={`${radius.md} ${padding.card} border border-border bg-card flex items-center justify-center gap-3`}
       data-testid="skeleton-loader"
     >
-      <Loader2 size={20} className="text-gray-400 animate-spin" />
-      <span className={`${typography.body} text-gray-500`}>Generating...</span>
+      <Loader2 size={20} className="text-muted-foreground animate-spin" />
+      <span className={`${typography.body} text-muted-foreground`}>Generating...</span>
     </div>
   );
 }

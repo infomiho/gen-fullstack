@@ -27,7 +27,7 @@ export function SessionHeader({ sessionId, status, isOwnSession }: SessionHeader
             to="/"
             className={`${typography.label} text-lg hover:opacity-80 ${transitions.colors}`}
           >
-            <span className="text-gray-900">Gen </span>
+            <span className="text-foreground">Gen </span>
             <span className="bg-gradient-to-b from-[#1488FC] to-[#03305D] dark:from-white dark:to-[#1488FC] bg-clip-text text-transparent">
               Fullstack
             </span>

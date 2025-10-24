@@ -32,9 +32,7 @@ export function AppPreview({ appStatus }: AppPreviewProps) {
       {/* Header - sticky in fullscreen mode */}
       <div
         className={
-          isFullscreen
-            ? 'px-6 pt-4 pb-3 border-b border-gray-200 sticky top-0 bg-white z-10'
-            : 'mb-3'
+          isFullscreen ? 'px-6 pt-4 pb-3 border-b border-border sticky top-0 bg-card z-10' : 'mb-3'
         }
       >
         <div className="flex items-center justify-between">
@@ -63,7 +61,7 @@ export function AppPreview({ appStatus }: AppPreviewProps) {
               className={
                 isFullscreen
                   ? 'w-full h-full border-0'
-                  : `w-full h-full border border-gray-200 bg-white ${radius.md}`
+                  : `w-full h-full border border-border bg-card ${radius.md}`
               }
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
               onError={() => setIframeError(true)}
@@ -104,7 +102,7 @@ export function AppPreview({ appStatus }: AppPreviewProps) {
           </>
         ) : (
           <div
-            className={`border-2 border-dashed border-gray-300 bg-gray-50 ${radius.md}`}
+            className={`border-2 border-dashed border-border bg-muted ${radius.md}`}
             style={{ height: isFullscreen ? '100%' : dimensions.previewHeight }}
           >
             <EmptyState

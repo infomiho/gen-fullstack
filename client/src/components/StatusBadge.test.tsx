@@ -8,28 +8,28 @@ describe('StatusBadge', () => {
       render(<StatusBadge status="completed" />);
       const badge = screen.getByText('completed');
       expect(badge).toBeInTheDocument();
-      expect(badge).toHaveClass('bg-white', 'border-green-600', 'text-gray-700');
+      expect(badge).toHaveClass('bg-card', 'border-green-600', 'text-green-700');
     });
 
     it('renders generating status with blue dot and border', () => {
       render(<StatusBadge status="generating" />);
       const badge = screen.getByText('generating');
       expect(badge).toBeInTheDocument();
-      expect(badge).toHaveClass('bg-white', 'border-blue-600', 'text-gray-700');
+      expect(badge).toHaveClass('bg-card', 'border-blue-600', 'text-blue-700');
     });
 
     it('renders failed status with red dot and border', () => {
       render(<StatusBadge status="failed" />);
       const badge = screen.getByText('failed');
       expect(badge).toBeInTheDocument();
-      expect(badge).toHaveClass('bg-white', 'border-red-600', 'text-gray-700');
+      expect(badge).toHaveClass('bg-card', 'border-red-600', 'text-red-700');
     });
 
     it('renders stopped status with gray dot and border', () => {
       render(<StatusBadge status="stopped" />);
       const badge = screen.getByText('stopped');
       expect(badge).toBeInTheDocument();
-      expect(badge).toHaveClass('bg-white', 'border-gray-600', 'text-gray-700');
+      expect(badge).toHaveClass('bg-card', 'border-gray-600', 'text-gray-700');
     });
   });
 
@@ -38,42 +38,42 @@ describe('StatusBadge', () => {
       render(<StatusBadge status="creating" variant="app" />);
       const badge = screen.getByText('creating');
       expect(badge).toBeInTheDocument();
-      expect(badge).toHaveClass('bg-white', 'border-blue-600', 'text-gray-700');
+      expect(badge).toHaveClass('bg-card', 'border-blue-600', 'text-blue-700');
     });
 
     it('renders installing status with blue dot and border', () => {
       render(<StatusBadge status="installing" variant="app" />);
       const badge = screen.getByText('installing');
       expect(badge).toBeInTheDocument();
-      expect(badge).toHaveClass('bg-white', 'border-blue-600', 'text-gray-700');
+      expect(badge).toHaveClass('bg-card', 'border-blue-600', 'text-blue-700');
     });
 
     it('renders starting status with blue dot and border', () => {
       render(<StatusBadge status="starting" variant="app" />);
       const badge = screen.getByText('starting');
       expect(badge).toBeInTheDocument();
-      expect(badge).toHaveClass('bg-white', 'border-blue-600', 'text-gray-700');
+      expect(badge).toHaveClass('bg-card', 'border-blue-600', 'text-blue-700');
     });
 
     it('renders ready status with amber dot and border', () => {
       render(<StatusBadge status="ready" variant="app" />);
       const badge = screen.getByText('ready');
       expect(badge).toBeInTheDocument();
-      expect(badge).toHaveClass('bg-white', 'border-amber-600', 'text-gray-700');
+      expect(badge).toHaveClass('bg-card', 'border-amber-600', 'text-amber-700');
     });
 
     it('renders running status with green dot and border', () => {
       render(<StatusBadge status="running" variant="app" />);
       const badge = screen.getByText('running');
       expect(badge).toBeInTheDocument();
-      expect(badge).toHaveClass('bg-white', 'border-green-600', 'text-gray-700');
+      expect(badge).toHaveClass('bg-card', 'border-green-600', 'text-green-700');
     });
 
     it('renders stopped status with gray dot and border', () => {
       render(<StatusBadge status="stopped" variant="app" />);
       const badge = screen.getByText('stopped');
       expect(badge).toBeInTheDocument();
-      expect(badge).toHaveClass('bg-white', 'border-gray-600', 'text-gray-700');
+      expect(badge).toHaveClass('bg-card', 'border-gray-600', 'text-gray-700');
     });
   });
 

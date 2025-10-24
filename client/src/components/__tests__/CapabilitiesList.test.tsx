@@ -27,7 +27,7 @@ describe('CapabilitiesList', () => {
     };
     render(<CapabilitiesList capabilityConfig={capabilityConfig} />);
     const codeGenElement = screen.getByText('Code Generation').closest('div');
-    expect(codeGenElement).toHaveClass('text-gray-700');
+    expect(codeGenElement).toHaveClass('text-foreground');
     expect(codeGenElement).not.toHaveClass('line-through');
   });
 
@@ -40,7 +40,7 @@ describe('CapabilitiesList', () => {
     };
     render(<CapabilitiesList capabilityConfig={capabilityConfig} />);
     const planningElement = screen.getByText('Smart Planning').closest('div');
-    expect(planningElement).toHaveClass('text-gray-700');
+    expect(planningElement).toHaveClass('text-foreground');
     expect(planningElement).not.toHaveClass('line-through');
   });
 
@@ -53,7 +53,7 @@ describe('CapabilitiesList', () => {
     };
     render(<CapabilitiesList capabilityConfig={capabilityConfig} />);
     const planningElement = screen.getByText('Smart Planning').closest('div');
-    expect(planningElement).toHaveClass('text-gray-400');
+    expect(planningElement).toHaveClass('text-muted-foreground');
     expect(planningElement).toHaveClass('line-through');
   });
 
@@ -66,7 +66,7 @@ describe('CapabilitiesList', () => {
     };
     render(<CapabilitiesList capabilityConfig={capabilityConfig} />);
     const templateElement = screen.getByText('Template Base').closest('div');
-    expect(templateElement).toHaveClass('text-gray-700');
+    expect(templateElement).toHaveClass('text-foreground');
     expect(templateElement).not.toHaveClass('line-through');
   });
 
@@ -79,7 +79,7 @@ describe('CapabilitiesList', () => {
     };
     render(<CapabilitiesList capabilityConfig={capabilityConfig} />);
     const templateElement = screen.getByText('Template Base').closest('div');
-    expect(templateElement).toHaveClass('text-gray-400');
+    expect(templateElement).toHaveClass('text-muted-foreground');
     expect(templateElement).toHaveClass('line-through');
   });
 
@@ -92,7 +92,7 @@ describe('CapabilitiesList', () => {
     };
     render(<CapabilitiesList capabilityConfig={capabilityConfig} />);
     const compilerElement = screen.getByText('Auto Error-Fixing').closest('div');
-    expect(compilerElement).toHaveClass('text-gray-700');
+    expect(compilerElement).toHaveClass('text-foreground');
     expect(compilerElement).not.toHaveClass('line-through');
   });
 
@@ -105,7 +105,7 @@ describe('CapabilitiesList', () => {
     };
     render(<CapabilitiesList capabilityConfig={capabilityConfig} />);
     const compilerElement = screen.getByText('Auto Error-Fixing').closest('div');
-    expect(compilerElement).toHaveClass('text-gray-400');
+    expect(compilerElement).toHaveClass('text-muted-foreground');
     expect(compilerElement).toHaveClass('line-through');
   });
 
@@ -118,7 +118,7 @@ describe('CapabilitiesList', () => {
     };
     render(<CapabilitiesList capabilityConfig={capabilityConfig} />);
     const blocksElement = screen.getByText('Building Blocks').closest('div');
-    expect(blocksElement).toHaveClass('text-gray-700');
+    expect(blocksElement).toHaveClass('text-foreground');
     expect(blocksElement).not.toHaveClass('line-through');
   });
 
@@ -131,7 +131,7 @@ describe('CapabilitiesList', () => {
     };
     render(<CapabilitiesList capabilityConfig={capabilityConfig} />);
     const blocksElement = screen.getByText('Building Blocks').closest('div');
-    expect(blocksElement).toHaveClass('text-gray-400');
+    expect(blocksElement).toHaveClass('text-muted-foreground');
     expect(blocksElement).toHaveClass('line-through');
   });
 
@@ -152,7 +152,7 @@ describe('CapabilitiesList', () => {
     ];
     for (const capability of allCapabilities) {
       const element = screen.getByText(capability).closest('div');
-      expect(element).toHaveClass('text-gray-700');
+      expect(element).toHaveClass('text-foreground');
       expect(element).not.toHaveClass('line-through');
     }
   });

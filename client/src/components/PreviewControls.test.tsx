@@ -204,7 +204,7 @@ describe('PreviewControls', () => {
 
       const buttons = screen.getAllByRole('button');
       buttons.forEach((button) => {
-        expect(button).toHaveClass('hover:bg-gray-100');
+        expect(button).toHaveClass('hover:bg-muted');
       });
     });
   });

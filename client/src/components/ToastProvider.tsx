@@ -74,7 +74,7 @@ function ToastItem({ toast, onRemove }: { toast: ToastMessage; onRemove: (id: st
     <Toast.Root
       key={toast.id}
       className={`
-        ${radius.md} border border-gray-200 bg-white p-4 shadow-lg
+        ${radius.md} border border-border bg-card p-4 shadow-lg
         data-[state=open]:animate-in data-[state=closed]:animate-out
         data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)]
         data-[swipe=cancel]:translate-x-0
@@ -90,11 +90,11 @@ function ToastItem({ toast, onRemove }: { toast: ToastMessage; onRemove: (id: st
 
         {/* Content */}
         <div className="flex-1 min-w-0">
-          <Toast.Title className={`${typography.label} font-medium text-gray-900`}>
+          <Toast.Title className={`${typography.label} font-medium text-foreground`}>
             {toast.title}
           </Toast.Title>
           {toast.description && (
-            <Toast.Description className={`mt-1 ${typography.caption} text-gray-600`}>
+            <Toast.Description className={`mt-1 ${typography.caption} text-muted-foreground`}>
               {toast.description}
             </Toast.Description>
           )}
@@ -104,7 +104,7 @@ function ToastItem({ toast, onRemove }: { toast: ToastMessage; onRemove: (id: st
         <Toast.Close
           className={`
             ${focus.ring} ${radius.sm} ${transitions.colors}
-            flex-shrink-0 p-1 hover:bg-gray-100 text-gray-500 hover:text-gray-700
+            flex-shrink-0 p-1 hover:bg-muted text-muted-foreground hover:text-foreground
           `}
           aria-label="Close"
         >

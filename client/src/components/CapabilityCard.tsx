@@ -106,11 +106,11 @@ export function CapabilityCard({
             />
           </div>
           <Icon className={`w-5 h-5 ${iconColor} flex-shrink-0`} />
-          <span className="text-sm font-medium text-gray-900 flex-1">{title}</span>
+          <span className="text-sm font-medium text-foreground flex-1">{title}</span>
           <HoverInfo content={hoverInfo} />
         </div>
         {checked && children && (
-          <div className="nested-controls pt-3 border-t border-gray-200">{children}</div>
+          <div className="nested-controls pt-3 border-t border-border">{children}</div>
         )}
       </div>
     </button>

@@ -61,7 +61,7 @@ export function FileTree({ files, selectedFile, onSelectFile }: FileTreeProps) {
 
   if (files.length === 0) {
     return (
-      <div className={`text-center py-12 text-gray-400 ${typography.body}`}>
+      <div className={`text-center py-12 text-muted-foreground ${typography.body}`}>
         No files generated yet
       </div>
     );
@@ -103,8 +103,8 @@ function TreeNodeComponent({ node, depth, selectedFile, onSelectFile }: TreeNode
       <button
         type="button"
         onClick={() => onSelectFile(node.path)}
-        className={`w-full text-left px-2 py-1 ${typography.mono} ${radius.sm} hover:bg-gray-100 ${transitions.colors} ${focus.ring} ${
-          isSelected ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-700'
+        className={`w-full text-left px-2 py-1 ${typography.mono} ${radius.sm} hover:bg-muted ${transitions.colors} ${focus.ring} ${
+          isSelected ? 'bg-muted text-foreground font-medium' : 'text-foreground'
         }`}
         style={{ paddingLeft: `${depth * 12 + 8}px` }}
       >
@@ -117,7 +117,7 @@ function TreeNodeComponent({ node, depth, selectedFile, onSelectFile }: TreeNode
   return (
     <div>
       <div
-        className={`px-2 py-1 ${typography.mono} text-gray-500`}
+        className={`px-2 py-1 ${typography.mono} text-muted-foreground`}
         style={{ paddingLeft: `${depth * 12 + 8}px` }}
       >
         {node.name || '/'}

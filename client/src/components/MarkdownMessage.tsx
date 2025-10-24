@@ -53,7 +53,7 @@ export function MarkdownMessage({ content, className = '' }: MarkdownMessageProp
             if (isCodeBlock) {
               return (
                 <code
-                  className={`block bg-gray-100 p-3 rounded text-sm overflow-x-auto ${typography.mono} ${className}`}
+                  className={`block bg-muted p-3 rounded text-sm overflow-x-auto ${typography.mono} ${className}`}
                 >
                   {children}
                 </code>
@@ -61,7 +61,7 @@ export function MarkdownMessage({ content, className = '' }: MarkdownMessageProp
             }
             // Inline code
             return (
-              <code className={`bg-gray-100 px-1.5 py-0.5 rounded text-sm ${typography.mono}`}>
+              <code className={`bg-muted px-1.5 py-0.5 rounded text-sm ${typography.mono}`}>
                 {children}
               </code>
             );
@@ -89,12 +89,12 @@ export function MarkdownMessage({ content, className = '' }: MarkdownMessageProp
           ),
           // Style blockquotes
           blockquote: ({ children }) => (
-            <blockquote className="border-l-4 border-gray-300 pl-3 italic text-gray-700 mb-2">
+            <blockquote className="border-l-4 border-border pl-3 italic text-foreground mb-2">
               {children}
             </blockquote>
           ),
           // Style horizontal rules
-          hr: () => <hr className="my-3 border-gray-300" />,
+          hr: () => <hr className="my-3 border-border" />,
           // Style strong/bold
           strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
           // Style emphasis/italic

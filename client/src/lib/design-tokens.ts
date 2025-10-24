@@ -2,44 +2,43 @@
  * Design Tokens
  *
  * Centralized design system tokens for consistent styling across the application.
- * Semantic colors are used for meaningful differentiation, while maintaining
- * a clean, professional aesthetic.
+ * Now using CSS variables for automatic dark mode support.
  */
 
-// Semantic role colors for timeline messages
+// Semantic role colors for timeline messages - now use CSS variable classes
 export const roleColors = {
   assistant: {
-    bg: 'bg-blue-50',
-    icon: 'text-blue-600',
-    border: 'border-blue-100',
+    bg: 'bg-assistant-bg',
+    icon: 'text-assistant-fg',
+    border: 'border-assistant-border',
   },
   user: {
-    bg: 'bg-gray-50',
-    icon: 'text-gray-600',
-    border: 'border-gray-200',
+    bg: 'bg-user-bg',
+    icon: 'text-user-fg',
+    border: 'border-user-border',
   },
   system: {
-    bg: 'bg-amber-50',
-    icon: 'text-amber-600',
-    border: 'border-amber-100',
+    bg: 'bg-system-bg',
+    icon: 'text-system-fg',
+    border: 'border-system-border',
   },
   tool: {
-    bg: 'bg-gray-50',
-    icon: 'text-gray-500',
-    border: 'border-gray-200',
+    bg: 'bg-tool-bg',
+    icon: 'text-tool-fg',
+    border: 'border-tool-border',
   },
 } as const;
 
-// Base colors
+// Base colors - semantic color classes
 export const colors = {
-  primary: 'gray-900',
-  primaryHover: 'gray-800',
-  secondary: 'gray-600',
-  tertiary: 'gray-500',
-  border: 'gray-200',
-  borderHover: 'gray-300',
-  disabled: 'gray-300',
-  disabledBg: 'gray-50',
+  primary: 'primary',
+  primaryHover: 'primary/80',
+  secondary: 'muted-foreground',
+  tertiary: 'muted-foreground/80',
+  border: 'border',
+  borderHover: 'border-hover',
+  disabled: 'muted',
+  disabledBg: 'muted',
 } as const;
 
 // Border radius
@@ -72,21 +71,21 @@ export const padding = {
   compact: 'px-2 py-1',
 } as const;
 
-// Typography
+// Typography - now uses semantic colors
 export const typography = {
-  sectionHeader: 'text-base font-medium text-gray-900',
-  label: 'text-sm font-medium text-gray-700',
-  body: 'text-sm text-gray-800',
-  bodySecondary: 'text-sm text-gray-600',
-  caption: 'text-xs text-gray-500',
+  sectionHeader: 'text-base font-medium text-foreground',
+  label: 'text-sm font-medium text-foreground',
+  body: 'text-sm text-foreground',
+  bodySecondary: 'text-sm text-muted-foreground',
+  caption: 'text-xs text-muted-foreground',
   mono: 'font-mono text-xs',
   monoSm: 'font-mono text-[0.65rem]',
 } as const;
 
-// Focus states
+// Focus states - now uses semantic ring color
 export const focus = {
-  ring: 'focus:outline-none focus:ring-2 focus:ring-gray-900/20 focus:ring-offset-1',
-  border: 'focus:border-gray-900',
+  ring: 'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1',
+  border: 'focus:border-primary',
 } as const;
 
 // Transitions
@@ -95,64 +94,64 @@ export const transitions = {
   all: 'transition-all duration-150',
 } as const;
 
-// Common button styles
+// Common button styles - updated to use semantic colors
 export const button = {
   // Primary button - dark, high emphasis
-  primary: `w-full rounded border border-gray-900 bg-gray-900 px-4 py-2.5 text-sm font-medium text-white ${transitions.colors} hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:border-gray-300 ${focus.ring}`,
+  primary: `w-full rounded border border-primary bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground ${transitions.colors} hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-muted disabled:border-muted disabled:text-muted-foreground ${focus.ring}`,
   // Secondary button - outlined, medium emphasis
-  secondary: `rounded border px-4 py-2 text-sm font-medium border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed ${transitions.colors} ${focus.ring}`,
+  secondary: `rounded border px-4 py-2 text-sm font-medium border-border hover:border-border-hover hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed ${transitions.colors} ${focus.ring}`,
   // Tertiary button - subtle, low emphasis (for destructive actions like stop)
-  tertiary: `w-full rounded border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 ${transitions.colors} hover:bg-gray-50 hover:border-gray-400 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 ${focus.ring}`,
+  tertiary: `w-full rounded border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground ${transitions.colors} hover:bg-muted hover:border-border-hover disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground disabled:border-border ${focus.ring}`,
 } as const;
 
-// Common input styles
+// Common input styles - updated to use semantic colors
 export const input = {
-  base: `w-full rounded border border-${colors.border} ${padding.compact} ${typography.body} ${focus.border} ${focus.ring} disabled:bg-${colors.disabledBg} disabled:cursor-not-allowed ${transitions.colors}`,
-  textarea: `w-full rounded border border-${colors.border} px-3 py-2 ${typography.body} ${focus.border} ${focus.ring} disabled:bg-${colors.disabledBg} resize-none ${typography.mono}`,
-  select: `w-full rounded border border-${colors.border} bg-white ${padding.compact} ${typography.body} ${focus.border} ${focus.ring} disabled:bg-${colors.disabledBg} ${transitions.colors}`,
+  base: `w-full rounded border border-border ${padding.compact} ${typography.body} ${focus.border} ${focus.ring} disabled:bg-muted disabled:cursor-not-allowed ${transitions.colors}`,
+  textarea: `w-full rounded border border-border px-3 py-2 ${typography.body} ${focus.border} ${focus.ring} disabled:bg-muted resize-none ${typography.mono}`,
+  select: `w-full rounded border border-border bg-card ${padding.compact} ${typography.body} ${focus.border} ${focus.ring} disabled:bg-muted ${transitions.colors}`,
 } as const;
 
-// Card styles
+// Card styles - updated to use semantic colors
 export const card = {
-  base: `${radius.md} border border-gray-200 bg-white ${padding.card} ${transitions.all}`,
-  interactive: `${radius.md} border border-gray-200 bg-white ${padding.card} ${transitions.all} cursor-pointer hover:border-gray-300 hover:shadow-sm`,
-  link: `block ${radius.md} border border-gray-200 bg-white ${padding.card} ${transitions.all} hover:border-gray-300 hover:shadow-sm ${focus.ring}`,
-  active: `border-gray-900 shadow-sm`,
+  base: `${radius.md} border border-border bg-card ${padding.card} ${transitions.all}`,
+  interactive: `${radius.md} border border-border bg-card ${padding.card} ${transitions.all} cursor-pointer hover:border-border-hover hover:shadow-sm`,
+  link: `block ${radius.md} border border-border bg-card ${padding.card} ${transitions.all} hover:border-border-hover hover:shadow-sm ${focus.ring}`,
+  active: `border-primary shadow-sm`,
   disabled: `opacity-50 cursor-not-allowed`,
 } as const;
 
-// Checkbox styles
+// Checkbox styles - updated to use semantic colors
 export const checkbox = {
   wrapper: 'relative flex items-center',
   input:
-    'peer h-4 w-4 cursor-pointer appearance-none rounded border border-gray-300 bg-white transition-colors checked:bg-gray-900 checked:border-gray-900 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900/20 focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50',
+    'peer h-4 w-4 cursor-pointer appearance-none rounded border border-border bg-card transition-colors checked:bg-primary checked:border-primary hover:border-border-hover focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50',
   inputReadOnly:
-    'peer h-4 w-4 cursor-default appearance-none rounded border border-gray-900 bg-gray-900 transition-colors', // Always checked style, no hover/focus
-  icon: 'pointer-events-none absolute left-0 top-0 h-4 w-4 text-white opacity-0 peer-checked:opacity-100',
+    'peer h-4 w-4 cursor-default appearance-none rounded border border-primary bg-primary transition-colors', // Always checked style, no hover/focus
+  icon: 'pointer-events-none absolute left-0 top-0 h-4 w-4 text-primary-foreground opacity-0 peer-checked:opacity-100',
 } as const;
 
-// Badge styles
+// Badge styles - updated to use semantic colors
 export const badge = {
   base: `inline-flex items-center gap-1.5 ${radius.sm} px-2.5 py-1 text-xs font-medium ${transitions.colors}`,
   preset: `inline-flex items-center gap-1.5 ${radius.sm} px-3 py-1.5 text-sm font-medium border ${transitions.colors} cursor-pointer`,
-  presetActive: 'bg-gray-900 text-white border-gray-900 hover:bg-gray-800',
-  presetInactive: 'bg-white text-gray-700 border-gray-200 hover:border-gray-300 hover:bg-gray-50',
-  capability: 'bg-gray-100 text-gray-700 border border-gray-200',
+  presetActive: 'bg-primary text-primary-foreground border-primary hover:bg-primary/90',
+  presetInactive: 'bg-card text-foreground border-border hover:border-border-hover hover:bg-muted',
+  capability: 'bg-muted text-foreground border border-border',
 } as const;
 
-// Hover card (tooltip) styles
+// Hover card (tooltip) styles - updated to use semantic colors
 export const hoverCard = {
   trigger:
-    'inline-flex items-center justify-center cursor-help text-gray-400 hover:text-gray-600 transition-colors',
-  content: `absolute z-50 ${radius.md} border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 shadow-lg`,
-  arrow: 'fill-white stroke-gray-200',
+    'inline-flex items-center justify-center cursor-help text-muted-foreground hover:text-foreground transition-colors',
+  content: `absolute z-50 ${radius.md} border border-border bg-card px-3 py-2 text-xs text-foreground shadow-lg`,
+  arrow: 'fill-card stroke-border',
 } as const;
 
-// Capability icon colors
+// Capability icon colors - now use CSS variables
 export const capabilityIcons = {
-  codeGen: 'text-gray-900',
-  planning: 'text-blue-600',
-  template: 'text-purple-600',
-  compiler: 'text-green-600',
-  blocks: 'text-orange-600',
+  codeGen: 'text-capability-codegen',
+  planning: 'text-capability-planning',
+  template: 'text-capability-template',
+  compiler: 'text-capability-compiler',
+  blocks: 'text-capability-blocks',
 } as const;

@@ -67,7 +67,7 @@ export function SessionSidebar({
   }
 
   return (
-    <div className="border-r border-gray-200 bg-white p-6 overflow-y-auto">
+    <div className="border-r border-border bg-card p-6 overflow-y-auto">
       <div className="space-y-6">
         {/* Capability Configuration */}
         {capabilityConfig && (
@@ -110,7 +110,7 @@ export function SessionSidebar({
         )}
 
         {/* App execution controls */}
-        <div className="pt-6 border-t border-gray-200">
+        <div className="pt-6 border-t border-border">
           <AppControls
             currentSessionId={sessionId || null}
             appStatus={appStatus}

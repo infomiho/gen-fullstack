@@ -23,13 +23,13 @@ describe('FilterButton', () => {
     it('should apply active styles when isActive is true', () => {
       render(<FilterButton label="Active" isActive={true} onClick={() => {}} />);
       const button = screen.getByRole('button');
-      expect(button).toHaveClass('bg-gray-900', 'text-white');
+      expect(button).toHaveClass('bg-primary', 'text-primary-foreground');
     });
 
     it('should apply inactive styles when isActive is false', () => {
       render(<FilterButton label="Inactive" isActive={false} onClick={() => {}} />);
       const button = screen.getByRole('button');
-      expect(button).toHaveClass('bg-gray-100', 'text-gray-700', 'hover:bg-gray-200');
+      expect(button).toHaveClass('bg-muted', 'text-foreground', 'hover:bg-muted/80');
     });
 
     it('should toggle appearance when isActive changes', () => {
@@ -38,12 +38,12 @@ describe('FilterButton', () => {
       );
 
       let button = screen.getByRole('button');
-      expect(button).toHaveClass('bg-gray-100');
+      expect(button).toHaveClass('bg-muted');
 
       rerender(<FilterButton label="Toggle" isActive={true} onClick={() => {}} />);
 
       button = screen.getByRole('button');
-      expect(button).toHaveClass('bg-gray-900', 'text-white');
+      expect(button).toHaveClass('bg-primary', 'text-primary-foreground');
     });
   });
 
@@ -90,12 +90,12 @@ describe('FilterButton', () => {
       const { rerender } = render(<FilterButton label="Gray" isActive={true} onClick={() => {}} />);
 
       let button = screen.getByRole('button');
-      expect(button).toHaveClass('bg-gray-900', 'text-white');
+      expect(button).toHaveClass('bg-primary', 'text-primary-foreground');
 
       rerender(<FilterButton label="Gray" isActive={false} onClick={() => {}} />);
 
       button = screen.getByRole('button');
-      expect(button).toHaveClass('bg-gray-100', 'text-gray-700');
+      expect(button).toHaveClass('bg-muted', 'text-foreground');
     });
 
     it('should apply purple variant styles', () => {
@@ -111,7 +111,7 @@ describe('FilterButton', () => {
       );
 
       button = screen.getByRole('button');
-      expect(button).toHaveClass('bg-gray-100', 'text-gray-700');
+      expect(button).toHaveClass('bg-muted', 'text-foreground');
     });
 
     it('should apply yellow variant styles', () => {
@@ -154,7 +154,7 @@ describe('FilterButton', () => {
         );
 
         const button = screen.getByRole('button', { name: variant });
-        expect(button).toHaveClass('bg-gray-100', 'text-gray-700', 'hover:bg-gray-200');
+        expect(button).toHaveClass('bg-muted', 'text-foreground', 'hover:bg-muted/80');
 
         unmount();
       }
@@ -208,13 +208,13 @@ describe('FilterButton', () => {
         </div>,
       );
 
-      // All should be active (gray background)
+      // All should be active (primary background)
       const allButton = screen.getByRole('button', { name: 'All' });
-      expect(allButton).toHaveClass('bg-gray-900');
+      expect(allButton).toHaveClass('bg-primary');
 
       // Commands should be inactive
       const commandsButton = screen.getByRole('button', { name: 'Commands' });
-      expect(commandsButton).toHaveClass('bg-gray-100');
+      expect(commandsButton).toHaveClass('bg-muted');
 
       // Click Commands button
       await user.click(commandsButton);

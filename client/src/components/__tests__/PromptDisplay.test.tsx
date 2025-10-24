@@ -22,9 +22,9 @@ describe('PromptDisplay', () => {
     expect(screen.getByText('Build a todo app')).toBeInTheDocument();
   });
 
-  it('renders with gray background and border', () => {
+  it('renders with muted background and border', () => {
     const { container } = render(<PromptDisplay prompt="Test prompt" />);
-    const wrapper = container.querySelector('.bg-gray-50.border.border-gray-200.rounded');
+    const wrapper = container.querySelector('.bg-muted.border.border-border.rounded');
     expect(wrapper).toBeInTheDocument();
   });
 
@@ -89,6 +89,6 @@ describe('PromptDisplay', () => {
   it('renders with consistent typography styles', () => {
     render(<PromptDisplay prompt="Test prompt" />);
     const promptText = screen.getByText('Test prompt');
-    expect(promptText).toHaveClass('text-sm', 'text-gray-700');
+    expect(promptText).toHaveClass('text-sm', 'text-foreground');
   });
 });

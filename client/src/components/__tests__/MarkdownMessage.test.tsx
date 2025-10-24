@@ -84,7 +84,7 @@ describe('MarkdownMessage', () => {
       render(<MarkdownMessage content="Use `const` for constants." />);
       const codeElement = screen.getByText('const');
       expect(codeElement.tagName).toBe('CODE');
-      expect(codeElement.className).toContain('bg-gray-100');
+      expect(codeElement.className).toContain('bg-muted');
     });
 
     it('renders code blocks', () => {

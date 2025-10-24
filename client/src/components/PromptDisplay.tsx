@@ -21,8 +21,8 @@ interface PromptDisplayProps {
  */
 export function PromptDisplay({ prompt, className = '' }: PromptDisplayProps) {
   return (
-    <div className={`relative p-3 bg-gray-50 border border-gray-200 rounded ${className}`}>
-      <p className={`${typography.body} text-gray-700 leading-relaxed pr-6 whitespace-pre-wrap`}>
+    <div className={`relative p-3 bg-muted border border-border rounded ${className}`}>
+      <p className={`${typography.body} text-foreground leading-relaxed pr-6 whitespace-pre-wrap`}>
         {prompt}
       </p>
       <div className="absolute top-2 right-2">

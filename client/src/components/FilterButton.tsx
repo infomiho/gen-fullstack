@@ -19,28 +19,28 @@ interface FilterButtonProps {
 
 const variantStyles = {
   gray: {
-    active: 'bg-gray-900 text-white',
-    inactive: 'bg-gray-100 text-gray-700 hover:bg-gray-200',
+    active: 'bg-primary text-primary-foreground',
+    inactive: 'bg-muted text-foreground hover:bg-muted/80',
   },
   purple: {
     active: 'bg-purple-600 text-white',
-    inactive: 'bg-gray-100 text-gray-700 hover:bg-gray-200',
+    inactive: 'bg-muted text-foreground hover:bg-muted/80',
   },
   yellow: {
     active: 'bg-yellow-600 text-white',
-    inactive: 'bg-gray-100 text-gray-700 hover:bg-gray-200',
+    inactive: 'bg-muted text-foreground hover:bg-muted/80',
   },
   blue: {
     active: 'bg-blue-600 text-white',
-    inactive: 'bg-gray-100 text-gray-700 hover:bg-gray-200',
+    inactive: 'bg-muted text-foreground hover:bg-muted/80',
   },
   amber: {
     active: 'bg-amber-600 text-white',
-    inactive: 'bg-gray-100 text-gray-700 hover:bg-gray-200',
+    inactive: 'bg-muted text-foreground hover:bg-muted/80',
   },
   red: {
     active: 'bg-red-600 text-white',
-    inactive: 'bg-gray-100 text-gray-700 hover:bg-gray-200',
+    inactive: 'bg-muted text-foreground hover:bg-muted/80',
   },
 } as const;
 

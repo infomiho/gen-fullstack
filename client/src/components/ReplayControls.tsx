@@ -16,11 +16,11 @@ export function ReplayControls() {
   const { isPlaying, currentTime, duration, play, pause } = useReplayStore();
 
   return (
-    <div className="flex items-center gap-2 border-b border-gray-200 bg-white px-4 py-3">
+    <div className="flex items-center gap-2 border-b border-border bg-card px-4 py-3">
       {/* Play/Pause Button */}
       <button
         onClick={isPlaying ? pause : play}
-        className={`flex h-8 w-8 items-center justify-center rounded bg-gray-900 text-white ${transitions.colors} hover:bg-gray-800 ${focus.ring}`}
+        className={`flex h-8 w-8 items-center justify-center rounded bg-primary text-primary-foreground ${transitions.colors} hover:bg-primary/90 ${focus.ring}`}
         type="button"
         aria-label={isPlaying ? 'Pause playback' : 'Play playback'}
       >
@@ -28,7 +28,7 @@ export function ReplayControls() {
       </button>
 
       {/* Time Display */}
-      <div className={`ml-auto ${typography.mono} text-gray-600`}>
+      <div className={`ml-auto ${typography.mono} text-muted-foreground`}>
         {formatTime(currentTime)} / {formatTime(duration)}
       </div>
     </div>

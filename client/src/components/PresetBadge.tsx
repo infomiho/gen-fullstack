@@ -27,7 +27,7 @@ export function PresetBadge({
       disabled={disabled}
       className={`${badge.preset} ${active ? badge.presetActive : badge.presetInactive} ${
         disabled ? 'opacity-50 cursor-not-allowed' : ''
-      } focus:outline-none focus:ring-2 focus:ring-gray-900/20 focus:ring-offset-1`}
+      } focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1`}
       aria-pressed={active}
     >
       <Icon className="w-4 h-4" />

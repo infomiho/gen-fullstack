@@ -226,7 +226,7 @@ describe('ReplayControls', () => {
       render(<ReplayControls />);
 
       const button = screen.getByRole('button');
-      expect(button).toHaveClass('bg-gray-900', 'text-white');
+      expect(button).toHaveClass('bg-primary', 'text-primary-foreground');
     });
 
     it('should have monospace font for time display', () => {

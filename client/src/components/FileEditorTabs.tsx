@@ -127,7 +127,7 @@ export function FileEditorTabs({ files, onSaveFile, onCloseTab, activeFile }: Fi
 
   if (openTabs.length === 0) {
     return (
-      <div className="h-full flex items-center justify-center text-gray-400">
+      <div className="h-full flex items-center justify-center text-muted-foreground">
         <div className="text-center">
           <p className={typography.body}>No files open</p>
           <p className={typography.caption}>Select a file from the tree to open it</p>
@@ -139,15 +139,15 @@ export function FileEditorTabs({ files, onSaveFile, onCloseTab, activeFile }: Fi
   return (
     <Tabs.Root value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
       {/* Tab list */}
-      <Tabs.List className="flex items-center gap-1 border-b bg-gray-50 px-2 py-1 overflow-x-auto">
+      <Tabs.List className="flex items-center gap-1 border-b bg-muted px-2 py-1 overflow-x-auto">
         {openTabs.map((tab) => (
           <Tabs.Trigger
             key={tab.path}
             value={tab.path}
             className={`
               group flex items-center gap-2 px-3 py-1.5 ${radius.sm} ${transitions.colors} ${focus.ring}
-              data-[state=active]:bg-white data-[state=active]:shadow-sm
-              data-[state=inactive]:hover:bg-gray-100
+              data-[state=active]:bg-card data-[state=active]:shadow-sm
+              data-[state=inactive]:hover:bg-muted/80
             `}
           >
             <span className={`${typography.label} truncate max-w-[150px]`}>
@@ -177,7 +177,7 @@ export function FileEditorTabs({ files, onSaveFile, onCloseTab, activeFile }: Fi
               className={`
                 p-0.5 ${radius.sm} ${transitions.colors}
                 opacity-0 group-hover:opacity-100
-                hover:bg-gray-200 cursor-pointer
+                hover:bg-muted cursor-pointer
               `}
               aria-label="Close tab"
             >
@@ -197,15 +197,15 @@ export function FileEditorTabs({ files, onSaveFile, onCloseTab, activeFile }: Fi
         >
           <div className="h-full flex flex-col">
             {/* Toolbar */}
-            <div className="flex items-center justify-between border-b px-3 py-2 bg-white">
-              <span className={`${typography.caption} text-gray-600`}>{tab.path}</span>
+            <div className="flex items-center justify-between border-b px-3 py-2 bg-card">
+              <span className={`${typography.caption} text-muted-foreground`}>{tab.path}</span>
               <button
                 type="button"
                 onClick={() => saveFile(tab.path)}
                 disabled={!tab.isDirty}
                 className={`
                   flex items-center gap-2 px-3 py-1 text-sm font-medium ${radius.sm} ${transitions.colors} ${focus.ring}
-                  ${tab.isDirty ? 'bg-gray-900 text-white hover:bg-gray-800' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}
+                  ${tab.isDirty ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'bg-muted text-muted-foreground cursor-not-allowed'}
                 `}
               >
                 <Save className="h-4 w-4" />

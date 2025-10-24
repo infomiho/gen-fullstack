@@ -84,9 +84,32 @@ export function StatusBadge({
   const uppercaseClass = uppercase ? 'uppercase font-medium' : '';
   const colors = getStatusColors();
 
+  // Get appropriate text color for dark mode readability
+  const getTextColor = () => {
+    switch (status) {
+      case 'running':
+        return 'text-green-700 dark:text-green-400';
+      case 'ready':
+        return 'text-amber-700 dark:text-amber-400';
+      case 'creating':
+      case 'installing':
+      case 'starting':
+      case 'generating':
+        return 'text-blue-700 dark:text-blue-400';
+      case 'completed':
+        return 'text-green-700 dark:text-green-400';
+      case 'stopped':
+        return 'text-gray-700 dark:text-gray-400';
+      case 'failed':
+        return 'text-red-700 dark:text-red-400';
+      default:
+        return 'text-gray-700 dark:text-gray-400';
+    }
+  };
+
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded border ${paddingClass} ${colors.border} bg-white ${typography.caption} text-gray-700 ${uppercaseClass}`}
+      className={`inline-flex items-center gap-1.5 rounded border ${paddingClass} ${colors.border} bg-card ${typography.caption} ${getTextColor()} ${uppercaseClass}`}
     >
       {showLiveIndicator && status === 'generating' ? (
         <span className="relative flex h-2 w-2">

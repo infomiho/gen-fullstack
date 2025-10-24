@@ -14,13 +14,13 @@ describe('SkeletonLoader', () => {
     expect(screen.getByText('Generating...')).toBeInTheDocument();
   });
 
-  it('should have white background with border', () => {
+  it('should have card background with border', () => {
     render(<SkeletonLoader />);
     const skeleton = screen.getByTestId('skeleton-loader');
 
-    // Should have white bg and gray border
-    expect(skeleton).toHaveClass('bg-white');
-    expect(skeleton).toHaveClass('border-gray-200');
+    // Should have card bg and semantic border
+    expect(skeleton).toHaveClass('bg-card');
+    expect(skeleton).toHaveClass('border-border');
   });
 
   it('should have proper card styling', () => {

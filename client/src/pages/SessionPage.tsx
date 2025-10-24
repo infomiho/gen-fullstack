@@ -297,7 +297,7 @@ function SessionPage() {
   }, [sessionId]);
 
   return (
-    <div className="grid h-screen grid-rows-[auto_1fr] bg-white">
+    <div className="grid h-screen grid-rows-[auto_1fr] bg-background">
       <SessionHeader
         sessionId={sessionId}
         status={sessionData.session.status}
@@ -327,8 +327,8 @@ function SessionPage() {
                   type="button"
                   className={`border-b-2 px-3 py-2 ${typography.label} ${transitions.colors} ${focus.ring} ${
                     activeTab === 'timeline'
-                      ? 'border-gray-900 text-gray-900'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-muted-foreground hover:text-foreground'
                   }`}
                   onClick={() => navigate(`/${sessionId}`)}
                 >
@@ -340,8 +340,8 @@ function SessionPage() {
                   type="button"
                   className={`border-b-2 px-3 py-2 ${typography.label} ${transitions.colors} ${focus.ring} ${
                     activeTab === 'files'
-                      ? 'border-gray-900 text-gray-900'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-muted-foreground hover:text-foreground'
                   }`}
                   onClick={() => navigate(`/${sessionId}/files`)}
                 >
@@ -351,8 +351,8 @@ function SessionPage() {
                   type="button"
                   className={`border-b-2 px-3 py-2 ${typography.label} ${transitions.colors} ${focus.ring} ${
                     activeTab === 'preview'
-                      ? 'border-gray-900 text-gray-900'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-muted-foreground hover:text-foreground'
                   }`}
                   onClick={() => navigate(`/${sessionId}/preview`)}
                 >
@@ -370,7 +370,7 @@ function SessionPage() {
                   <button
                     type="button"
                     onClick={handleEnterReplayMode}
-                    className="rounded border border-gray-300 bg-white px-3 py-1 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    className="rounded border border-border bg-card px-3 py-1 text-sm font-medium text-foreground hover:bg-muted"
                   >
                     Replay Mode
                   </button>
@@ -384,7 +384,7 @@ function SessionPage() {
                   <button
                     type="button"
                     onClick={handleExitReplayMode}
-                    className="rounded border border-gray-300 bg-white px-3 py-1 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    className="rounded border border-border bg-card px-3 py-1 text-sm font-medium text-foreground hover:bg-muted"
                   >
                     Exit Replay
                   </button>
@@ -455,15 +455,15 @@ export function ErrorBoundary() {
   // Handle HTTP Response errors (404, 500, etc.)
   if (isRouteErrorResponse(error)) {
     return (
-      <div className="flex h-screen items-center justify-center bg-gray-50">
+      <div className="flex h-screen items-center justify-center bg-muted">
         <div className="text-center">
-          <h1 className="mb-4 text-4xl font-bold text-gray-900">
+          <h1 className="mb-4 text-4xl font-bold text-foreground">
             {error.status} {error.statusText}
           </h1>
-          <p className="mb-8 text-gray-600">{error.data || 'An error occurred'}</p>
+          <p className="mb-8 text-muted-foreground">{error.data || 'An error occurred'}</p>
           <Link
             to="/"
-            className="rounded bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
+            className="rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
           >
             Go Home
           </Link>
@@ -475,11 +475,11 @@ export function ErrorBoundary() {
   // Handle JavaScript Error instances (network errors, etc.)
   if (error instanceof Error) {
     return (
-      <div className="flex h-screen items-center justify-center bg-gray-50">
+      <div className="flex h-screen items-center justify-center bg-muted">
         <div className="max-w-2xl text-center">
-          <h1 className="mb-4 text-4xl font-bold text-gray-900">Oops! Something went wrong</h1>
-          <p className="mb-2 text-lg text-gray-700">{error.message}</p>
-          <p className="mb-8 text-sm text-gray-500">
+          <h1 className="mb-4 text-4xl font-bold text-foreground">Oops! Something went wrong</h1>
+          <p className="mb-2 text-lg text-foreground">{error.message}</p>
+          <p className="mb-8 text-sm text-muted-foreground">
             {error.message.includes('fetch') || error.message.includes('Network')
               ? 'Unable to connect to the server. Please check your internet connection or try again later.'
               : 'An unexpected error occurred. Please try again.'}
@@ -487,14 +487,14 @@ export function ErrorBoundary() {
           <div className="flex justify-center gap-4">
             <Link
               to="/"
-              className="rounded bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
+              className="rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
             >
               Go Home
             </Link>
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="rounded border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className="rounded border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
             >
               Retry
             </button>

@@ -14,7 +14,9 @@ interface FileViewerProps {
 export function FileViewer({ file }: FileViewerProps) {
   if (!file) {
     return (
-      <div className={`flex items-center justify-center h-full text-gray-400 ${typography.body}`}>
+      <div
+        className={`flex items-center justify-center h-full text-muted-foreground ${typography.body}`}
+      >
         Select a file to view its contents
       </div>
     );
@@ -23,8 +25,8 @@ export function FileViewer({ file }: FileViewerProps) {
   return (
     <div className="h-full flex flex-col">
       {/* File header */}
-      <div className="border-b px-4 py-2 bg-gray-50">
-        <h3 className={`${typography.mono} text-gray-700`}>{file.path}</h3>
+      <div className="border-b px-4 py-2 bg-muted">
+        <h3 className={`${typography.mono} text-foreground`}>{file.path}</h3>
       </div>
 
       {/* File content with syntax highlighting */}

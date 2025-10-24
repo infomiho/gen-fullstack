@@ -45,11 +45,11 @@ describe('EmptyState', () => {
   describe('Custom Styling', () => {
     it('should apply custom className', () => {
       const { container } = render(
-        <EmptyState title="Custom styled" className="bg-gray-50 rounded-lg p-8" />,
+        <EmptyState title="Custom styled" className="bg-muted rounded-lg p-8" />,
       );
 
       const emptyStateDiv = container.firstChild as HTMLElement;
-      expect(emptyStateDiv).toHaveClass('bg-gray-50', 'rounded-lg', 'p-8');
+      expect(emptyStateDiv).toHaveClass('bg-muted', 'rounded-lg', 'p-8');
     });
 
     it('should maintain default classes with custom className', () => {
@@ -138,14 +138,14 @@ describe('EmptyState', () => {
       render(<EmptyState title="Styled Title" />);
 
       const title = screen.getByText('Styled Title');
-      expect(title).toHaveClass('text-sm', 'text-gray-500');
+      expect(title).toHaveClass('text-sm', 'text-muted-foreground');
     });
 
     it('should apply correct text styles to description', () => {
       render(<EmptyState title="Title" description="Styled Description" />);
 
       const description = screen.getByText('Styled Description');
-      expect(description).toHaveClass('mt-1', 'text-xs', 'text-gray-400');
+      expect(description).toHaveClass('mt-1', 'text-xs', 'text-muted-foreground');
     });
   });
 
