@@ -5,7 +5,7 @@ import {
   getReplayToolCalls,
   getReplayToolResults,
 } from '../lib/replay-utils';
-import { useReplayStore } from '../stores/replay.store';
+import { useReplayStore, REPLAY_SPEED } from '../stores/replay.store';
 
 /**
  * Custom hook to manage replay mode functionality
@@ -41,7 +41,7 @@ export function useReplayMode() {
       const deltaMs = timestamp - lastTimestamp;
       lastTimestamp = timestamp;
 
-      const newTime = state.currentTime + deltaMs * state.playbackSpeed;
+      const newTime = state.currentTime + deltaMs * REPLAY_SPEED;
 
       if (newTime >= state.duration) {
         state.setCurrentTime(state.duration);

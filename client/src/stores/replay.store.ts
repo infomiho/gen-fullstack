@@ -1,12 +1,16 @@
 import { create } from 'zustand';
 
-export type PlaybackSpeed = 0.5 | 1 | 2 | 5;
+/**
+ * Fixed playback speed for replay mode.
+ * 10x provides fast demonstrations while remaining comprehensible.
+ * Lower speeds (1-2x) are too slow for stage presentations.
+ */
+export const REPLAY_SPEED = 10;
 
 interface ReplayStore {
   // Replay mode state
   isReplayMode: boolean;
   isPlaying: boolean;
-  playbackSpeed: PlaybackSpeed;
   currentTime: number; // milliseconds from session start
   duration: number; // total session duration in milliseconds
   sessionStartTime: number; // session's createdAt timestamp
@@ -56,7 +60,6 @@ interface ReplayStore {
   play: () => void;
   pause: () => void;
   seekTo: (time: number) => void;
-  setSpeed: (speed: PlaybackSpeed) => void;
   setCurrentTime: (time: number) => void;
 }
 
@@ -64,7 +67,6 @@ export const useReplayStore = create<ReplayStore>((set) => ({
   // Initial state
   isReplayMode: false,
   isPlaying: false,
-  playbackSpeed: 1,
   currentTime: 0,
   duration: 0,
   sessionStartTime: 0,
@@ -108,7 +110,6 @@ export const useReplayStore = create<ReplayStore>((set) => ({
       sessionId: null,
       timelineItems: [],
       files: [],
-      playbackSpeed: 1,
     }),
 
   play: () => set({ isPlaying: true }),
@@ -119,8 +120,6 @@ export const useReplayStore = create<ReplayStore>((set) => ({
     set((state) => ({
       currentTime: Math.max(0, Math.min(time, state.duration)),
     })),
-
-  setSpeed: (speed) => set({ playbackSpeed: speed }),
 
   setCurrentTime: (time) => set({ currentTime: time }),
 }));

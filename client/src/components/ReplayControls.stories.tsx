@@ -5,8 +5,9 @@ import { useReplayStore } from '../stores/replay.store';
 /**
  * ReplayControls provides playback controls for replay mode:
  * - Play/pause button
- * - Speed selector (0.5x, 1x, 2x, 5x)
  * - Time display (current/total)
+ *
+ * Playback speed is fixed at 10x for fast demonstrations.
  */
 const meta = {
   title: 'Replay/ReplayControls',
@@ -86,42 +87,6 @@ export const NearEnd: Story = {
       files: [],
     });
     store.setCurrentTime(110000); // 1:50
-    store.pause();
-  },
-};
-
-/**
- * Fast speed (5x)
- */
-export const FastSpeed: Story = {
-  args: {},
-  play: async () => {
-    const store = useReplayStore.getState();
-    store.enterReplayMode('story-session', {
-      sessionStartTime: Date.now(),
-      duration: 120000,
-      timelineItems: [],
-      files: [],
-    });
-    store.setSpeed(5);
-    store.pause();
-  },
-};
-
-/**
- * Slow speed (0.5x)
- */
-export const SlowSpeed: Story = {
-  args: {},
-  play: async () => {
-    const store = useReplayStore.getState();
-    store.enterReplayMode('story-session', {
-      sessionStartTime: Date.now(),
-      duration: 120000,
-      timelineItems: [],
-      files: [],
-    });
-    store.setSpeed(0.5);
     store.pause();
   },
 };
