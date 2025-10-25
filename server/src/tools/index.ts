@@ -563,7 +563,7 @@ export const updatePackageJson = tool({
     const { sessionId } = extractToolContext(context);
 
     if (!dependencies && !devDependencies) {
-      return 'No dependencies provided to install.';
+      return 'No dependencies provided. Specify at least one package in dependencies or devDependencies.';
     }
 
     return await filesystemService.updatePackageJson(

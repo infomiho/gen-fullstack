@@ -7,6 +7,7 @@ import {
   initializeSandbox,
   listFiles,
   readFile,
+  updatePackageJson,
   writeFile,
 } from '../filesystem.service.js';
 
@@ -410,6 +411,203 @@ describe('Filesystem Service', () => {
 
         await expect(listFiles(sessionId, path)).rejects.toThrow('Path traversal detected');
       });
+    });
+  });
+
+  describe('updatePackageJson', () => {
+    beforeEach(async () => {
+      await initializeSandbox(sessionId);
+      // Create a basic package.json for testing
+      await writeFile(
+        sessionId,
+        'package.json',
+        JSON.stringify(
+          {
+            name: 'test-app',
+            version: '1.0.0',
+            dependencies: {
+              react: '^18.0.0',
+            },
+            devDependencies: {
+              typescript: '^5.0.0',
+            },
+          },
+          null,
+          2,
+        ),
+      );
+    });
+
+    it('should install runtime dependencies without removing existing ones', async () => {
+      const result = await updatePackageJson(sessionId, 'root', {
+        express: '^5.0.0',
+        zod: '^3.22.0',
+      });
+
+      expect(result).toContain('Successfully installed 2');
+      expect(result).toContain('express');
+      expect(result).toContain('zod');
+
+      const content = await readFile(sessionId, 'package.json');
+      const packageJson = JSON.parse(content);
+
+      // Should have both new and existing dependencies
+      expect(packageJson.dependencies).toEqual({
+        react: '^18.0.0',
+        express: '^5.0.0',
+        zod: '^3.22.0',
+      });
+      // Should not modify devDependencies
+      expect(packageJson.devDependencies).toEqual({
+        typescript: '^5.0.0',
+      });
+    });
+
+    it('should install dev dependencies without removing existing ones', async () => {
+      const result = await updatePackageJson(sessionId, 'root', undefined, {
+        vitest: '^3.0.0',
+        '@types/node': '^20.0.0',
+      });
+
+      expect(result).toContain('Successfully installed 2');
+      expect(result).toContain('vitest');
+      expect(result).toContain('@types/node');
+
+      const content = await readFile(sessionId, 'package.json');
+      const packageJson = JSON.parse(content);
+
+      // Should not modify dependencies
+      expect(packageJson.dependencies).toEqual({
+        react: '^18.0.0',
+      });
+      // Should have both new and existing devDependencies
+      expect(packageJson.devDependencies).toEqual({
+        typescript: '^5.0.0',
+        vitest: '^3.0.0',
+        '@types/node': '^20.0.0',
+      });
+    });
+
+    it('should install both runtime and dev dependencies', async () => {
+      const result = await updatePackageJson(
+        sessionId,
+        'root',
+        { express: '^5.0.0' },
+        { vitest: '^3.0.0' },
+      );
+
+      expect(result).toContain('Successfully installed 2');
+
+      const content = await readFile(sessionId, 'package.json');
+      const packageJson = JSON.parse(content);
+
+      expect(packageJson.dependencies).toEqual({
+        react: '^18.0.0',
+        express: '^5.0.0',
+      });
+      expect(packageJson.devDependencies).toEqual({
+        typescript: '^5.0.0',
+        vitest: '^3.0.0',
+      });
+    });
+
+    it('should throw error when both parameters are undefined', async () => {
+      await expect(updatePackageJson(sessionId, 'root', undefined, undefined)).rejects.toThrow(
+        'No dependencies provided',
+      );
+    });
+
+    it('should throw error when both parameters are empty objects', async () => {
+      await expect(updatePackageJson(sessionId, 'root', {}, {})).rejects.toThrow(
+        'No dependencies provided',
+      );
+    });
+
+    it('should throw error when dependencies is empty object and devDependencies is undefined', async () => {
+      await expect(updatePackageJson(sessionId, 'root', {}, undefined)).rejects.toThrow(
+        'No dependencies provided',
+      );
+    });
+
+    it('should update existing dependency version', async () => {
+      const result = await updatePackageJson(sessionId, 'root', {
+        react: '^19.0.0', // Update existing version
+      });
+
+      expect(result).toContain('Successfully installed 1');
+
+      const content = await readFile(sessionId, 'package.json');
+      const packageJson = JSON.parse(content);
+
+      expect(packageJson.dependencies.react).toBe('^19.0.0');
+    });
+
+    it('should preserve other package.json fields', async () => {
+      await updatePackageJson(sessionId, 'root', { express: '^5.0.0' });
+
+      const content = await readFile(sessionId, 'package.json');
+      const packageJson = JSON.parse(content);
+
+      // Should preserve name, version, etc.
+      expect(packageJson.name).toBe('test-app');
+      expect(packageJson.version).toBe('1.0.0');
+    });
+
+    it('should handle singular dependency correctly in message', async () => {
+      const result = await updatePackageJson(sessionId, 'root', { express: '^5.0.0' });
+
+      expect(result).toContain('Successfully installed 1');
+      expect(result).toContain('express');
+    });
+
+    it('should work with client package.json', async () => {
+      // Create client directory and package.json
+      await writeFile(
+        sessionId,
+        'client/package.json',
+        JSON.stringify(
+          {
+            name: 'client-app',
+            dependencies: {},
+          },
+          null,
+          2,
+        ),
+      );
+
+      const result = await updatePackageJson(sessionId, 'client', { react: '^18.0.0' });
+
+      expect(result).toContain('client/package.json');
+
+      const content = await readFile(sessionId, 'client/package.json');
+      const packageJson = JSON.parse(content);
+
+      expect(packageJson.dependencies.react).toBe('^18.0.0');
+    });
+
+    it('should work with server package.json', async () => {
+      // Create server directory and package.json
+      await writeFile(
+        sessionId,
+        'server/package.json',
+        JSON.stringify(
+          {
+            name: 'server-app',
+            dependencies: {},
+          },
+          null,
+          2,
+        ),
+      );
+
+      const result = await updatePackageJson(sessionId, 'server', { express: '^5.0.0' });
+
+      expect(result).toContain('server/package.json');
+
+      const content = await readFile(sessionId, 'server/package.json');
+      const packageJson = JSON.parse(content);
+
+      expect(packageJson.dependencies.express).toBe('^5.0.0');
     });
   });
 });

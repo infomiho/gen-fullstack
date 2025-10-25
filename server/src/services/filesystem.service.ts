@@ -270,9 +270,14 @@ export async function updatePackageJson(
 ): Promise<string> {
   const packageJsonPath = target === 'root' ? 'package.json' : `${target}/package.json`;
 
-  // Validate that at least one dependency type is provided
-  if (!dependencies && !devDependencies) {
-    throw new Error('No dependencies provided. Specify either dependencies or devDependencies.');
+  // Validate that at least one dependency type is provided with non-empty content
+  const hasValidDeps = dependencies && Object.keys(dependencies).length > 0;
+  const hasValidDevDeps = devDependencies && Object.keys(devDependencies).length > 0;
+
+  if (!hasValidDeps && !hasValidDevDeps) {
+    throw new Error(
+      'No dependencies provided. Specify at least one package in dependencies or devDependencies.',
+    );
   }
 
   try {
