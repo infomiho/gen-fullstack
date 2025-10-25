@@ -31,23 +31,23 @@ export function Alert({ variant, children, className = '' }: AlertProps) {
     switch (variant) {
       case 'error':
         return {
-          container: 'bg-red-50 border-red-200',
-          text: 'text-red-700',
+          container: 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900/50',
+          text: 'text-red-700 dark:text-red-400',
         };
       case 'warning':
         return {
-          container: 'bg-amber-50 border-amber-200',
-          text: 'text-amber-700',
+          container: 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50',
+          text: 'text-amber-700 dark:text-amber-400',
         };
       case 'info':
         return {
-          container: 'bg-blue-50 border-blue-200',
-          text: 'text-blue-700',
+          container: 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900/50',
+          text: 'text-blue-700 dark:text-blue-400',
         };
       case 'success':
         return {
-          container: 'bg-green-50 border-green-200',
-          text: 'text-green-700',
+          container: 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-900/50',
+          text: 'text-green-700 dark:text-green-400',
         };
     }
   };

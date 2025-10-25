@@ -8,32 +8,52 @@ describe('Alert', () => {
       render(<Alert variant="error">Error message</Alert>);
       const alert = screen.getByText('Error message');
       expect(alert).toBeInTheDocument();
-      expect(alert.parentElement).toHaveClass('bg-red-50', 'border-red-200');
-      expect(alert).toHaveClass('text-red-700');
+      expect(alert.parentElement).toHaveClass(
+        'bg-red-50',
+        'dark:bg-red-950/30',
+        'border-red-200',
+        'dark:border-red-900/50',
+      );
+      expect(alert).toHaveClass('text-red-700', 'dark:text-red-400');
     });
 
     it('renders warning variant with amber styling', () => {
       render(<Alert variant="warning">Warning message</Alert>);
       const alert = screen.getByText('Warning message');
       expect(alert).toBeInTheDocument();
-      expect(alert.parentElement).toHaveClass('bg-amber-50', 'border-amber-200');
-      expect(alert).toHaveClass('text-amber-700');
+      expect(alert.parentElement).toHaveClass(
+        'bg-amber-50',
+        'dark:bg-amber-950/30',
+        'border-amber-200',
+        'dark:border-amber-900/50',
+      );
+      expect(alert).toHaveClass('text-amber-700', 'dark:text-amber-400');
     });
 
     it('renders info variant with blue styling', () => {
       render(<Alert variant="info">Info message</Alert>);
       const alert = screen.getByText('Info message');
       expect(alert).toBeInTheDocument();
-      expect(alert.parentElement).toHaveClass('bg-blue-50', 'border-blue-200');
-      expect(alert).toHaveClass('text-blue-700');
+      expect(alert.parentElement).toHaveClass(
+        'bg-blue-50',
+        'dark:bg-blue-950/30',
+        'border-blue-200',
+        'dark:border-blue-900/50',
+      );
+      expect(alert).toHaveClass('text-blue-700', 'dark:text-blue-400');
     });
 
     it('renders success variant with green styling', () => {
       render(<Alert variant="success">Success message</Alert>);
       const alert = screen.getByText('Success message');
       expect(alert).toBeInTheDocument();
-      expect(alert.parentElement).toHaveClass('bg-green-50', 'border-green-200');
-      expect(alert).toHaveClass('text-green-700');
+      expect(alert.parentElement).toHaveClass(
+        'bg-green-50',
+        'dark:bg-green-950/30',
+        'border-green-200',
+        'dark:border-green-900/50',
+      );
+      expect(alert).toHaveClass('text-green-700', 'dark:text-green-400');
     });
   });
 
@@ -76,7 +96,7 @@ describe('Alert', () => {
       );
       const container = screen.getByText('Message').parentElement;
       expect(container).toHaveClass('custom-class');
-      expect(container).toHaveClass('bg-blue-50'); // Default class still applied
+      expect(container).toHaveClass('bg-blue-50', 'dark:bg-blue-950/30'); // Default classes still applied
     });
   });
 
