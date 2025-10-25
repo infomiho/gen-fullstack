@@ -247,8 +247,8 @@ describe('Filesystem Service', () => {
     it('should copy template files to sandbox', async () => {
       const fileCount = await copyTemplateToSandbox(sessionId, 'vite-fullstack-base');
 
-      // Should have copied all 15 template files
-      expect(fileCount).toBe(15);
+      // Should have copied all 16 template files
+      expect(fileCount).toBe(16);
 
       // Verify root files exist
       const rootFiles = await listFiles(sessionId, '.');
@@ -300,10 +300,10 @@ describe('Filesystem Service', () => {
       expect(serverIndex).toContain('express()');
       expect(serverIndex).toContain('PrismaClient');
 
-      // Verify client App.tsx has correct content
+      // Verify client App.tsx has correct content (new template uses React Router)
       const clientApp = await readFile(sessionId, 'client/src/App.tsx');
       expect(clientApp).toContain('export default function App()');
-      expect(clientApp).toContain('useState');
+      expect(clientApp).toContain('Routes');
     });
 
     it('should throw error for non-existent template', async () => {
@@ -346,7 +346,7 @@ describe('Filesystem Service', () => {
     it('should handle copying to clean sandbox', async () => {
       // First copy
       const count1 = await copyTemplateToSandbox(sessionId, 'vite-fullstack-base');
-      expect(count1).toBe(15);
+      expect(count1).toBe(16);
 
       // Cleanup and re-initialize
       await cleanupSandbox(sessionId);
@@ -354,7 +354,7 @@ describe('Filesystem Service', () => {
 
       // Second copy should also work
       const count2 = await copyTemplateToSandbox(sessionId, 'vite-fullstack-base');
-      expect(count2).toBe(15);
+      expect(count2).toBe(16);
     });
 
     it('should overwrite existing files when copying template', async () => {
@@ -377,8 +377,9 @@ describe('Filesystem Service', () => {
       const clientSrcFiles = await listFiles(sessionId, 'client/src');
       const clientSrcFileNames = clientSrcFiles.map((f) => f.name);
       expect(clientSrcFileNames).toContain('App.tsx');
-      expect(clientSrcFileNames).toContain('App.css');
+      expect(clientSrcFileNames).toContain('index.css'); // Tailwind CSS import
       expect(clientSrcFileNames).toContain('main.tsx');
+      expect(clientSrcFileNames).toContain('pages'); // Pages directory
 
       const serverSrcFiles = await listFiles(sessionId, 'server/src');
       const serverSrcFileNames = serverSrcFiles.map((f) => f.name);

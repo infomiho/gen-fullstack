@@ -3,7 +3,7 @@
 ## Project Overview
 
 This is Gen Fullstack - an experimental LLM-powered full-stack application generator. It generates complete, working full-stack applications with:
-- **Client**: Vite + React 19 + TypeScript
+- **Client**: Vite + React 19 + TypeScript + Tailwind CSS 4 + React Router 7
 - **Server**: Express 5 + TypeScript + RESTful API
 - **Database**: Prisma ORM + SQLite
 
@@ -75,7 +75,7 @@ All strategies generate monorepo structure with npm workspaces:
 generated/session-id/
 ├── package.json       (root with workspaces, concurrently)
 ├── .env               (DATABASE_URL)
-├── client/            (Vite + React)
+├── client/            (Vite + React 19 + Tailwind 4 + Router 7)
 ├── server/            (Express 5 + TypeScript)
 └── prisma/            (schema + migrations)
 ```
@@ -170,7 +170,63 @@ export const Default: Story = {
 
 ## Recent Changes
 
-### Dependency Installation Improvements (Latest - October 2025) ✅
+### Template Upgrade: Tailwind 4 + React Router 7 (Latest - January 2025) ✅
+Complete upgrade of the full-stack template with modern styling and routing:
+
+**Template Changes**:
+- **Tailwind CSS 4**: Added with Vite plugin integration
+  - Uses `@tailwindcss/vite` plugin for optimal performance
+  - CSS-first configuration (no `tailwind.config.js` needed)
+  - Single-line `index.css`: `@import "tailwindcss"`
+  - All components styled with utility classes
+  - Modern CSS features: container queries, 3D transforms, CSS variables
+
+- **React Router 7**: Added with BrowserRouter setup
+  - Multi-page navigation out of the box
+  - Example Home page in separate `pages/` directory
+  - Home page demonstrates API interaction (User CRUD)
+  - `<Link>`, `<Routes>`, `<Route>` components ready to use
+  - Navigation hooks: `useNavigate()`, `useParams()`, `useLocation()`
+
+**Prompt Updates**:
+- Updated BASE_SYSTEM_PROMPT with Tailwind 4 and React Router 7 setup instructions
+- Added dedicated sections for CSS and routing configuration
+- Updated template mode addon to describe pre-configured stack
+- Added dependency management notes (react-router and tailwindcss included)
+- Updated workflow steps to include route planning
+
+**Building Block Updates**:
+- Updated `auth-password/ProtectedRoute.tsx` to use `<Navigate>` for redirects
+- Changed from `fallback` prop to `redirectTo` prop (defaults to `/login`)
+- Updated integration guide with React Router examples
+- Shows protected route pattern with Routes and Navigate
+
+**Files Modified**:
+1. `templates/vite-fullstack-base/client/package.json` - Added deps
+2. `templates/vite-fullstack-base/client/vite.config.ts` - Added Tailwind plugin
+3. `templates/vite-fullstack-base/client/src/index.css` - Created with @import
+4. `templates/vite-fullstack-base/client/src/main.tsx` - Added BrowserRouter
+5. `templates/vite-fullstack-base/client/src/App.tsx` - Simplified with Routes
+6. `templates/vite-fullstack-base/client/src/pages/Home.tsx` - Created with User CRUD example
+7. `templates/vite-fullstack-base/client/src/App.css` - Deleted (no longer needed)
+8. `server/src/config/prompt-builder.ts` - Updated prompts and guides
+9. `blocks/auth-password/client/ProtectedRoute.tsx` - Added Navigate support
+10. `server/src/services/__tests__/filesystem.service.test.ts` - Updated tests
+
+**Requirements**:
+- Node.js 20+ required for Tailwind CSS 4
+- Modern browser support: Safari 16.4+, Chrome 111+, Firefox 128+
+
+**Impact**:
+- ✅ All generated apps now use Tailwind 4 for styling
+- ✅ Multi-page navigation ready out of the box
+- ✅ Consistent, modern UI with utility-first CSS
+- ✅ Better developer experience with routing hooks
+- ✅ Issue #45 resolved
+
+**Testing**: All tests passing ✅
+
+### Dependency Installation Improvements (October 2025) ✅
 Enhanced npm install reliability and performance to prevent timeout failures:
 
 **Improvement #1: Increased Timeout**
