@@ -27,7 +27,7 @@ REQUIRED FILES:
 
 2. client/:
    - package.json (name: "client", type: "module", with react-router & tailwindcss deps)
-   - vite.config.ts (with @tailwindcss/vite plugin, port 5173, host 0.0.0.0, API proxy)
+   - vite.config.ts (with @tailwindcss/vite plugin, port 5173, host 0.0.0.0, /api proxy)
    - tsconfig.json (React 19 + strict mode)
    - index.html (entry point)
    - src/main.tsx (render root with BrowserRouter wrapper)
@@ -42,6 +42,24 @@ REQUIRED FILES:
 
 4. prisma/:
    - schema.prisma (datasource db, generator client, models)
+
+API COMMUNICATION:
+**CRITICAL**: Client MUST use /api prefix for ALL server API calls.
+- Vite proxy (configured in vite.config.ts) forwards /api/* to http://localhost:3000/api/*
+- This works in all environments: local dev (via proxy), Docker (via proxy), production (reverse proxy)
+- NEVER hardcode http://localhost:3000 in client code (breaks in Docker containers)
+
+Correct pattern:
+  const response = await fetch('/api/users');           // ✅ Correct
+  const data = await fetch('/api/auth/login', {         // ✅ Correct
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password })
+  });
+
+Wrong patterns:
+  const response = await fetch('http://localhost:3000/api/users');  // ❌ Breaks in Docker
+  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000'; // ❌ Unnecessary
 
 TAILWIND CSS 4 SETUP:
 The template includes Tailwind CSS 4 with Vite integration:
@@ -122,16 +140,30 @@ DEPENDENCY MANAGEMENT:
 Common packages are already included in the template:
 - react-router (^7.6.2) and react-router-dom (^7.6.2) - for routing
 - @tailwindcss/vite (^4.0.27) and tailwindcss (^4.0.27) - for styling
+- @prisma/client (^6.10.0), express (^5.1.0), cors (^2.8.5) - server basics
 
-Additional packages to consider adding:
+**CRITICAL WORKFLOW - Follow these steps in order:**
+
+1. BEFORE adding ANY dependencies:
+   - Use readFile to check client/package.json for existing client dependencies
+   - Use readFile to check server/package.json for existing server dependencies
+   - Identify which packages are ALREADY installed in the template
+   - Only proceed to step 2 for NEW packages that don't exist yet
+
+2. Use installNpmDep tool to ADD new dependencies (do NOT use writeFile on package.json):
+   - Example: installNpmDep({ target: "server", dependencies: { "zod": "^3.22.2" } })
+   - This tool intelligently merges with existing dependencies without removing them
+   - ALWAYS provide specific versions in the dependencies object
+
+3. Building blocks auto-install their dependencies:
+   - auth-password block adds: bcryptjs, @types/bcryptjs
+   - These dependencies are added automatically - don't add them manually
+
+Common additional packages to consider:
 - zod - for advanced form validation beyond HTML5
 - date-fns - for date manipulation
-- Other domain-specific packages as needed
-
-1. Identify ALL npm packages your code needs BEFORE writing code
-2. Use installNpmDep tool to add dependencies with specific versions
-3. Building blocks auto-install their dependencies (e.g., auth-password adds bcryptjs)
-4. ALWAYS provide the dependencies object with versions, not just package names in the reason`;
+- uuid - for generating unique IDs
+- Other domain-specific packages as needed`;
 
 /**
  * Composable prompt addons
@@ -165,10 +197,20 @@ YOUR TASK:
 6. Keep configuration files (vite.config.ts, tsconfig.json, etc.) intact
 
 CRITICAL - DEPENDENCY MANAGEMENT:
-- DO NOT use writeFile for package.json files
-- Template dependencies are required and must be preserved (react-router, tailwindcss, etc.)
-- Use installNpmDep tool to ADD new dependencies without removing existing ones
-- Example: installNpmDep({ target: "client", dependencies: { "zod": "^3.0.0" } })
+1. ALWAYS read package.json files FIRST before adding dependencies:
+   - readFile('client/package.json') to see what's already installed
+   - readFile('server/package.json') to see what's already installed
+   - Check if packages are already present to avoid duplicates
+
+2. Use installNpmDep tool to ADD only NEW dependencies:
+   - DO NOT use writeFile for package.json files
+   - Example: installNpmDep({ target: "client", dependencies: { "zod": "^3.0.0" } })
+   - This merges with existing dependencies without removing template packages
+
+3. Template dependencies MUST be preserved:
+   - react-router, react-router-dom (routing)
+   - tailwindcss, @tailwindcss/vite (styling)
+   - express, cors, @prisma/client (server basics)
 
 All tsconfig.json, vite.config.ts files are ready.
 Focus on implementing the specific features requested by the user.`,
@@ -264,11 +306,11 @@ FILES COPIED:
 - server/src/middleware/auth.ts (requireAuth middleware)
 - server/src/routes/auth.routes.ts (register, login, logout, me endpoints)
 - client/src/components/auth/ (AuthProvider, LoginForm, RegisterForm)
-- client/src/hooks/useAuth.ts (React hook for auth state)
+- client/src/hooks/useAuth.ts (React hook for auth state - uses /api proxy)
 
 DEPENDENCIES TO ADD:
-Server: bcryptjs, @types/bcryptjs
-Client: None (uses fetch)
+Server: bcryptjs, @types/bcryptjs (auto-installed by block)
+Client: None (uses fetch with /api prefix for proxy compatibility)
 
 INTEGRATION STEPS:
 
@@ -344,7 +386,8 @@ INTEGRATION STEPS:
 
 IMPORTANT:
 - Run "npx prisma generate" after merging models
-- Add bcryptjs to server/package.json dependencies
+- bcryptjs and @types/bcryptjs are auto-installed by the block
 - Session tokens expire after 30 days
-- Passwords are hashed with bcrypt (10 rounds)`,
+- Passwords are hashed with bcrypt (10 rounds)
+- All auth API calls use /api prefix (e.g., fetch('/api/auth/login')) for Vite proxy compatibility`,
 } as const;
