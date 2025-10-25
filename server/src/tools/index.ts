@@ -534,7 +534,7 @@ export const validateTypeScript = tool({
  * - Installing dev deps: { target: "client", devDependencies: {"@types/react": "^18.0.0"} }
  * - Installing both: { target: "server", dependencies: {...}, devDependencies: {...} }
  */
-export const updatePackageJson = tool({
+export const installNpmDep = tool({
   description:
     'Install npm packages to package.json. ONLY use for adding/updating dependencies. Preserves all existing dependencies and package.json fields (scripts, name, version, etc.). Use writeFile if you need to modify non-dependency fields.',
   inputSchema: z.object({
@@ -566,12 +566,7 @@ export const updatePackageJson = tool({
       return 'No dependencies provided. Specify at least one package in dependencies or devDependencies.';
     }
 
-    return await filesystemService.updatePackageJson(
-      sessionId,
-      target,
-      dependencies,
-      devDependencies,
-    );
+    return await filesystemService.installNpmDep(sessionId, target, dependencies, devDependencies);
   },
 });
 
@@ -587,7 +582,7 @@ export const tools = {
   planArchitecture,
   validatePrismaSchema,
   validateTypeScript,
-  updatePackageJson,
+  installNpmDep,
 };
 
 /**

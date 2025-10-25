@@ -5,9 +5,9 @@ import {
   copyTemplateToSandbox,
   getSandboxPath,
   initializeSandbox,
+  installNpmDep,
   listFiles,
   readFile,
-  updatePackageJson,
   writeFile,
 } from '../filesystem.service.js';
 
@@ -414,7 +414,7 @@ describe('Filesystem Service', () => {
     });
   });
 
-  describe('updatePackageJson', () => {
+  describe('installNpmDep', () => {
     beforeEach(async () => {
       await initializeSandbox(sessionId);
       // Create a basic package.json for testing
@@ -439,7 +439,7 @@ describe('Filesystem Service', () => {
     });
 
     it('should install runtime dependencies without removing existing ones', async () => {
-      const result = await updatePackageJson(sessionId, 'root', {
+      const result = await installNpmDep(sessionId, 'root', {
         express: '^5.0.0',
         zod: '^3.22.0',
       });
@@ -464,7 +464,7 @@ describe('Filesystem Service', () => {
     });
 
     it('should install dev dependencies without removing existing ones', async () => {
-      const result = await updatePackageJson(sessionId, 'root', undefined, {
+      const result = await installNpmDep(sessionId, 'root', undefined, {
         vitest: '^3.0.0',
         '@types/node': '^20.0.0',
       });
@@ -489,7 +489,7 @@ describe('Filesystem Service', () => {
     });
 
     it('should install both runtime and dev dependencies', async () => {
-      const result = await updatePackageJson(
+      const result = await installNpmDep(
         sessionId,
         'root',
         { express: '^5.0.0' },
@@ -512,25 +512,25 @@ describe('Filesystem Service', () => {
     });
 
     it('should throw error when both parameters are undefined', async () => {
-      await expect(updatePackageJson(sessionId, 'root', undefined, undefined)).rejects.toThrow(
+      await expect(installNpmDep(sessionId, 'root', undefined, undefined)).rejects.toThrow(
         'No dependencies provided',
       );
     });
 
     it('should throw error when both parameters are empty objects', async () => {
-      await expect(updatePackageJson(sessionId, 'root', {}, {})).rejects.toThrow(
+      await expect(installNpmDep(sessionId, 'root', {}, {})).rejects.toThrow(
         'No dependencies provided',
       );
     });
 
     it('should throw error when dependencies is empty object and devDependencies is undefined', async () => {
-      await expect(updatePackageJson(sessionId, 'root', {}, undefined)).rejects.toThrow(
+      await expect(installNpmDep(sessionId, 'root', {}, undefined)).rejects.toThrow(
         'No dependencies provided',
       );
     });
 
     it('should update existing dependency version', async () => {
-      const result = await updatePackageJson(sessionId, 'root', {
+      const result = await installNpmDep(sessionId, 'root', {
         react: '^19.0.0', // Update existing version
       });
 
@@ -543,7 +543,7 @@ describe('Filesystem Service', () => {
     });
 
     it('should preserve other package.json fields', async () => {
-      await updatePackageJson(sessionId, 'root', { express: '^5.0.0' });
+      await installNpmDep(sessionId, 'root', { express: '^5.0.0' });
 
       const content = await readFile(sessionId, 'package.json');
       const packageJson = JSON.parse(content);
@@ -554,7 +554,7 @@ describe('Filesystem Service', () => {
     });
 
     it('should handle singular dependency correctly in message', async () => {
-      const result = await updatePackageJson(sessionId, 'root', { express: '^5.0.0' });
+      const result = await installNpmDep(sessionId, 'root', { express: '^5.0.0' });
 
       expect(result).toContain('Successfully installed 1');
       expect(result).toContain('express');
@@ -575,7 +575,7 @@ describe('Filesystem Service', () => {
         ),
       );
 
-      const result = await updatePackageJson(sessionId, 'client', { react: '^18.0.0' });
+      const result = await installNpmDep(sessionId, 'client', { react: '^18.0.0' });
 
       expect(result).toContain('client/package.json');
 
@@ -600,7 +600,7 @@ describe('Filesystem Service', () => {
         ),
       );
 
-      const result = await updatePackageJson(sessionId, 'server', { express: '^5.0.0' });
+      const result = await installNpmDep(sessionId, 'server', { express: '^5.0.0' });
 
       expect(result).toContain('server/package.json');
 

@@ -242,7 +242,7 @@ export async function fileExists(sessionId: string, filePath: string): Promise<b
 }
 
 /**
- * Install dependencies to package.json without removing existing ones
+ * Install npm dependencies to package.json without removing existing ones
  *
  * This function is specifically designed for adding npm dependencies to package.json files.
  * It preserves all existing dependencies and only adds or updates the specified ones.
@@ -262,7 +262,7 @@ export async function fileExists(sessionId: string, filePath: string): Promise<b
  * @returns Success message with list of installed packages
  * @throws {Error} If package.json doesn't exist, is malformed, or write fails
  */
-export async function updatePackageJson(
+export async function installNpmDep(
   sessionId: string,
   target: 'root' | 'client' | 'server',
   dependencies?: Record<string, string>,

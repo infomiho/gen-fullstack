@@ -399,7 +399,7 @@ async function installBlockDependencies(
     const hasClientFiles = copiedFiles.some((f) => f.startsWith('client/'));
 
     if (hasServerFiles) {
-      await filesystemService.updatePackageJson(sessionId, 'server', dependencies, undefined);
+      await filesystemService.installNpmDep(sessionId, 'server', dependencies, undefined);
       databaseLogger.info(
         { sessionId, blockId, dependencies },
         'Auto-installed block dependencies to server',
@@ -407,7 +407,7 @@ async function installBlockDependencies(
     }
 
     if (hasClientFiles && !hasServerFiles) {
-      await filesystemService.updatePackageJson(sessionId, 'client', dependencies, undefined);
+      await filesystemService.installNpmDep(sessionId, 'client', dependencies, undefined);
       databaseLogger.info(
         { sessionId, blockId, dependencies },
         'Auto-installed block dependencies to client',
@@ -416,7 +416,7 @@ async function installBlockDependencies(
   } catch (error) {
     databaseLogger.warn({ error, sessionId, blockId }, 'Failed to auto-install block dependencies');
     warnings.push(
-      `⚠️ CRITICAL: Failed to auto-install dependencies. You MUST manually add these to package.json using updatePackageJson tool: ${Object.keys(dependencies).join(', ')}`,
+      `⚠️ CRITICAL: Failed to auto-install dependencies. You MUST manually add these to package.json using installNpmDep tool: ${Object.keys(dependencies).join(', ')}`,
     );
   }
 }

@@ -39,7 +39,7 @@ describe('Prompt Builder', () => {
 
       expect(prompt).toContain('TEMPLATE MODE:');
       expect(prompt).toContain('DO NOT use writeFile for package.json files');
-      expect(prompt).toContain('Use updatePackageJson tool');
+      expect(prompt).toContain('Use installNpmDep tool');
     });
 
     it('should include planning addon when enabled', () => {
