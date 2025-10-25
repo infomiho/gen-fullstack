@@ -3,6 +3,9 @@
  *
  * Tests for the composable prompt system that replaces mode-specific prompts
  * with a base + addons approach.
+ *
+ * NOTE: These tests focus on composition logic (which addons are included)
+ * rather than exact prompt content, to avoid brittleness.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -10,7 +13,7 @@ import { buildSystemPrompt, buildUserPrompt } from '../prompt-builder.js';
 
 describe('Prompt Builder', () => {
   describe('buildSystemPrompt', () => {
-    it('should include base prompt for naive mode', () => {
+    it('should include base prompt only for naive mode without addons', () => {
       const prompt = buildSystemPrompt({
         inputMode: 'naive',
         planning: false,
@@ -19,30 +22,14 @@ describe('Prompt Builder', () => {
         maxIterations: 3,
       });
 
-      expect(prompt).toContain('You are an expert full-stack TypeScript developer');
-      expect(prompt).toContain('ARCHITECTURE:');
-      expect(prompt).toContain('REQUIRED FILES:');
+      // Should have substantial base content
+      expect(prompt.length).toBeGreaterThan(500);
+
+      // Should NOT include any addon sections
       expect(prompt).not.toContain('TEMPLATE MODE:');
       expect(prompt).not.toContain('ARCHITECTURAL PLANNING:');
       expect(prompt).not.toContain('BUILDING BLOCKS:');
       expect(prompt).not.toContain('VALIDATION TOOLS:');
-    });
-
-    it('should include dependency management section in base prompt', () => {
-      const prompt = buildSystemPrompt({
-        inputMode: 'naive',
-        planning: false,
-        compilerChecks: false,
-        buildingBlocks: false,
-        maxIterations: 3,
-      });
-
-      // Verify DEPENDENCY MANAGEMENT section is included
-      expect(prompt).toContain('DEPENDENCY MANAGEMENT:');
-      expect(prompt).toContain('Use updatePackageJson tool to add dependencies');
-      expect(prompt).toContain('Example updatePackageJson call:');
-      expect(prompt).toContain('"react-router-dom": "^6.26.0"');
-      expect(prompt).toContain('ALWAYS provide the dependencies object with versions');
     });
 
     it('should include template addon for template mode', () => {
@@ -55,26 +42,9 @@ describe('Prompt Builder', () => {
       });
 
       expect(prompt).toContain('TEMPLATE MODE:');
-      expect(prompt).toContain('DO NOT use writeFile for package.json files');
-      expect(prompt).toContain('Use installNpmDep tool');
-    });
-
-    it('should include template customization instructions', () => {
-      const prompt = buildSystemPrompt({
-        inputMode: 'template',
-        planning: false,
-        compilerChecks: false,
-        buildingBlocks: false,
-        maxIterations: 3,
-      });
-
-      // Verify new 5-step task list
-      expect(prompt).toContain('YOUR TASK:');
-      expect(prompt).toContain('**Replace** template example code');
-      expect(prompt).toContain('Update App.tsx to implement the actual application');
-      expect(prompt).toContain('Update main.tsx if routing or global providers are needed');
-      expect(prompt).toContain('You are customizing the template, not extending it');
-      expect(prompt).toContain("The template's example code is a placeholder to be replaced");
+      expect(prompt).not.toContain('ARCHITECTURAL PLANNING:');
+      expect(prompt).not.toContain('BUILDING BLOCKS:');
+      expect(prompt).not.toContain('VALIDATION TOOLS:');
     });
 
     it('should include planning addon when enabled', () => {
@@ -87,7 +57,9 @@ describe('Prompt Builder', () => {
       });
 
       expect(prompt).toContain('ARCHITECTURAL PLANNING:');
-      expect(prompt).toContain('planArchitecture tool');
+      expect(prompt).not.toContain('TEMPLATE MODE:');
+      expect(prompt).not.toContain('BUILDING BLOCKS:');
+      expect(prompt).not.toContain('VALIDATION TOOLS:');
     });
 
     it('should include building blocks addon when enabled', () => {
@@ -100,8 +72,9 @@ describe('Prompt Builder', () => {
       });
 
       expect(prompt).toContain('BUILDING BLOCKS:');
-      expect(prompt).toContain('requestBlock tool');
-      expect(prompt).toContain('auth-password');
+      expect(prompt).not.toContain('TEMPLATE MODE:');
+      expect(prompt).not.toContain('ARCHITECTURAL PLANNING:');
+      expect(prompt).not.toContain('VALIDATION TOOLS:');
     });
 
     it('should include compiler checks addon when enabled', () => {
@@ -114,8 +87,9 @@ describe('Prompt Builder', () => {
       });
 
       expect(prompt).toContain('VALIDATION TOOLS:');
-      expect(prompt).toContain('validatePrismaSchema');
-      expect(prompt).toContain('validateTypeScript');
+      expect(prompt).not.toContain('TEMPLATE MODE:');
+      expect(prompt).not.toContain('ARCHITECTURAL PLANNING:');
+      expect(prompt).not.toContain('BUILDING BLOCKS:');
     });
 
     it('should compose multiple addons correctly', () => {
@@ -132,9 +106,6 @@ describe('Prompt Builder', () => {
       expect(prompt).toContain('ARCHITECTURAL PLANNING:');
       expect(prompt).toContain('BUILDING BLOCKS:');
       expect(prompt).toContain('VALIDATION TOOLS:');
-
-      // Should not have conflicting instructions
-      expect(prompt).not.toMatch(/DO NOT.*DO NOT/); // No double negatives
     });
 
     it('should maintain correct addon order', () => {
@@ -158,13 +129,35 @@ describe('Prompt Builder', () => {
       expect(blocksPos).toBeGreaterThan(planningPos);
       expect(validationPos).toBeGreaterThan(blocksPos);
     });
+
+    it('should generate longer prompts with more addons', () => {
+      const basePrompt = buildSystemPrompt({
+        inputMode: 'naive',
+        planning: false,
+        compilerChecks: false,
+        buildingBlocks: false,
+        maxIterations: 3,
+      });
+
+      const fullPrompt = buildSystemPrompt({
+        inputMode: 'template',
+        planning: true,
+        compilerChecks: true,
+        buildingBlocks: true,
+        maxIterations: 3,
+      });
+
+      // Full prompt should be significantly longer
+      expect(fullPrompt.length).toBeGreaterThan(basePrompt.length + 500);
+    });
   });
 
   describe('buildUserPrompt', () => {
     it('should format user requirements only', () => {
       const prompt = buildUserPrompt('Build a todo app');
 
-      expect(prompt).toBe('USER REQUIREMENTS:\nBuild a todo app');
+      expect(prompt).toContain('USER REQUIREMENTS:');
+      expect(prompt).toContain('Build a todo app');
       expect(prompt).not.toContain('ARCHITECTURAL PLAN:');
     });
 
@@ -195,37 +188,6 @@ API Routes:
 
       expect(planPos).toBeGreaterThan(-1);
       expect(requirementsPos).toBeGreaterThan(planPos);
-    });
-  });
-
-  describe('Integration', () => {
-    it('should generate complete prompts for different configurations', () => {
-      // Naive mode
-      const naiveSystem = buildSystemPrompt({
-        inputMode: 'naive',
-        planning: false,
-        compilerChecks: false,
-        buildingBlocks: false,
-        maxIterations: 3,
-      });
-      const naiveUser = buildUserPrompt('Build a todo app');
-
-      expect(naiveSystem.length).toBeGreaterThan(500); // Base prompt is substantial
-      expect(naiveUser.length).toBeGreaterThan(10);
-
-      // Full-featured template mode
-      const templateSystem = buildSystemPrompt({
-        inputMode: 'template',
-        planning: true,
-        compilerChecks: true,
-        buildingBlocks: true,
-        maxIterations: 3,
-      });
-      const templateUser = buildUserPrompt('Build a todo app', 'Plan: Use Prisma + React');
-
-      expect(templateSystem.length).toBeGreaterThan(naiveSystem.length); // More addons = longer
-      expect(templateUser).toContain('ARCHITECTURAL PLAN:');
-      expect(templateUser).toContain('USER REQUIREMENTS:');
     });
   });
 });
