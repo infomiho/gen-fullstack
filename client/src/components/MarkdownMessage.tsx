@@ -75,7 +75,7 @@ export function MarkdownMessage({ content, className = '' }: MarkdownMessageProp
           ol: ({ children }) => (
             <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>
           ),
-          li: ({ children }) => <li className="text-sm">{children}</li>,
+          li: ({ children }) => <li className="text-sm text-foreground">{children}</li>,
           // Style links
           a: ({ children, href }) => (
             <a
