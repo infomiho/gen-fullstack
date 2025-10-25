@@ -1,16 +1,17 @@
 import type React from 'react';
+import { Navigate } from 'react-router';
 import { useAuth } from './useAuth';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  fallback?: React.ReactNode;
+  redirectTo?: string;
 }
 
 /**
  * Wrapper component that only renders children if user is authenticated
- * Shows fallback (or null) if not authenticated
+ * Redirects to login page (or custom path) if not authenticated
  */
-export function ProtectedRoute({ children, fallback = null }: ProtectedRouteProps) {
+export function ProtectedRoute({ children, redirectTo = '/login' }: ProtectedRouteProps) {
   const { user, isLoading } = useAuth();
 
   if (isLoading) {
@@ -22,7 +23,7 @@ export function ProtectedRoute({ children, fallback = null }: ProtectedRouteProp
   }
 
   if (!user) {
-    return <>{fallback}</>;
+    return <Navigate to={redirectTo} replace />;
   }
 
   return <>{children}</>;

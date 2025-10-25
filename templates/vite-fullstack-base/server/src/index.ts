@@ -22,17 +22,21 @@ app.post('/api/users', async (req, res) => {
     return res.status(400).json({ error: 'Email is required' });
   }
 
-  try {
-    const user = await prisma.user.create({
-      data: { email, name },
-    });
-    res.json(user);
-  } catch (error: any) {
-    if (error.code === 'P2002') {
-      return res.status(409).json({ error: 'Email already exists' });
-    }
-    throw error;
+  const user = await prisma.user.create({
+    data: { email, name },
+  });
+  res.json(user);
+});
+
+// Global error handler - must be after all routes
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  // Handle Prisma unique constraint violations
+  if (err.code === 'P2002') {
+    return res.status(409).json({ error: 'Email already exists' });
   }
+
+  console.error('Server error:', err);
+  res.status(500).json({ error: 'Internal server error' });
 });
 
 app.listen(PORT, () => {
