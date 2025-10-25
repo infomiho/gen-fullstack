@@ -152,6 +152,46 @@ export interface FileUpdate {
 }
 
 // ============================================================================
+// Tool Parameter Types
+// ============================================================================
+
+/**
+ * Database model definition for architecture planning
+ */
+export interface DatabaseModel {
+  name: string;
+  fields: string[];
+  relations?: string[];
+}
+
+/**
+ * API route definition for architecture planning
+ */
+export interface ApiRoute {
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+  path: string;
+  description: string;
+}
+
+/**
+ * Client component definition for architecture planning
+ */
+export interface ClientComponent {
+  name: string;
+  purpose: string;
+  key_features?: string[];
+}
+
+/**
+ * Complete architecture plan from planArchitecture tool
+ */
+export interface ArchitecturePlan {
+  databaseModels?: DatabaseModel[];
+  apiRoutes?: ApiRoute[];
+  clientComponents?: ClientComponent[];
+}
+
+// ============================================================================
 // App Execution Types
 // ============================================================================
 

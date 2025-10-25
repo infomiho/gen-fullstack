@@ -4,6 +4,8 @@
  * Shared utilities for rendering tool parameters and summaries across the app.
  */
 
+import type { ApiRoute, ClientComponent, DatabaseModel } from '@gen-fullstack/shared';
+import { PlanArchitectureDisplay } from '../components/PlanArchitectureDisplay';
 import { radius, spacing, typography } from './design-tokens';
 
 /**
@@ -42,6 +44,19 @@ export function getToolSummary(
     case 'requestBlock': {
       const { blockId } = args as { blockId?: string };
       return `Asking for ${blockId || 'unknown block'}`;
+    }
+    case 'planArchitecture': {
+      const { databaseModels, apiRoutes, clientComponents } = args as {
+        databaseModels?: Array<unknown>;
+        apiRoutes?: Array<unknown>;
+        clientComponents?: Array<unknown>;
+      };
+      const parts = [
+        databaseModels?.length && `${databaseModels.length} models`,
+        apiRoutes?.length && `${apiRoutes.length} routes`,
+        clientComponents?.length && `${clientComponents.length} components`,
+      ].filter(Boolean);
+      return `Planning: ${parts.join(', ')}`;
     }
     default:
       return 'Click for details';
@@ -125,6 +140,23 @@ export function renderToolParameters(
           {command || 'unknown'}
         </pre>
       </div>
+    );
+  }
+
+  // Custom formatting for planArchitecture
+  if (toolName === 'planArchitecture') {
+    const { databaseModels, apiRoutes, clientComponents } = args as {
+      databaseModels?: DatabaseModel[];
+      apiRoutes?: ApiRoute[];
+      clientComponents?: ClientComponent[];
+    };
+
+    return (
+      <PlanArchitectureDisplay
+        databaseModels={databaseModels}
+        apiRoutes={apiRoutes}
+        clientComponents={clientComponents}
+      />
     );
   }
 
