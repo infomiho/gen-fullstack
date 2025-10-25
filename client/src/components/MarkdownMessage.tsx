@@ -80,7 +80,7 @@ export function MarkdownMessage({ content, className = '' }: MarkdownMessageProp
           a: ({ children, href }) => (
             <a
               href={href}
-              className="text-blue-600 hover:text-blue-800 underline"
+              className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline"
               target="_blank"
               rel="noopener noreferrer"
             >

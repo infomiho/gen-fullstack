@@ -141,14 +141,14 @@ export function CodeEditor({ value, filePath, onChange, readOnly = false }: Code
   // Show error if file is too large
   if (fileTooLarge) {
     return (
-      <div className="h-full w-full flex items-center justify-center bg-red-50">
+      <div className="h-full w-full flex items-center justify-center bg-red-50 dark:bg-red-950/30">
         <div className="text-center p-6 max-w-md">
-          <p className="text-red-600 font-semibold mb-2">File Too Large</p>
-          <p className="text-gray-700 text-sm mb-1">
+          <p className="text-red-600 dark:text-red-400 font-semibold mb-2">File Too Large</p>
+          <p className="text-foreground text-sm mb-1">
             This file is {(value.length / 1_000_000).toFixed(2)}MB, which exceeds the{' '}
             {MAX_EDITOR_FILE_SIZE / 1_000_000}MB limit for in-browser editing.
           </p>
-          <p className="text-gray-600 text-xs">
+          <p className="text-muted-foreground text-xs">
             Large files can cause browser performance issues. Consider editing this file in your
             local editor.
           </p>

@@ -43,22 +43,22 @@ function getToastIcon(type: ToastType): { icon: React.ReactNode; iconColor: stri
     case 'success':
       return {
         icon: <CircleCheck className="h-4 w-4" />,
-        iconColor: 'text-green-600',
+        iconColor: 'text-green-600 dark:text-green-400',
       };
     case 'error':
       return {
         icon: <OctagonX className="h-4 w-4" />,
-        iconColor: 'text-red-600',
+        iconColor: 'text-red-600 dark:text-red-400',
       };
     case 'warning':
       return {
         icon: <TriangleAlert className="h-4 w-4" />,
-        iconColor: 'text-amber-600',
+        iconColor: 'text-amber-600 dark:text-amber-400',
       };
     case 'info':
       return {
         icon: <Info className="h-4 w-4" />,
-        iconColor: 'text-blue-600',
+        iconColor: 'text-blue-600 dark:text-blue-400',
       };
   }
 }

@@ -17,6 +17,35 @@ export function TimelineScrubber() {
   const [isDragging, setIsDragging] = useState(false);
   const [hoverTime, setHoverTime] = useState<number | null>(null);
 
+  // Get colors from CSS variables for dark mode support
+  const [colors, setColors] = useState({
+    track: '#f3f4f6',
+    progress: '#1f2937',
+    handle: '#ffffff',
+    handleBorder: '#1f2937',
+    markerBorder: '#ffffff',
+    gray: '#6b7280',
+    blue: '#3b82f6',
+    amber: '#f59e0b',
+  });
+
+  useEffect(() => {
+    // Read colors from CSS variables
+    const root = document.documentElement;
+    const styles = getComputedStyle(root);
+
+    setColors({
+      track: styles.getPropertyValue('--color-muted').trim() || '#f3f4f6',
+      progress: styles.getPropertyValue('--color-primary').trim() || '#1f2937',
+      handle: styles.getPropertyValue('--color-background').trim() || '#ffffff',
+      handleBorder: styles.getPropertyValue('--color-primary').trim() || '#1f2937',
+      markerBorder: styles.getPropertyValue('--color-background').trim() || '#ffffff',
+      gray: '#6b7280', // Keep fixed gray for consistency
+      blue: '#3b82f6', // Keep fixed blue for consistency
+      amber: '#f59e0b', // Keep fixed amber for consistency
+    });
+  }, []);
+
   const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   /**
@@ -89,11 +118,11 @@ export function TimelineScrubber() {
     const percentage = duration > 0 ? (relativeTime / duration) * 100 : 0;
 
     // Color based on type
-    let color = '#6b7280'; // gray for tool calls
+    let color = colors.gray; // gray for tool calls
     if (item.type === 'message') {
-      color = '#3b82f6'; // blue for messages
+      color = colors.blue; // blue for messages
     } else if (item.type === 'tool_result') {
-      color = '#f59e0b'; // amber for results
+      color = colors.amber; // amber for results
     }
 
     return {
@@ -130,7 +159,7 @@ export function TimelineScrubber() {
           position: 'relative',
           width: '100%',
           height: '8px',
-          backgroundColor: '#f3f4f6',
+          backgroundColor: colors.track,
           borderRadius: '4px',
           cursor: 'pointer',
           overflow: 'visible',
@@ -144,7 +173,7 @@ export function TimelineScrubber() {
             top: 0,
             height: '100%',
             width: `${progressPercentage}%`,
-            backgroundColor: '#1f2937',
+            backgroundColor: colors.progress,
             borderRadius: '4px',
             transition: isDragging ? 'none' : 'width 150ms',
           }}
@@ -163,7 +192,7 @@ export function TimelineScrubber() {
               height: '6px',
               backgroundColor: marker.color,
               borderRadius: '50%',
-              border: '1px solid white',
+              border: `1px solid ${colors.markerBorder}`,
               pointerEvents: 'none',
             }}
           />
@@ -179,7 +208,7 @@ export function TimelineScrubber() {
               transform: 'translate(-50%, -50%)',
               width: '2px',
               height: '16px',
-              backgroundColor: '#6b7280',
+              backgroundColor: colors.gray,
               pointerEvents: 'none',
             }}
           />
@@ -196,8 +225,8 @@ export function TimelineScrubber() {
             transform: 'translate(-50%, -50%)',
             width: '16px',
             height: '16px',
-            backgroundColor: 'white',
-            border: '2px solid #1f2937',
+            backgroundColor: colors.handle,
+            border: `2px solid ${colors.handleBorder}`,
             borderRadius: '50%',
             cursor: 'grab',
             boxShadow: '0 2px 4px rgba(0,0,0,0.2)',

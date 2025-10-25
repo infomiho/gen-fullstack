@@ -65,7 +65,7 @@ export function PromptInput({ value, onChange, disabled, id }: PromptInputProps)
       placeholder={placeholderText}
       disabled={disabled}
       rows={5}
-      className={`${input.textarea} ${focus.ring} text-xl placeholder:text-gray-400`}
+      className={`${input.textarea} ${focus.ring} text-xl placeholder:text-gray-400 dark:placeholder:text-gray-600`}
     />
   );
 }

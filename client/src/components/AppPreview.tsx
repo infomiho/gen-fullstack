@@ -28,7 +28,7 @@ export function AppPreview({ appStatus }: AppPreviewProps) {
 
   // Single render path with CSS-only fullscreen to avoid iframe remount
   return (
-    <div className={isFullscreen ? 'fixed inset-0 z-50 bg-white flex flex-col' : ''}>
+    <div className={isFullscreen ? 'fixed inset-0 z-50 bg-background flex flex-col' : ''}>
       {/* Header - sticky in fullscreen mode */}
       <div
         className={
@@ -68,10 +68,10 @@ export function AppPreview({ appStatus }: AppPreviewProps) {
               onLoad={() => setIframeError(false)}
             />
             {iframeError && (
-              <div className="absolute inset-0 flex items-center justify-center bg-red-50">
+              <div className="absolute inset-0 flex items-center justify-center bg-red-50 dark:bg-red-950/30">
                 <div className="text-center p-6">
                   <svg
-                    className="mx-auto h-12 w-12 text-red-400"
+                    className="mx-auto h-12 w-12 text-red-400 dark:text-red-300"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -85,14 +85,16 @@ export function AppPreview({ appStatus }: AppPreviewProps) {
                       d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
                     />
                   </svg>
-                  <p className="mt-4 text-sm font-medium text-red-700">Failed to load preview</p>
-                  <p className="mt-1 text-xs text-red-600">
+                  <p className="mt-4 text-sm font-medium text-red-700 dark:text-red-400">
+                    Failed to load preview
+                  </p>
+                  <p className="mt-1 text-xs text-red-600 dark:text-red-400">
                     The app may still be starting or encountered an error.
                   </p>
                   <button
                     type="button"
                     onClick={handleReload}
-                    className="mt-4 px-4 py-2 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
+                    className="mt-4 px-4 py-2 bg-red-600 dark:bg-red-700 text-white text-sm rounded hover:bg-red-700 dark:hover:bg-red-600 transition-colors"
                   >
                     Try Reloading
                   </button>

@@ -38,23 +38,23 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       }
 
       return (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+        <div className="rounded-lg border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30 p-4">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-xl">⚠️</span>
-            <h3 className="font-semibold text-red-900">Something went wrong</h3>
+            <h3 className="font-semibold text-red-900 dark:text-red-100">Something went wrong</h3>
           </div>
-          <p className="text-sm text-red-700 mb-2">
+          <p className="text-sm text-red-700 dark:text-red-400 mb-2">
             An error occurred while rendering this component.
           </p>
           {this.state.error && (
-            <pre className="text-xs bg-red-100 p-2 rounded overflow-x-auto text-red-800">
+            <pre className="text-xs bg-red-100 dark:bg-red-950/50 p-2 rounded overflow-x-auto text-red-800 dark:text-red-300">
               {this.state.error.message}
             </pre>
           )}
           <button
             type="button"
             onClick={() => this.setState({ hasError: false, error: undefined })}
-            className="mt-3 px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
+            className="mt-3 px-3 py-1 text-sm bg-red-600 dark:bg-red-700 text-white rounded hover:bg-red-700 dark:hover:bg-red-600"
           >
             Try again
           </button>
