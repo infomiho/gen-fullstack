@@ -98,10 +98,10 @@ export function ToolItem({ tool, isOpen, onOpenChange }: ToolItemProps) {
               <span
                 className={`font-medium ${
                   tool.isError
-                    ? 'text-red-600'
+                    ? 'text-red-700 dark:text-red-400'
                     : tool.isComplete
-                      ? 'text-green-600'
-                      : 'text-yellow-600'
+                      ? 'text-green-700 dark:text-green-400'
+                      : 'text-yellow-700 dark:text-yellow-400'
                 }`}
               >
                 {tool.isError ? 'Failed' : tool.isComplete ? 'Complete' : 'Running'}
@@ -112,7 +112,7 @@ export function ToolItem({ tool, isOpen, onOpenChange }: ToolItemProps) {
               <div>
                 <h3 className={`${typography.label} mb-2`}>Reason</h3>
                 <p
-                  className={`${typography.body} text-foreground ${radius.sm} ${padding.compact} bg-blue-50 border border-blue-200`}
+                  className={`${typography.body} text-foreground ${radius.sm} ${padding.compact} bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50`}
                 >
                   {tool.reason}
                 </p>
@@ -130,7 +130,7 @@ export function ToolItem({ tool, isOpen, onOpenChange }: ToolItemProps) {
                 <pre
                   className={`p-3 ${radius.sm} border overflow-x-auto ${typography.mono} max-h-96 overflow-y-auto ${
                     tool.isError
-                      ? 'bg-red-50 border-red-200 text-red-900'
+                      ? 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900/50 text-red-900 dark:text-red-400'
                       : 'bg-muted border-border text-foreground'
                   }`}
                 >

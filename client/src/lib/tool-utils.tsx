@@ -63,7 +63,7 @@ export function renderToolParameters(
   args: Record<string, unknown> | undefined,
 ): React.ReactNode {
   if (!args) {
-    return <div className={`${typography.body} text-gray-400`}>No parameters</div>;
+    return <div className={`${typography.body} text-muted-foreground`}>No parameters</div>;
   }
 
   // Custom formatting for writeFile
@@ -73,15 +73,15 @@ export function renderToolParameters(
       <div className={`${typography.body} ${spacing.form}`}>
         {path && (
           <div>
-            <span className="text-gray-500">path:</span>
-            <span className={`${typography.mono} text-gray-900 ml-2`}>{path}</span>
+            <span className="text-muted-foreground">path:</span>
+            <span className={`${typography.mono} text-foreground ml-2`}>{path}</span>
           </div>
         )}
         {content && (
           <div>
-            <div className="text-gray-500 mb-1">content:</div>
+            <div className="text-muted-foreground mb-1">content:</div>
             <pre
-              className={`bg-gray-50 p-3 ${radius.sm} border border-gray-200 overflow-x-auto ${typography.mono} max-h-64 overflow-y-auto text-gray-800`}
+              className={`bg-muted p-3 ${radius.sm} border border-border overflow-x-auto ${typography.mono} max-h-64 overflow-y-auto text-foreground`}
             >
               {content}
             </pre>
@@ -96,8 +96,8 @@ export function renderToolParameters(
     const { path } = args as { path?: string };
     return (
       <div className={typography.body}>
-        <span className="text-gray-500">path:</span>
-        <span className={`${typography.mono} text-gray-900 ml-2`}>{path || 'unknown'}</span>
+        <span className="text-muted-foreground">path:</span>
+        <span className={`${typography.mono} text-foreground ml-2`}>{path || 'unknown'}</span>
       </div>
     );
   }
@@ -107,8 +107,8 @@ export function renderToolParameters(
     const { directory } = args as { directory?: string };
     return (
       <div className={typography.body}>
-        <span className="text-gray-500">directory:</span>
-        <span className={`${typography.mono} text-gray-900 ml-2`}>{directory || '.'}</span>
+        <span className="text-muted-foreground">directory:</span>
+        <span className={`${typography.mono} text-foreground ml-2`}>{directory || '.'}</span>
       </div>
     );
   }
@@ -118,9 +118,9 @@ export function renderToolParameters(
     const { command } = args as { command?: string };
     return (
       <div className={typography.body}>
-        <div className="text-gray-500 mb-1">command:</div>
+        <div className="text-muted-foreground mb-1">command:</div>
         <pre
-          className={`bg-gray-50 p-3 ${radius.sm} border border-gray-200 overflow-x-auto ${typography.mono} text-gray-800`}
+          className={`bg-muted p-3 ${radius.sm} border border-border overflow-x-auto ${typography.mono} text-foreground`}
         >
           {command || 'unknown'}
         </pre>
@@ -131,7 +131,7 @@ export function renderToolParameters(
   // Default: show raw JSON
   return (
     <pre
-      className={`bg-gray-50 p-3 ${radius.sm} border border-gray-200 overflow-x-auto ${typography.mono} text-gray-800`}
+      className={`bg-muted p-3 ${radius.sm} border border-border overflow-x-auto ${typography.mono} text-foreground`}
     >
       {JSON.stringify(args, null, 2)}
     </pre>
