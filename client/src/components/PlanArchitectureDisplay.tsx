@@ -60,8 +60,8 @@ export function PlanArchitectureDisplay({
           </Collapsible.Trigger>
           <Collapsible.Content className="mt-2">
             <div className={`${spacing.list} border-l-2 border-border pl-4`}>
-              {databaseModels.map((model, idx) => (
-                <div key={idx} className="mb-3 last:mb-0">
+              {databaseModels.map((model) => (
+                <div key={model.name} className="mb-3 last:mb-0">
                   <div className={`${typography.mono} font-semibold text-foreground`}>
                     {model.name}
                   </div>
@@ -69,8 +69,8 @@ export function PlanArchitectureDisplay({
                     <div className="ml-4 mt-1">
                       <div className="text-muted-foreground text-sm">Fields:</div>
                       <ul className="list-disc list-inside text-foreground text-sm">
-                        {model.fields.map((field, fieldIdx) => (
-                          <li key={fieldIdx} className={typography.mono}>
+                        {model.fields.map((field) => (
+                          <li key={field} className={typography.mono}>
                             {field}
                           </li>
                         ))}
@@ -81,8 +81,8 @@ export function PlanArchitectureDisplay({
                     <div className="ml-4 mt-1">
                       <div className="text-muted-foreground text-sm">Relations:</div>
                       <ul className="list-disc list-inside text-foreground text-sm">
-                        {model.relations.map((relation, relIdx) => (
-                          <li key={relIdx} className={typography.mono}>
+                        {model.relations.map((relation) => (
+                          <li key={relation} className={typography.mono}>
                             {relation}
                           </li>
                         ))}
@@ -110,8 +110,11 @@ export function PlanArchitectureDisplay({
           </Collapsible.Trigger>
           <Collapsible.Content className="mt-2">
             <div className={`${spacing.list}`}>
-              {apiRoutes.map((route, idx) => (
-                <div key={idx} className="mb-2 last:mb-0 flex gap-3 items-center">
+              {apiRoutes.map((route) => (
+                <div
+                  key={`${route.method}-${route.path}`}
+                  className="mb-2 last:mb-0 flex gap-3 items-center"
+                >
                   <div className="w-16 flex-shrink-0">{renderMethodBadge(route.method)}</div>
                   <div className="flex-1">
                     <div className={`${typography.mono} text-foreground font-medium`}>
@@ -140,16 +143,16 @@ export function PlanArchitectureDisplay({
           </Collapsible.Trigger>
           <Collapsible.Content className="mt-2">
             <div className={`${spacing.list} border-l-2 border-border pl-4`}>
-              {clientComponents.map((component, idx) => (
-                <div key={idx} className="mb-3 last:mb-0">
+              {clientComponents.map((component) => (
+                <div key={component.name} className="mb-3 last:mb-0">
                   <div className={`${typography.mono} font-semibold text-foreground`}>
                     {component.name}
                   </div>
                   <div className="text-muted-foreground text-sm mt-1">{component.purpose}</div>
                   {component.key_features && component.key_features.length > 0 && (
                     <ul className="list-disc list-inside text-foreground text-sm mt-1 ml-4">
-                      {component.key_features.map((feature, featureIdx) => (
-                        <li key={featureIdx}>{feature}</li>
+                      {component.key_features.map((feature) => (
+                        <li key={feature}>{feature}</li>
                       ))}
                     </ul>
                   )}
