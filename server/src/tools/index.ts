@@ -526,20 +526,37 @@ export const validateTypeScript = tool({
  * This preserves all template dependencies while adding new ones.
  */
 export const updatePackageJson = tool({
-  description:
-    'Add dependencies to package.json without removing existing ones. Use this instead of writeFile for package.json files to preserve template dependencies.',
+  description: `Add dependencies to package.json without removing existing ones.
+
+CRITICAL: You MUST provide a dependencies object with package names and versions.
+
+Example:
+{
+  "target": "client",
+  "dependencies": {
+    "react-router-dom": "^6.26.0",
+    "axios": "^1.7.0"
+  },
+  "reason": "Add routing for multi-page navigation"
+}
+
+DO NOT call this tool with only a reason - you must provide the actual dependencies object with versions.`,
   inputSchema: z.object({
     target: z
       .enum(['root', 'client', 'server'])
       .describe('Which package.json to update (root, client, or server)'),
     dependencies: z
       .record(z.string())
-      .optional()
-      .describe('Dependencies to add (e.g., {"express": "^5.0.0"})'),
+      .nullable()
+      .describe(
+        'Dependencies to add with versions (e.g., {"express": "^5.0.0"}). Must provide this OR devDependencies.',
+      ),
     devDependencies: z
       .record(z.string())
-      .optional()
-      .describe('Dev dependencies to add (e.g., {"typescript": "^5.0.0"})'),
+      .nullable()
+      .describe(
+        'Dev dependencies to add with versions (e.g., {"typescript": "^5.0.0"}). Must provide this OR dependencies.',
+      ),
     reason: z
       .string()
       .min(10)
@@ -549,15 +566,19 @@ export const updatePackageJson = tool({
   execute: async ({ target, dependencies, devDependencies }, { experimental_context: context }) => {
     const { sessionId } = extractToolContext(context);
 
+    // Validation in execute as safety net
     if (!dependencies && !devDependencies) {
-      return 'No dependencies provided to add.';
+      throw new Error(
+        'Must provide either dependencies or devDependencies with package names and versions. ' +
+          'Do not call this tool with only a reason field.',
+      );
     }
 
     return await filesystemService.updatePackageJson(
       sessionId,
       target,
-      dependencies,
-      devDependencies,
+      dependencies ?? undefined,
+      devDependencies ?? undefined,
     );
   },
 });

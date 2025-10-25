@@ -28,6 +28,23 @@ describe('Prompt Builder', () => {
       expect(prompt).not.toContain('VALIDATION TOOLS:');
     });
 
+    it('should include dependency management section in base prompt', () => {
+      const prompt = buildSystemPrompt({
+        inputMode: 'naive',
+        planning: false,
+        compilerChecks: false,
+        buildingBlocks: false,
+        maxIterations: 3,
+      });
+
+      // Verify DEPENDENCY MANAGEMENT section is included
+      expect(prompt).toContain('DEPENDENCY MANAGEMENT:');
+      expect(prompt).toContain('Use updatePackageJson tool to add dependencies');
+      expect(prompt).toContain('Example updatePackageJson call:');
+      expect(prompt).toContain('"react-router-dom": "^6.26.0"');
+      expect(prompt).toContain('ALWAYS provide the dependencies object with versions');
+    });
+
     it('should include template addon for template mode', () => {
       const prompt = buildSystemPrompt({
         inputMode: 'template',
@@ -40,6 +57,24 @@ describe('Prompt Builder', () => {
       expect(prompt).toContain('TEMPLATE MODE:');
       expect(prompt).toContain('DO NOT use writeFile for package.json files');
       expect(prompt).toContain('Use updatePackageJson tool');
+    });
+
+    it('should include template customization instructions', () => {
+      const prompt = buildSystemPrompt({
+        inputMode: 'template',
+        planning: false,
+        compilerChecks: false,
+        buildingBlocks: false,
+        maxIterations: 3,
+      });
+
+      // Verify new 5-step task list
+      expect(prompt).toContain('YOUR TASK:');
+      expect(prompt).toContain('**Replace** template example code');
+      expect(prompt).toContain('Update App.tsx to implement the actual application');
+      expect(prompt).toContain('Update main.tsx if routing or global providers are needed');
+      expect(prompt).toContain('You are customizing the template, not extending it');
+      expect(prompt).toContain("The template's example code is a placeholder to be replaced");
     });
 
     it('should include planning addon when enabled', () => {

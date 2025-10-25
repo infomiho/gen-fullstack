@@ -65,7 +65,24 @@ YOUR WORKFLOW:
 3. Plan the API endpoints
 4. Implement server routes with proper error handling
 5. Create React components with proper state management
-6. Generate ALL files required for a working app`;
+6. Generate ALL files required for a working app
+
+DEPENDENCY MANAGEMENT:
+1. Identify ALL npm packages your code needs BEFORE writing code
+2. Use updatePackageJson tool to add dependencies with specific versions
+3. Common packages to consider:
+   - react-router-dom (if app needs navigation/multiple pages)
+   - zod (if doing form validation)
+   - date-fns (if manipulating dates)
+4. Building blocks auto-install their dependencies (e.g., auth-password adds bcryptjs)
+5. ALWAYS provide the dependencies object with versions, not just package names in the reason
+
+Example updatePackageJson call:
+{
+  "target": "client",
+  "dependencies": { "react-router-dom": "^6.26.0" },
+  "reason": "Enable multi-page navigation"
+}`;
 
 /**
  * Composable prompt addons
@@ -84,14 +101,23 @@ A complete full-stack template has been pre-loaded with all configuration files:
 - server/ (Express 5 + TypeScript configured)
 - prisma/ (Prisma ORM configured)
 
+The template includes example User CRUD functionality as a reference.
+
+YOUR TASK:
+1. **Replace** template example code with the user's requirements
+2. Update App.tsx to implement the actual application (not the template example)
+3. Update main.tsx if routing or global providers are needed
+4. Modify or delete template files that don't fit the new requirements
+5. Keep configuration files (vite.config.ts, tsconfig.json, etc.) intact
+
+CRITICAL - You are customizing the template, not extending it.
+The template's example code is a placeholder to be replaced.
+
 CRITICAL - DEPENDENCY MANAGEMENT:
 - DO NOT use writeFile for package.json files
 - Template dependencies are required and must be preserved
 - Use updatePackageJson tool to ADD new dependencies without removing existing ones
-- Example: updatePackageJson({ target: "client", dependencies: { "react-router-dom": "^6.0.0" } })
-
-All tsconfig.json, vite.config.ts files are ready.
-Focus on implementing the specific features requested by the user.`,
+- Example: updatePackageJson({ target: "client", dependencies: { "react-router-dom": "^6.0.0" } })`,
 
   /**
    * Planning addon
