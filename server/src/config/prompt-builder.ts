@@ -116,8 +116,11 @@ The template's example code is a placeholder to be replaced.
 CRITICAL - DEPENDENCY MANAGEMENT:
 - DO NOT use writeFile for package.json files
 - Template dependencies are required and must be preserved
-- Use updatePackageJson tool to ADD new dependencies without removing existing ones
-- Example: updatePackageJson({ target: "client", dependencies: { "react-router-dom": "^6.0.0" } })`,
+- Use installNpmDep tool to ADD new dependencies without removing existing ones
+- Example: installNpmDep({ target: "client", dependencies: { "react-router-dom": "^6.0.0" } })
+
+All tsconfig.json, vite.config.ts files are ready.
+Focus on implementing the specific features requested by the user.`,
 
   /**
    * Planning addon

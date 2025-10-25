@@ -239,13 +239,27 @@ export const planArchitecture = tool({
     const plan = `ARCHITECTURAL PLAN:
 
 DATABASE MODELS:
-${databaseModels.map((m) => `- ${m.name}\n  Fields: ${m.fields.join(', ')}\n  Relations: ${m.relations?.join(', ') || 'None'}`).join('\n')}
+${databaseModels
+  .map(
+    (m) =>
+      `- ${m.name}\n  Fields: ${m.fields.join(', ')}\n  Relations: ${
+        m.relations?.join(', ') || 'None'
+      }`,
+  )
+  .join('\n')}
 
 API ROUTES:
 ${apiRoutes.map((r) => `- ${r.method} ${r.path}: ${r.description}`).join('\n')}
 
 CLIENT COMPONENTS:
-${clientComponents.map((c) => `- ${c.name}: ${c.purpose}${c.key_features ? `\n  Features: ${c.key_features.join(', ')}` : ''}`).join('\n')}`;
+${clientComponents
+  .map(
+    (c) =>
+      `- ${c.name}: ${c.purpose}${
+        c.key_features ? `\n  Features: ${c.key_features.join(', ')}` : ''
+      }`,
+  )
+  .join('\n')}`;
 
     // Emit plan as system message
     if (io) {
@@ -520,12 +534,21 @@ export const validateTypeScript = tool({
 });
 
 /**
- * Update package.json by adding dependencies without removing existing ones
+ * Install npm dependencies to package.json
  *
- * CRITICAL: Use this instead of writeFile for package.json in template mode.
- * This preserves all template dependencies while adding new ones.
+ * Use this tool to add or update npm packages in package.json files.
+ * It preserves all existing dependencies and package.json configuration.
+ *
+ * IMPORTANT: This tool is ONLY for installing dependencies.
+ * - For adding dependencies: Use this tool
+ * - For modifying scripts, name, version, etc.: Use writeFile
+ *
+ * Examples:
+ * - Installing runtime deps: { target: "server", dependencies: {"express": "^5.0.0"} }
+ * - Installing dev deps: { target: "client", devDependencies: {"@types/react": "^18.0.0"} }
+ * - Installing both: { target: "server", dependencies: {...}, devDependencies: {...} }
  */
-export const updatePackageJson = tool({
+export const installNpmDep = tool({
   description: `Add dependencies to package.json without removing existing ones.
 
 CRITICAL: You MUST provide a dependencies object with package names and versions.
@@ -534,13 +557,9 @@ Example:
 {
   "target": "client",
   "dependencies": {
-    "react-router-dom": "^6.26.0",
     "axios": "^1.7.0"
-  },
-  "reason": "Add routing for multi-page navigation"
-}
-
-DO NOT call this tool with only a reason - you must provide the actual dependencies object with versions.`,
+  }
+}`,
   inputSchema: z.object({
     target: z
       .enum(['root', 'client', 'server'])
@@ -561,7 +580,9 @@ DO NOT call this tool with only a reason - you must provide the actual dependenc
       .string()
       .min(10)
       .max(200)
-      .describe('Why you are adding these dependencies (10-200 characters)'),
+      .describe(
+        'Brief explanation of why these packages are needed and how they will be used (10-200 characters)',
+      ),
   }),
   execute: async ({ target, dependencies, devDependencies }, { experimental_context: context }) => {
     const { sessionId } = extractToolContext(context);
@@ -574,7 +595,7 @@ DO NOT call this tool with only a reason - you must provide the actual dependenc
       );
     }
 
-    return await filesystemService.updatePackageJson(
+    return await filesystemService.installNpmDep(
       sessionId,
       target,
       dependencies ?? undefined,
@@ -595,7 +616,7 @@ export const tools = {
   planArchitecture,
   validatePrismaSchema,
   validateTypeScript,
-  updatePackageJson,
+  installNpmDep,
 };
 
 /**
