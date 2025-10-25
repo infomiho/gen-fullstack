@@ -111,6 +111,7 @@ router.get('/:sessionId/replay-data', async (req, res) => {
         data = {
           name: item.toolName,
           parameters: item.toolArgs ? JSON.parse(item.toolArgs) : {},
+          reason: item.toolReason,
         };
       } else if (item.type === 'tool_result') {
         data = {

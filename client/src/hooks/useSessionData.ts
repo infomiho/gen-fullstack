@@ -31,6 +31,7 @@ interface SessionTimeline {
   toolCallId?: string;
   toolName?: string;
   toolArgs?: string;
+  toolReason?: string;
   // Tool result fields
   toolResultId?: string;
   toolResultFor?: string;
@@ -72,6 +73,7 @@ function convertPersistedToolCalls(timeline: SessionTimeline[]): ToolCall[] {
       id: item.toolCallId as string,
       name: item.toolName as string,
       args: safeJsonParse<Record<string, unknown>>(item.toolArgs, {}),
+      reason: item.toolReason,
       timestamp: new Date(item.timestamp).getTime(),
     }));
 }

@@ -62,6 +62,7 @@ interface SessionData {
     toolCallId?: string;
     toolName?: string;
     toolArgs?: string;
+    toolReason?: string;
     // Tool result fields
     toolResultId?: string;
     toolResultFor?: string;
