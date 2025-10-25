@@ -520,14 +520,23 @@ export const validateTypeScript = tool({
 });
 
 /**
- * Update package.json by adding dependencies without removing existing ones
+ * Install npm dependencies to package.json
  *
- * CRITICAL: Use this instead of writeFile for package.json in template mode.
- * This preserves all template dependencies while adding new ones.
+ * Use this tool to add or update npm packages in package.json files.
+ * It preserves all existing dependencies and package.json configuration.
+ *
+ * IMPORTANT: This tool is ONLY for installing dependencies.
+ * - For adding dependencies: Use this tool
+ * - For modifying scripts, name, version, etc.: Use writeFile
+ *
+ * Examples:
+ * - Installing runtime deps: { target: "server", dependencies: {"express": "^5.0.0"} }
+ * - Installing dev deps: { target: "client", devDependencies: {"@types/react": "^18.0.0"} }
+ * - Installing both: { target: "server", dependencies: {...}, devDependencies: {...} }
  */
 export const updatePackageJson = tool({
   description:
-    'Add dependencies to package.json without removing existing ones. Use this instead of writeFile for package.json files to preserve template dependencies.',
+    'Install npm packages to package.json. ONLY use for adding/updating dependencies. Preserves all existing dependencies and package.json fields (scripts, name, version, etc.). Use writeFile if you need to modify non-dependency fields.',
   inputSchema: z.object({
     target: z
       .enum(['root', 'client', 'server'])
@@ -535,22 +544,26 @@ export const updatePackageJson = tool({
     dependencies: z
       .record(z.string())
       .optional()
-      .describe('Dependencies to add (e.g., {"express": "^5.0.0"})'),
+      .describe('Runtime dependencies to install (e.g., {"express": "^5.0.0", "zod": "^3.22.0"})'),
     devDependencies: z
       .record(z.string())
       .optional()
-      .describe('Dev dependencies to add (e.g., {"typescript": "^5.0.0"})'),
+      .describe(
+        'Development dependencies to install (e.g., {"typescript": "^5.0.0", "@types/node": "^20.0.0"})',
+      ),
     reason: z
       .string()
       .min(10)
       .max(200)
-      .describe('Why you are adding these dependencies (10-200 characters)'),
+      .describe(
+        'Brief explanation of why these packages are needed and how they will be used (10-200 characters)',
+      ),
   }),
   execute: async ({ target, dependencies, devDependencies }, { experimental_context: context }) => {
     const { sessionId } = extractToolContext(context);
 
     if (!dependencies && !devDependencies) {
-      return 'No dependencies provided to add.';
+      return 'No dependencies provided to install.';
     }
 
     return await filesystemService.updatePackageJson(

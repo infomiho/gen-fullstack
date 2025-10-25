@@ -242,13 +242,25 @@ export async function fileExists(sessionId: string, filePath: string): Promise<b
 }
 
 /**
- * Update package.json by adding dependencies without removing existing ones
+ * Install dependencies to package.json without removing existing ones
+ *
+ * This function is specifically designed for adding npm dependencies to package.json files.
+ * It preserves all existing dependencies and only adds or updates the specified ones.
+ *
+ * Use cases:
+ * - Adding new runtime dependencies (dependencies)
+ * - Adding new development dependencies (devDependencies)
+ * - Updating versions of existing dependencies
+ *
+ * IMPORTANT: This function ONLY modifies the dependencies and devDependencies fields.
+ * All other package.json fields (name, version, scripts, etc.) remain unchanged.
  *
  * @param sessionId - Session identifier
  * @param target - Which package.json to update (root, client, or server)
- * @param dependencies - Dependencies to add
- * @param devDependencies - Dev dependencies to add
- * @returns Success message
+ * @param dependencies - Runtime dependencies to install (e.g., {"express": "^5.0.0"})
+ * @param devDependencies - Development dependencies to install (e.g., {"typescript": "^5.0.0"})
+ * @returns Success message with list of installed packages
+ * @throws {Error} If package.json doesn't exist, is malformed, or write fails
  */
 export async function updatePackageJson(
   sessionId: string,
@@ -258,41 +270,50 @@ export async function updatePackageJson(
 ): Promise<string> {
   const packageJsonPath = target === 'root' ? 'package.json' : `${target}/package.json`;
 
+  // Validate that at least one dependency type is provided
+  if (!dependencies && !devDependencies) {
+    throw new Error('No dependencies provided. Specify either dependencies or devDependencies.');
+  }
+
   try {
     // Read existing package.json
     const content = await readFile(sessionId, packageJsonPath);
     const packageJson = JSON.parse(content);
 
-    // Merge dependencies (new ones override if same key)
+    // Track what we're installing for the return message
+    const installed: string[] = [];
+
+    // Install runtime dependencies (merge with existing)
     if (dependencies && Object.keys(dependencies).length > 0) {
       packageJson.dependencies = {
         ...packageJson.dependencies,
         ...dependencies,
       };
+      installed.push(...Object.keys(dependencies));
     }
 
+    // Install dev dependencies (merge with existing)
     if (devDependencies && Object.keys(devDependencies).length > 0) {
       packageJson.devDependencies = {
         ...packageJson.devDependencies,
         ...devDependencies,
       };
+      installed.push(...Object.keys(devDependencies));
     }
 
     // Write back with formatting
     await writeFile(sessionId, packageJsonPath, JSON.stringify(packageJson, null, 2));
 
-    const added = [...Object.keys(dependencies || {}), ...Object.keys(devDependencies || {})];
-
     filesystemLogger.info(
-      { sessionId, target, added },
-      'Updated package.json with new dependencies',
+      { sessionId, target, installed },
+      'Installed dependencies to package.json',
     );
 
-    return `Successfully added ${added.length} dependencies to ${target}/package.json: ${added.join(', ')}`;
+    return `Successfully installed ${installed.length} package${installed.length === 1 ? '' : 's'} to ${target}/package.json: ${installed.join(', ')}`;
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    filesystemLogger.error({ error, sessionId, target }, 'Failed to update package.json');
-    throw new Error(`Failed to update package.json: ${errorMsg}`);
+    filesystemLogger.error({ error, sessionId, target }, 'Failed to install dependencies');
+    throw new Error(`Failed to install dependencies to package.json: ${errorMsg}`);
   }
 }
 
