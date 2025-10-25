@@ -12,7 +12,7 @@ import { json } from '@codemirror/lang-json';
 import { EditorState } from '@codemirror/state';
 import type { ViewUpdate } from '@codemirror/view';
 import { MAX_EDITOR_FILE_SIZE } from '@gen-fullstack/shared';
-import { vscodeLight } from '@uiw/codemirror-theme-vscode';
+import { vscodeDark, vscodeLight } from '@uiw/codemirror-theme-vscode';
 import { basicSetup, EditorView } from 'codemirror';
 import { useEffect, useRef, useState } from 'react';
 
@@ -53,11 +53,30 @@ export function CodeEditor({ value, filePath, onChange, readOnly = false }: Code
   const [fileTooLarge, setFileTooLarge] = useState(false);
   // Track if change came from user typing (prevents recreation loop)
   const isUserChangeRef = useRef(false);
+  // Track current theme
+  const [isDarkMode, setIsDarkMode] = useState(() =>
+    document.documentElement.classList.contains('dark'),
+  );
 
   // Update ref when onChange changes
   useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
+
+  // Watch for theme changes
+  useEffect(() => {
+    const updateTheme = () => {
+      setIsDarkMode(document.documentElement.classList.contains('dark'));
+    };
+
+    const observer = new MutationObserver(updateTheme);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class'],
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   // Main editor creation effect - only recreate when file or readOnly changes
   // biome-ignore lint/correctness/useExhaustiveDependencies: We intentionally exclude 'value' from dependencies to prevent recreation on every value change. Value updates are handled by a separate effect that uses transactions to preserve cursor position.
@@ -77,7 +96,7 @@ export function CodeEditor({ value, filePath, onChange, readOnly = false }: Code
       extensions: [
         basicSetup,
         getLanguageExtension(filePath),
-        vscodeLight,
+        isDarkMode ? vscodeDark : vscodeLight,
         EditorView.editable.of(!readOnly),
         EditorView.updateListener.of((update: ViewUpdate) => {
           // Use ref to get latest onChange callback
@@ -114,7 +133,7 @@ export function CodeEditor({ value, filePath, onChange, readOnly = false }: Code
       view.destroy();
       viewRef.current = null;
     };
-  }, [filePath, readOnly]); // Only recreate when file or readOnly changes
+  }, [filePath, readOnly, isDarkMode]); // Recreate when file, readOnly, or theme changes
 
   // Separate effect for handling external value updates (not from user typing)
   useEffect(() => {

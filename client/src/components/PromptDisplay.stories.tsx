@@ -65,10 +65,10 @@ export const MultilinePrompt: Story = {
  */
 export const InCard: Story = {
   render: (args) => (
-    <div className="w-96 p-4 border border-gray-200 rounded-lg bg-white">
+    <div className="w-96 p-4 border border-border rounded-lg bg-card">
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-xs text-gray-500">2h ago</span>
+          <span className="text-xs text-muted-foreground">2h ago</span>
         </div>
         <PromptDisplay {...args} />
         <div className="flex items-center gap-1.5">
@@ -85,10 +85,10 @@ export const InCard: Story = {
  */
 export const InSidebar: Story = {
   render: (args) => (
-    <div className="w-80 p-6 border border-gray-200 bg-white">
+    <div className="w-80 p-6 border border-border bg-card">
       <div className="space-y-6">
         <div>
-          <h3 className="text-base font-medium text-gray-900 mb-3">Prompt</h3>
+          <h3 className="text-base font-medium text-foreground mb-3">Prompt</h3>
           <PromptDisplay {...args} />
         </div>
       </div>

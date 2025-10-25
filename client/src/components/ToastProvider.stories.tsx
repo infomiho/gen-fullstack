@@ -40,7 +40,7 @@ function ToastDemo() {
             setCount((c) => c + 1);
             showToast('Success!', `Operation completed successfully (${count + 1})`, 'success');
           }}
-          className="px-4 py-2 bg-gray-900 text-white rounded hover:bg-gray-800 transition-colors"
+          className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
         >
           Success
         </button>
@@ -51,7 +51,7 @@ function ToastDemo() {
             setCount((c) => c + 1);
             showToast('Error!', `Something went wrong (${count + 1})`, 'error');
           }}
-          className="px-4 py-2 bg-gray-900 text-white rounded hover:bg-gray-800 transition-colors"
+          className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
         >
           Error
         </button>
@@ -62,7 +62,7 @@ function ToastDemo() {
             setCount((c) => c + 1);
             showToast('Warning', `Please review this carefully (${count + 1})`, 'warning');
           }}
-          className="px-4 py-2 bg-gray-900 text-white rounded hover:bg-gray-800 transition-colors"
+          className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
         >
           Warning
         </button>
@@ -73,7 +73,7 @@ function ToastDemo() {
             setCount((c) => c + 1);
             showToast('Info', `Here's some information (${count + 1})`, 'info');
           }}
-          className="px-4 py-2 bg-gray-900 text-white rounded hover:bg-gray-800 transition-colors"
+          className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
         >
           Info
         </button>

@@ -37,7 +37,7 @@ export function MessageItem({ message }: MessageItemProps) {
       <div className="flex-1 min-w-0">
         <div className="mb-1 flex items-center justify-between gap-2">
           <div className={`${typography.caption} font-semibold uppercase`}>{message.role}</div>
-          <div className={`${typography.monoSm} text-gray-400`}>
+          <div className={`${typography.monoSm} text-gray-600 dark:text-gray-400`}>
             {formatTimestamp(message.timestamp)}
           </div>
         </div>

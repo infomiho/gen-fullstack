@@ -147,8 +147,8 @@ function InteractiveDemo() {
 
   return (
     <div className="h-screen flex flex-col">
-      <div className="flex items-center justify-between border-b px-4 py-2 bg-white">
-        <span className="text-sm font-mono text-gray-600">src/App.tsx</span>
+      <div className="flex items-center justify-between border-b border-border px-4 py-2 bg-card">
+        <span className="text-sm font-mono text-muted-foreground">src/App.tsx</span>
         <button
           type="button"
           onClick={handleSave}

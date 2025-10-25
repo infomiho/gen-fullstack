@@ -50,9 +50,9 @@ export const LargerIcon: Story = {
  */
 export const InCard: Story = {
   render: (args) => (
-    <div className="w-96 p-4 border border-gray-200 rounded-lg bg-white">
+    <div className="w-96 p-4 border border-border rounded-lg bg-card">
       <div className="flex items-start gap-2">
-        <p className="text-sm text-gray-900 leading-relaxed flex-1">{args.text}</p>
+        <p className="text-sm text-foreground leading-relaxed flex-1">{args.text}</p>
         <CopyButton {...args} />
       </div>
     </div>
@@ -67,13 +67,13 @@ export const InHeader: Story = {
     iconSize: 16,
   },
   render: (args) => (
-    <div className="w-80 p-6 border border-gray-200 bg-white">
+    <div className="w-80 p-6 border border-border bg-card">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-base font-medium text-gray-900">Prompt</h3>
+        <h3 className="text-base font-medium text-foreground">Prompt</h3>
         <CopyButton {...args} />
       </div>
-      <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
-        <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{args.text}</p>
+      <div className="p-4 bg-muted border border-border rounded-lg">
+        <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{args.text}</p>
       </div>
     </div>
   ),

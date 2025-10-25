@@ -73,8 +73,8 @@ export const InHeader: Story = {
     isFullscreen: false,
   },
   render: () => (
-    <div className="border-b p-4 flex items-center justify-between bg-white">
-      <h3 className="text-sm font-medium text-gray-700">App Preview</h3>
+    <div className="border-b border-border p-4 flex items-center justify-between bg-card">
+      <h3 className="text-sm font-medium text-foreground">App Preview</h3>
       <PreviewControls onReload={() => {}} onToggleFullscreen={() => {}} isFullscreen={false} />
     </div>
   ),

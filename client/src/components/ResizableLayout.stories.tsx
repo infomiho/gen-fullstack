@@ -75,30 +75,28 @@ export const TwoPanel: Story = {
 export const FileExplorer: Story = {
   args: {
     sidebar: (
-      <div className="h-full bg-gray-50 p-4">
+      <div className="h-full bg-muted p-4">
         <h3 className="font-semibold mb-3">File Tree</h3>
         <div className="space-y-1 text-sm">
-          <div className="font-mono cursor-pointer hover:bg-gray-100 px-2 py-1 rounded">
+          <div className="font-mono cursor-pointer hover:bg-accent px-2 py-1 rounded">
             📄 package.json
           </div>
-          <div className="font-mono cursor-pointer hover:bg-gray-100 px-2 py-1 rounded">
-            📁 src/
-          </div>
-          <div className="font-mono cursor-pointer hover:bg-gray-100 px-2 py-1 rounded ml-4">
+          <div className="font-mono cursor-pointer hover:bg-accent px-2 py-1 rounded">📁 src/</div>
+          <div className="font-mono cursor-pointer hover:bg-accent px-2 py-1 rounded ml-4">
             📄 App.tsx
           </div>
-          <div className="font-mono cursor-pointer hover:bg-gray-100 px-2 py-1 rounded ml-4">
+          <div className="font-mono cursor-pointer hover:bg-accent px-2 py-1 rounded ml-4">
             📄 index.tsx
           </div>
         </div>
       </div>
     ),
     middle: (
-      <div className="h-full bg-white p-4">
+      <div className="h-full bg-card p-4">
         <div className="border-b pb-2 mb-4">
-          <span className="font-mono text-sm text-gray-600">src/App.tsx</span>
+          <span className="font-mono text-sm text-muted-foreground">src/App.tsx</span>
         </div>
-        <pre className="text-sm font-mono text-gray-800">
+        <pre className="text-sm font-mono text-foreground">
           {`export default function App() {
   return (
     <div>
@@ -118,10 +116,13 @@ export const FileExplorer: Story = {
 export const TimelinePreview: Story = {
   args: {
     sidebar: (
-      <div className="h-full bg-gray-50 p-4">
+      <div className="h-full bg-muted p-4">
         <h3 className="font-semibold mb-3">Controls</h3>
         <div className="space-y-2">
-          <button type="button" className="w-full px-3 py-2 bg-gray-900 text-white rounded text-sm">
+          <button
+            type="button"
+            className="w-full px-3 py-2 bg-primary text-primary-foreground rounded text-sm"
+          >
             Strategy
           </button>
           <button type="button" className="w-full px-3 py-2 bg-blue-600 text-white rounded text-sm">
@@ -131,26 +132,26 @@ export const TimelinePreview: Story = {
       </div>
     ),
     middle: (
-      <div className="h-full bg-white p-4">
+      <div className="h-full bg-card p-4">
         <h3 className="font-semibold mb-3">Timeline</h3>
         <div className="space-y-2">
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded">
-            <div className="text-xs text-gray-500 mb-1">ASSISTANT</div>
+          <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded">
+            <div className="text-xs text-muted-foreground mb-1">ASSISTANT</div>
             <div className="text-sm">I'll create your app...</div>
           </div>
-          <div className="p-3 bg-gray-50 border rounded">
-            <div className="text-xs text-gray-500 mb-1">TOOL: writeFile</div>
+          <div className="p-3 bg-muted border border-border rounded">
+            <div className="text-xs text-muted-foreground mb-1">TOOL: writeFile</div>
             <div className="text-sm font-mono">Writing to src/App.tsx</div>
           </div>
         </div>
       </div>
     ),
     right: (
-      <div className="h-full bg-gray-900 p-4">
-        <h3 className="font-semibold mb-3 text-white">App Preview</h3>
-        <div className="bg-white rounded p-8 text-center">
+      <div className="h-full bg-background p-4 border-l border-border">
+        <h3 className="font-semibold mb-3 text-foreground">App Preview</h3>
+        <div className="bg-card rounded p-8 text-center border border-border">
           <h1 className="text-2xl font-bold mb-2">My App</h1>
-          <p className="text-gray-600">Running on port 5173</p>
+          <p className="text-muted-foreground">Running on port 5173</p>
         </div>
       </div>
     ),

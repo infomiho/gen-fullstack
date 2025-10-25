@@ -99,7 +99,7 @@ export function LogViewer({ logs }: LogViewerProps) {
       {/* Log Container */}
       <div
         ref={logContainerRef}
-        className={`overflow-y-auto border border-border bg-gray-900 ${radius.md} font-mono text-xs`}
+        className={`overflow-y-auto border border-border bg-muted ${radius.md} font-mono text-xs`}
         style={{ height: '400px' }}
       >
         {filteredLogs.length === 0 ? (
@@ -117,13 +117,15 @@ export function LogViewer({ logs }: LogViewerProps) {
                 key={`${log.timestamp}-${index}`}
                 className="flex gap-3 items-start font-mono text-xs"
               >
-                <span className="text-gray-500 flex-shrink-0">{formatTime(log.timestamp)}</span>
+                <span className="text-muted-foreground flex-shrink-0">
+                  {formatTime(log.timestamp)}
+                </span>
                 <span
                   className={`flex-shrink-0 uppercase font-semibold ${getLevelColor(log.level)}`}
                 >
                   {getLevelLabel(log.level)}
                 </span>
-                <span className="text-gray-300 break-all">{log.message}</span>
+                <span className="text-foreground break-all">{log.message}</span>
               </div>
             ))}
           </div>

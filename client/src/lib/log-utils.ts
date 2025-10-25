@@ -21,15 +21,15 @@ import type { AppLog } from '@gen-fullstack/shared';
 export function getLevelColor(level: AppLog['level']): string {
   switch (level) {
     case 'error':
-      return 'text-red-600';
+      return 'text-red-600 dark:text-red-400';
     case 'warn':
-      return 'text-yellow-600';
+      return 'text-yellow-600 dark:text-yellow-400';
     case 'command':
-      return 'text-purple-400';
+      return 'text-purple-500 dark:text-purple-400';
     case 'system':
-      return 'text-yellow-400';
+      return 'text-yellow-500 dark:text-yellow-400';
     default:
-      return 'text-blue-600';
+      return 'text-blue-600 dark:text-blue-400';
   }
 }
 

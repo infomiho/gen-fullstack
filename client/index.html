@@ -1,12 +1,33 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Gen Fullstack Demo</title>
+    <script>
+      // Detect and apply theme before page renders to prevent FOUC
+      (function() {
+        const saved = localStorage.getItem('theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const theme = saved || (prefersDark ? 'dark' : 'light');
+
+        // Apply theme class to html element
+        document.documentElement.classList.add(theme);
+
+        // Apply inline styles to body to prevent flash
+        const isDark = theme === 'dark';
+        const bgColor = isDark ? 'oklch(0.141 0.005 285.823)' : 'oklch(1 0 0)';
+        const textColor = isDark ? 'oklch(0.92 0.004 285)' : 'oklch(0.145 0 0)';
+
+        // Create style tag to apply body styles immediately
+        const style = document.createElement('style');
+        style.textContent = `body { background-color: ${bgColor}; color: ${textColor}; }`;
+        document.head.appendChild(style);
+      })();
+    </script>
   </head>
-  <body class="bg-background text-foreground" style="background-color: oklch(0.141 0.005 285.823); color: oklch(0.92 0.004 285);">
+  <body class="bg-background text-foreground">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

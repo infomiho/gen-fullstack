@@ -78,7 +78,7 @@ export const WithAction: Story = {
     action: (
       <button
         type="button"
-        className="rounded bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
+        className="rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
       >
         Start App
       </button>
@@ -91,7 +91,7 @@ export const CustomStyling: Story = {
     icon: <Bot size={32} />,
     title: 'Custom styled empty state',
     description: 'With custom className applied',
-    className: 'bg-gray-50 rounded-lg p-8',
+    className: 'bg-muted rounded-lg p-8',
   },
   decorators: [
     (Story) => (

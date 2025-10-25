@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useReplayStore } from '../stores/replay.store';
 
 /**
@@ -16,35 +16,6 @@ export function TimelineScrubber() {
   const trackRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [hoverTime, setHoverTime] = useState<number | null>(null);
-
-  // Get colors from CSS variables for dark mode support
-  const [colors, setColors] = useState({
-    track: '#f3f4f6',
-    progress: '#1f2937',
-    handle: '#ffffff',
-    handleBorder: '#1f2937',
-    markerBorder: '#ffffff',
-    gray: '#6b7280',
-    blue: '#3b82f6',
-    amber: '#f59e0b',
-  });
-
-  useEffect(() => {
-    // Read colors from CSS variables
-    const root = document.documentElement;
-    const styles = getComputedStyle(root);
-
-    setColors({
-      track: styles.getPropertyValue('--color-muted').trim() || '#f3f4f6',
-      progress: styles.getPropertyValue('--color-primary').trim() || '#1f2937',
-      handle: styles.getPropertyValue('--color-background').trim() || '#ffffff',
-      handleBorder: styles.getPropertyValue('--color-primary').trim() || '#1f2937',
-      markerBorder: styles.getPropertyValue('--color-background').trim() || '#ffffff',
-      gray: '#6b7280', // Keep fixed gray for consistency
-      blue: '#3b82f6', // Keep fixed blue for consistency
-      amber: '#f59e0b', // Keep fixed amber for consistency
-    });
-  }, []);
 
   const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
 
@@ -117,33 +88,15 @@ export function TimelineScrubber() {
     const relativeTime = item.timestamp - sessionStartTime;
     const percentage = duration > 0 ? (relativeTime / duration) * 100 : 0;
 
-    // Color based on type
-    let color = colors.gray; // gray for tool calls
-    if (item.type === 'message') {
-      color = colors.blue; // blue for messages
-    } else if (item.type === 'tool_result') {
-      color = colors.amber; // amber for results
-    }
-
     return {
       id: item.id,
       percentage,
-      color,
       type: item.type,
     };
   });
 
   return (
-    <div
-      style={{
-        position: 'relative',
-        width: '100%',
-        height: '40px',
-        display: 'flex',
-        alignItems: 'center',
-        padding: '0 1rem',
-      }}
-    >
+    <div className="relative w-full h-10 flex items-center px-4">
       {/* Track */}
       <div
         ref={trackRef}
@@ -155,26 +108,13 @@ export function TimelineScrubber() {
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
-        style={{
-          position: 'relative',
-          width: '100%',
-          height: '8px',
-          backgroundColor: colors.track,
-          borderRadius: '4px',
-          cursor: 'pointer',
-          overflow: 'visible',
-        }}
+        className="relative w-full h-2 bg-muted rounded cursor-pointer overflow-visible"
       >
         {/* Progress Bar */}
         <div
+          className="absolute left-0 top-0 h-full bg-primary rounded transition-[width] duration-150"
           style={{
-            position: 'absolute',
-            left: 0,
-            top: 0,
-            height: '100%',
             width: `${progressPercentage}%`,
-            backgroundColor: colors.progress,
-            borderRadius: '4px',
             transition: isDragging ? 'none' : 'width 150ms',
           }}
         />
@@ -183,34 +123,22 @@ export function TimelineScrubber() {
         {markers.map((marker) => (
           <div
             key={marker.id}
-            style={{
-              position: 'absolute',
-              left: `${marker.percentage}%`,
-              top: '50%',
-              transform: 'translate(-50%, -50%)',
-              width: '6px',
-              height: '6px',
-              backgroundColor: marker.color,
-              borderRadius: '50%',
-              border: `1px solid ${colors.markerBorder}`,
-              pointerEvents: 'none',
-            }}
+            className={`absolute top-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full border border-background pointer-events-none ${
+              marker.type === 'message'
+                ? 'bg-blue-500'
+                : marker.type === 'tool_result'
+                  ? 'bg-amber-500'
+                  : 'bg-gray-500'
+            }`}
+            style={{ left: `${marker.percentage}%` }}
           />
         ))}
 
         {/* Hover Indicator */}
         {hoverTime !== null && !isDragging && (
           <div
-            style={{
-              position: 'absolute',
-              left: `${(hoverTime / duration) * 100}%`,
-              top: '50%',
-              transform: 'translate(-50%, -50%)',
-              width: '2px',
-              height: '16px',
-              backgroundColor: colors.gray,
-              pointerEvents: 'none',
-            }}
+            className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-4 bg-gray-500 pointer-events-none"
+            style={{ left: `${(hoverTime / duration) * 100}%` }}
           />
         )}
 
@@ -218,18 +146,9 @@ export function TimelineScrubber() {
         <button
           type="button"
           aria-label="Seek handle"
+          className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-background border-2 border-primary rounded-full cursor-grab shadow-md transition-[left] duration-150"
           style={{
-            position: 'absolute',
             left: `${progressPercentage}%`,
-            top: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '16px',
-            height: '16px',
-            backgroundColor: colors.handle,
-            border: `2px solid ${colors.handleBorder}`,
-            borderRadius: '50%',
-            cursor: 'grab',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
             transition: isDragging ? 'none' : 'left 150ms',
           }}
           onMouseDown={(e) => {

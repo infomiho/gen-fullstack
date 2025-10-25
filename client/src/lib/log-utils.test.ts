@@ -4,24 +4,24 @@ import { filterLogs, getLevelColor, getLevelLabel } from './log-utils';
 
 describe('log-utils', () => {
   describe('getLevelColor', () => {
-    it('returns red for error level', () => {
+    it('returns red with dark variant for error level', () => {
       const result = getLevelColor('error');
-      expect(result).toBe('text-red-600');
+      expect(result).toBe('text-red-600 dark:text-red-400');
     });
 
-    it('returns yellow for warn level', () => {
+    it('returns yellow with dark variant for warn level', () => {
       const result = getLevelColor('warn');
-      expect(result).toBe('text-yellow-600');
+      expect(result).toBe('text-yellow-600 dark:text-yellow-400');
     });
 
-    it('returns purple for command level', () => {
+    it('returns purple with dark variant for command level', () => {
       const result = getLevelColor('command');
-      expect(result).toBe('text-purple-400');
+      expect(result).toBe('text-purple-500 dark:text-purple-400');
     });
 
-    it('returns blue for info level', () => {
+    it('returns blue with dark variant for info level', () => {
       const result = getLevelColor('info');
-      expect(result).toBe('text-blue-600');
+      expect(result).toBe('text-blue-600 dark:text-blue-400');
     });
   });
 

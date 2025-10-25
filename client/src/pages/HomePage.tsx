@@ -6,6 +6,7 @@ import { CapabilitySection } from '../components/CapabilitySection';
 import { PromptDisplay } from '../components/PromptDisplay';
 import { PromptInput } from '../components/PromptInput';
 import { StatusBadge } from '../components/StatusBadge';
+import { ThemeToggle } from '../components/ThemeToggle';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { card, focus, spacing, transitions, typography } from '../lib/design-tokens';
 
@@ -97,6 +98,11 @@ function HomePage() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Theme toggle - Top right */}
+      <div className="absolute top-4 right-6">
+        <ThemeToggle />
+      </div>
+
       {/* Main content - Centered */}
       <main className="max-w-5xl mx-auto px-6 py-16">
         {/* Title */}
