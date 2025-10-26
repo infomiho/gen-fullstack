@@ -28,14 +28,14 @@ describe('tool-utils', () => {
       expect(result).toBe('Reading unknown');
     });
 
-    it('formats listFiles summary', () => {
-      const result = getToolSummary('listFiles', { directory: 'src/components' });
-      expect(result).toBe('Listing src/components');
+    it('formats getFileTree summary', () => {
+      const result = getToolSummary('getFileTree', { maxDepth: 2 });
+      expect(result).toBe('Getting file tree (depth: 2)');
     });
 
-    it('formats listFiles with default directory', () => {
-      const result = getToolSummary('listFiles', {});
-      expect(result).toBe('Listing .');
+    it('formats getFileTree with default (no maxDepth)', () => {
+      const result = getToolSummary('getFileTree', {});
+      expect(result).toBe('Getting file tree');
     });
 
     it('formats executeCommand summary', () => {
@@ -56,6 +56,122 @@ describe('tool-utils', () => {
     it('formats requestBlock with unknown block', () => {
       const result = getToolSummary('requestBlock', {});
       expect(result).toBe('Asking for unknown block');
+    });
+
+    it('formats planArchitecture with all parts', () => {
+      const result = getToolSummary('planArchitecture', {
+        databaseModels: [{}, {}],
+        apiRoutes: [{}, {}, {}],
+        clientComponents: [{}],
+      });
+      expect(result).toBe('Planning: 2 models, 3 routes, 1 components');
+    });
+
+    it('formats planArchitecture with only models', () => {
+      const result = getToolSummary('planArchitecture', {
+        databaseModels: [{}, {}, {}],
+        apiRoutes: [],
+        clientComponents: [],
+      });
+      expect(result).toBe('Planning: 3 models');
+    });
+
+    it('formats planArchitecture with only routes', () => {
+      const result = getToolSummary('planArchitecture', {
+        databaseModels: [],
+        apiRoutes: [{}, {}],
+        clientComponents: [],
+      });
+      expect(result).toBe('Planning: 2 routes');
+    });
+
+    it('formats planArchitecture with only components', () => {
+      const result = getToolSummary('planArchitecture', {
+        databaseModels: [],
+        apiRoutes: [],
+        clientComponents: [{}, {}, {}, {}],
+      });
+      expect(result).toBe('Planning: 4 components');
+    });
+
+    it('formats planArchitecture with models and routes', () => {
+      const result = getToolSummary('planArchitecture', {
+        databaseModels: [{}],
+        apiRoutes: [{}],
+        clientComponents: [],
+      });
+      expect(result).toBe('Planning: 1 models, 1 routes');
+    });
+
+    it('formats planArchitecture with empty arrays', () => {
+      const result = getToolSummary('planArchitecture', {
+        databaseModels: [],
+        apiRoutes: [],
+        clientComponents: [],
+      });
+      expect(result).toBe('Planning: ');
+    });
+
+    it('formats installNpmDep with dependencies only', () => {
+      const result = getToolSummary('installNpmDep', {
+        target: 'client',
+        dependencies: { react: '^18.0.0', 'react-dom': '^18.0.0' },
+        devDependencies: {},
+      });
+      expect(result).toBe('Installing to client: 2 deps');
+    });
+
+    it('formats installNpmDep with single dependency', () => {
+      const result = getToolSummary('installNpmDep', {
+        target: 'server',
+        dependencies: { express: '^5.0.0' },
+        devDependencies: {},
+      });
+      expect(result).toBe('Installing to server: 1 dep');
+    });
+
+    it('formats installNpmDep with devDependencies only', () => {
+      const result = getToolSummary('installNpmDep', {
+        target: 'client',
+        dependencies: {},
+        devDependencies: { typescript: '^5.0.0', vitest: '^3.0.0' },
+      });
+      expect(result).toBe('Installing to client: 2 devDeps');
+    });
+
+    it('formats installNpmDep with single devDependency', () => {
+      const result = getToolSummary('installNpmDep', {
+        target: 'server',
+        dependencies: {},
+        devDependencies: { '@types/node': '^20.0.0' },
+      });
+      expect(result).toBe('Installing to server: 1 devDep');
+    });
+
+    it('formats installNpmDep with both dependencies and devDependencies', () => {
+      const result = getToolSummary('installNpmDep', {
+        target: 'root',
+        dependencies: { concurrently: '^8.0.0' },
+        devDependencies: { prettier: '^3.0.0', eslint: '^8.0.0' },
+      });
+      expect(result).toBe('Installing to root: 1 dep, 2 devDeps');
+    });
+
+    it('formats installNpmDep with unknown target', () => {
+      const result = getToolSummary('installNpmDep', {
+        dependencies: { react: '^18.0.0' },
+        devDependencies: {},
+      });
+      expect(result).toBe('Installing to unknown: 1 dep');
+    });
+
+    it('formats installNpmDep with no dependencies', () => {
+      const result = getToolSummary('installNpmDep', {
+        target: 'client',
+        dependencies: {},
+        devDependencies: {},
+      });
+      expect(result).toBe('Installing to client: ');
     });
 
     it('returns default for unknown tool', () => {

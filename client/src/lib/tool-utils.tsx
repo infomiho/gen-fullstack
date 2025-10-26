@@ -9,6 +9,76 @@ import { PlanArchitectureDisplay } from '../components/PlanArchitectureDisplay';
 import { radius, spacing, typography } from './design-tokens';
 
 /**
+ * Helper functions for generating tool summaries
+ */
+function getWriteFileSummary(args: Record<string, unknown>): string {
+  const { path } = args as { path?: string };
+  return `Writing to ${path || 'unknown'}`;
+}
+
+function getReadFileSummary(args: Record<string, unknown>): string {
+  const { path } = args as { path?: string };
+  return `Reading ${path || 'unknown'}`;
+}
+
+function getFileTreeSummary(args: Record<string, unknown>): string {
+  const { maxDepth } = args as { maxDepth?: number };
+  return maxDepth ? `Getting file tree (depth: ${maxDepth})` : 'Getting file tree';
+}
+
+function getExecuteCommandSummary(args: Record<string, unknown>): string {
+  const { command } = args as { command?: string };
+  return command || 'unknown command';
+}
+
+function getRequestBlockSummary(args: Record<string, unknown>): string {
+  const { blockId } = args as { blockId?: string };
+  return `Asking for ${blockId || 'unknown block'}`;
+}
+
+function getPlanArchitectureSummary(args: Record<string, unknown>): string {
+  const { databaseModels, apiRoutes, clientComponents } = args as {
+    databaseModels?: Array<unknown>;
+    apiRoutes?: Array<unknown>;
+    clientComponents?: Array<unknown>;
+  };
+  const parts = [
+    databaseModels?.length && `${databaseModels.length} models`,
+    apiRoutes?.length && `${apiRoutes.length} routes`,
+    clientComponents?.length && `${clientComponents.length} components`,
+  ].filter(Boolean);
+  return `Planning: ${parts.join(', ')}`;
+}
+
+function getInstallNpmDepSummary(args: Record<string, unknown>): string {
+  const { target, dependencies, devDependencies } = args as {
+    target?: string;
+    dependencies?: Record<string, string>;
+    devDependencies?: Record<string, string>;
+  };
+  const depCount = Object.keys(dependencies || {}).length;
+  const devDepCount = Object.keys(devDependencies || {}).length;
+  const parts = [
+    depCount && `${depCount} dep${depCount > 1 ? 's' : ''}`,
+    devDepCount && `${devDepCount} devDep${devDepCount > 1 ? 's' : ''}`,
+  ].filter(Boolean);
+  return `Installing to ${target || 'unknown'}: ${parts.join(', ')}`;
+}
+
+/**
+ * Mapping of tool names to their summary generator functions
+ */
+const toolSummaryHandlers: Record<string, (args: Record<string, unknown>) => string> = {
+  writeFile: getWriteFileSummary,
+  readFile: getReadFileSummary,
+  getFileTree: getFileTreeSummary,
+  executeCommand: getExecuteCommandSummary,
+  requestBlock: getRequestBlockSummary,
+  planArchitecture: getPlanArchitectureSummary,
+  installNpmDep: getInstallNpmDepSummary,
+};
+
+/**
  * Get a one-line summary of tool parameters
  *
  * @param toolName - Name of the tool being executed
@@ -24,57 +94,8 @@ export function getToolSummary(
 ): string {
   if (!args) return 'Loading...';
 
-  switch (toolName) {
-    case 'writeFile': {
-      const { path } = args as { path?: string };
-      return `Writing to ${path || 'unknown'}`;
-    }
-    case 'readFile': {
-      const { path } = args as { path?: string };
-      return `Reading ${path || 'unknown'}`;
-    }
-    case 'getFileTree': {
-      const { maxDepth } = args as { maxDepth?: number };
-      return maxDepth ? `Getting file tree (depth: ${maxDepth})` : 'Getting file tree';
-    }
-    case 'executeCommand': {
-      const { command } = args as { command?: string };
-      return command || 'unknown command';
-    }
-    case 'requestBlock': {
-      const { blockId } = args as { blockId?: string };
-      return `Asking for ${blockId || 'unknown block'}`;
-    }
-    case 'planArchitecture': {
-      const { databaseModels, apiRoutes, clientComponents } = args as {
-        databaseModels?: Array<unknown>;
-        apiRoutes?: Array<unknown>;
-        clientComponents?: Array<unknown>;
-      };
-      const parts = [
-        databaseModels?.length && `${databaseModels.length} models`,
-        apiRoutes?.length && `${apiRoutes.length} routes`,
-        clientComponents?.length && `${clientComponents.length} components`,
-      ].filter(Boolean);
-      return `Planning: ${parts.join(', ')}`;
-    }
-    case 'installNpmDep': {
-      const { target, dependencies, devDependencies } = args as {
-        target?: string;
-        dependencies?: Record<string, string>;
-        devDependencies?: Record<string, string>;
-      };
-      const depCount = Object.keys(dependencies || {}).length;
-      const devDepCount = Object.keys(devDependencies || {}).length;
-      const parts = [
-        depCount && `${depCount} dep${depCount > 1 ? 's' : ''}`,
-        devDepCount && `${devDepCount} devDep${devDepCount > 1 ? 's' : ''}`,
-      ].filter(Boolean);
-      return `Installing to ${target || 'unknown'}: ${parts.join(', ')}`;
-    }
-    default:
-      return 'Click for details';
-  }
+  const handler = toolSummaryHandlers[toolName];
+  return handler ? handler(args) : 'Click for details';
 }
 
 /**
