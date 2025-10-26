@@ -120,35 +120,31 @@ export const readFile = tool({
 });
 
 /**
- * List files in a directory
+ * Get complete file tree
  *
- * Returns a list of all files and subdirectories in the specified directory.
- * Use this to explore the project structure.
+ * Returns a tree-style view of all files and directories in the project,
+ * excluding common build artifacts and dependencies.
+ * Use this once at the start to understand the full project layout.
  */
-export const listFiles = tool({
+export const getFileTree = tool({
   description:
-    'List all files and directories in a given path. Use this to explore the project structure.',
+    'Get a complete tree view of the project structure. Returns all files and directories in a hierarchical format. Use this once at the start to understand the full project layout.',
   inputSchema: z.object({
-    directory: z.string().describe('Relative path to the directory (use "." for root directory)'),
+    maxDepth: z
+      .number()
+      .optional()
+      .describe('Maximum depth to traverse (default: unlimited for our small apps)'),
     reason: z
       .string()
       .min(10)
       .max(200)
       .describe(
-        'Brief explanation of why you need to list this directory and what you are looking for (10-200 characters)',
+        'Brief explanation of why you need the file tree and what you are looking for (10-200 characters)',
       ),
   }),
-  execute: async ({ directory }, { experimental_context: context }) => {
+  execute: async ({ maxDepth }, { experimental_context: context }) => {
     const { sessionId } = extractToolContext(context);
-    // Default to root if empty or not provided
-    const dir = directory || '.';
-    const files = await filesystemService.listFiles(sessionId, dir);
-
-    // Format output for LLM
-    const fileList = files
-      .map((f) => `${f.type === 'directory' ? '📁' : '📄'} ${f.name}`)
-      .join('\n');
-    return `Contents of "${dir}":\n${fileList}`;
+    return await filesystemService.getFileTree(sessionId, maxDepth);
   },
 });
 
@@ -440,12 +436,27 @@ async function validateTarget(sessionId: string, target: 'client' | 'server') {
     sessionId,
     `npx tsc --noEmit --project ${target}/tsconfig.json`,
   );
+
+  // Check if command execution itself failed (timeout, missing files, etc.)
+  if (!result.success) {
+    const errorMessage = result.stderr || 'Command execution failed';
+    return {
+      target,
+      passed: false,
+      errorCount: 0,
+      errors: '',
+      executionError: errorMessage,
+    };
+  }
+
   const output = result.stderr || result.stdout;
   const parsedErrors = parseTypeScriptErrors(output);
 
+  // Trust parsed error count as source of truth for validation status
+  // If we parsed 0 errors, validation passed regardless of exit code
   return {
     target,
-    passed: result.exitCode === 0,
+    passed: parsedErrors.length === 0,
     errorCount: parsedErrors.length,
     errors: formatTypeScriptErrors(parsedErrors),
   };
@@ -455,11 +466,36 @@ async function validateTarget(sessionId: string, target: 'client' | 'server') {
  * Helper: Format validation results summary
  */
 function formatValidationSummary(
-  results: Array<{ target: string; passed: boolean; errorCount: number; errors: string }>,
+  results: Array<{
+    target: string;
+    passed: boolean;
+    errorCount: number;
+    errors: string;
+    executionError?: string;
+  }>,
   target: string,
   sessionId: string,
   io: ToolContext['io'],
 ) {
+  // Check for execution errors first (command timeout, missing files, etc.)
+  const executionErrors = results.filter((r) => r.executionError);
+  if (executionErrors.length > 0) {
+    const errorDetails = executionErrors
+      .map((r) => `${r.target.toUpperCase()}: ${r.executionError}`)
+      .join('\n');
+
+    if (io) {
+      io.to(sessionId).emit('llm_message', {
+        id: `${Date.now()}-system`,
+        role: 'system',
+        content: `✗ TypeScript validation execution failed for ${target}`,
+        timestamp: Date.now(),
+      });
+    }
+
+    return `TypeScript validation could not complete due to execution errors:\n\n${errorDetails}`;
+  }
+
   const allPassed = results.every((r) => r.passed);
   const totalErrors = results.reduce((sum, r) => sum + r.errorCount, 0);
 
@@ -610,7 +646,7 @@ Example:
 export const tools = {
   writeFile,
   readFile,
-  listFiles,
+  getFileTree,
   executeCommand,
   requestBlock,
   planArchitecture,

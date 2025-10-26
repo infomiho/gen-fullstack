@@ -3,7 +3,15 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as databaseService from '../../services/database.service.js';
 import * as filesystemService from '../../services/filesystem.service.js';
-import { executeCommand, installNpmDep, listFiles, readFile, writeFile } from '../index.js';
+import * as commandService from '../../services/command.service.js';
+import {
+  executeCommand,
+  getFileTree,
+  installNpmDep,
+  readFile,
+  validateTypeScript,
+  writeFile,
+} from '../index.js';
 
 describe('Tools', () => {
   const sessionId = 'test-session-123';
@@ -96,50 +104,66 @@ describe('Tools', () => {
     });
   });
 
-  describe('listFiles tool', () => {
-    it('should list files in root directory', async () => {
+  describe('getFileTree tool', () => {
+    it('should return complete file tree with all files', async () => {
       // Setup: Create test directory structure directly with fs
-      await mkdir(join(sandboxPath, 'list-subdir'), { recursive: true });
+      await mkdir(join(sandboxPath, 'tree-subdir'), { recursive: true });
       await fsWriteFile(join(sandboxPath, 'file1.txt'), 'Content 1', 'utf-8');
       await fsWriteFile(join(sandboxPath, 'file2.js'), 'Content 2', 'utf-8');
-      await fsWriteFile(join(sandboxPath, 'list-subdir/nested.txt'), 'Nested', 'utf-8');
+      await fsWriteFile(join(sandboxPath, 'tree-subdir/nested.txt'), 'Nested', 'utf-8');
 
-      const result = await listFiles.execute?.(
-        { directory: '.', reason: 'Testing directory listing' },
+      const result = await getFileTree.execute?.(
+        { reason: 'Testing file tree generation' },
         context as any,
       );
 
-      // Formatted with emojis now
+      // Should contain all files and directories
       expect(result).toContain('file1.txt');
       expect(result).toContain('file2.js');
-      expect(result).toContain('list-subdir');
-      expect(result).toContain('Contents of');
+      expect(result).toContain('tree-subdir');
+      expect(result).toContain('nested.txt');
+
+      // Should have tree formatting
+      expect(result).toContain('📁');
+      expect(result).toContain('📄');
+      expect(result).toMatch(/├──|└──/);
     });
 
-    it('should list files in subdirectory', async () => {
-      // Setup: Create test directory structure directly with fs
-      await mkdir(join(sandboxPath, 'list2-subdir'), { recursive: true });
-      await fsWriteFile(join(sandboxPath, 'list2-subdir/nested.txt'), 'Nested', 'utf-8');
+    it('should show file and directory counts', async () => {
+      // Setup: Create test files
+      await fsWriteFile(join(sandboxPath, 'count-test.txt'), 'Test', 'utf-8');
 
-      const result = await listFiles.execute?.(
-        { directory: 'list2-subdir', reason: 'Testing subdirectory listing' },
+      const result = await getFileTree.execute?.({ reason: 'Testing file counts' }, context as any);
+
+      expect(result).toMatch(/\d+ files?, \d+ director(y|ies)/);
+    });
+
+    it('should respect maxDepth parameter', async () => {
+      // Setup: Create nested structure
+      await mkdir(join(sandboxPath, 'depth-test/level2'), { recursive: true });
+      await fsWriteFile(join(sandboxPath, 'depth-test/file.txt'), 'Level 1', 'utf-8');
+      await fsWriteFile(join(sandboxPath, 'depth-test/level2/deep.txt'), 'Level 2', 'utf-8');
+
+      const result = await getFileTree.execute?.(
+        { maxDepth: 1, reason: 'Testing depth limiting' },
         context as any,
       );
 
-      expect(result).toContain('nested.txt');
+      // Should include first-level directory
+      expect(result).toContain('depth-test');
+
+      // Should NOT include nested files beyond depth 1
+      expect(result).not.toContain('deep.txt');
     });
 
     it('should show empty directory message', async () => {
-      // Setup: Create empty directory directly with fs
-      await mkdir(join(sandboxPath, 'empty-dir'), { recursive: true });
-
-      const result = await listFiles.execute?.(
-        { directory: 'empty-dir', reason: 'Testing empty directory' },
+      // Use empty sandbox
+      const result = await getFileTree.execute?.(
+        { reason: 'Testing empty directory' },
         context as any,
       );
 
-      expect(result).toContain('Contents of');
-      expect(result).toContain('empty-dir');
+      expect(result).toContain('Empty project directory');
     });
   });
 
@@ -336,6 +360,157 @@ describe('Tools', () => {
       // This is tested in filesystem.service.test.ts
     });
   });
+
+  describe('validateTypeScript tool', () => {
+    beforeEach(() => {
+      // Restore mocks before each test to ensure clean state
+      vi.restoreAllMocks();
+      // Re-apply the database mock
+      vi.spyOn(databaseService.databaseService, 'saveFile').mockResolvedValue(undefined as any);
+    });
+
+    it('should pass validation with 0 TypeScript errors', async () => {
+      // Mock successful command execution with no TypeScript errors
+      vi.spyOn(commandService, 'executeCommand').mockResolvedValue({
+        stdout: 'No errors found',
+        stderr: '',
+        exitCode: 0,
+        executionTime: 1000,
+        success: true,
+      });
+
+      const result = await validateTypeScript.execute?.(
+        { target: 'client', reason: 'Testing validation pass' },
+        context as any,
+      );
+
+      expect(result).toContain('All TypeScript checks passed');
+      expect(result).toContain('No type errors found');
+      expect(result).not.toContain('failed');
+    });
+
+    it('should fail validation with TypeScript errors', async () => {
+      // Mock command execution with TypeScript errors
+      const mockOutput = `
+client/src/App.tsx(10,5): error TS2322: Type 'string' is not assignable to type 'number'.
+client/src/App.tsx(15,10): error TS2304: Cannot find name 'foo'.
+`;
+      vi.spyOn(commandService, 'executeCommand').mockResolvedValue({
+        stdout: mockOutput,
+        stderr: '',
+        exitCode: 1,
+        executionTime: 1000,
+        success: true,
+      });
+
+      const result = await validateTypeScript.execute?.(
+        { target: 'client', reason: 'Testing validation failure' },
+        context as any,
+      );
+
+      expect(result).toContain('TypeScript validation failed');
+      expect(result).toContain('2 errors');
+      expect(result).toContain('TS2322');
+      expect(result).toContain('TS2304');
+      expect(result).not.toContain('0 errors'); // Should not have contradictory message
+    });
+
+    it('should handle command timeout as execution error', async () => {
+      // Mock command timeout
+      vi.spyOn(commandService, 'executeCommand').mockResolvedValue({
+        stdout: '',
+        stderr: 'Command timed out after 120000ms',
+        exitCode: -1,
+        executionTime: 120000,
+        success: false,
+      });
+
+      const result = await validateTypeScript.execute?.(
+        { target: 'server', reason: 'Testing timeout handling' },
+        context as any,
+      );
+
+      expect(result).toContain('execution errors');
+      expect(result).toContain('timed out');
+      expect(result).not.toContain('0 errors'); // Should not say "failed with 0 errors"
+    });
+
+    it('should handle missing tsconfig.json as execution error', async () => {
+      // Mock command failure due to missing tsconfig.json
+      vi.spyOn(commandService, 'executeCommand').mockResolvedValue({
+        stdout: '',
+        stderr: "error TS5058: The specified path does not exist: 'client/tsconfig.json'.",
+        exitCode: 1,
+        executionTime: 100,
+        success: false,
+      });
+
+      const result = await validateTypeScript.execute?.(
+        { target: 'client', reason: 'Testing missing tsconfig' },
+        context as any,
+      );
+
+      expect(result).toContain('execution errors');
+      expect(result).toContain('tsconfig.json');
+      expect(result).not.toContain('0 errors'); // Should not say "failed with 0 errors"
+    });
+
+    it('should validate both client and server when target is "both"', async () => {
+      // Mock successful validation for both targets
+      vi.spyOn(commandService, 'executeCommand').mockResolvedValue({
+        stdout: 'No errors found',
+        stderr: '',
+        exitCode: 0,
+        executionTime: 1000,
+        success: true,
+      });
+
+      const result = await validateTypeScript.execute?.(
+        { target: 'both', reason: 'Testing both targets' },
+        context as any,
+      );
+
+      expect(result).toContain('All TypeScript checks passed');
+      expect(result).toContain('both');
+      expect(commandService.executeCommand).toHaveBeenCalledTimes(2);
+    });
+
+    it('should report execution errors for both targets separately', async () => {
+      // Mock: client succeeds, server fails with timeout
+      let callCount = 0;
+      vi.spyOn(commandService, 'executeCommand').mockImplementation(async () => {
+        callCount++;
+        if (callCount === 1) {
+          // First call (client) - success
+          return {
+            stdout: 'No errors found',
+            stderr: '',
+            exitCode: 0,
+            executionTime: 1000,
+            success: true,
+          };
+        } else {
+          // Second call (server) - timeout
+          return {
+            stdout: '',
+            stderr: 'Command timed out after 120000ms',
+            exitCode: -1,
+            executionTime: 120000,
+            success: false,
+          };
+        }
+      });
+
+      const result = await validateTypeScript.execute?.(
+        { target: 'both', reason: 'Testing mixed results' },
+        context as any,
+      );
+
+      expect(result).toContain('execution errors');
+      expect(result).toContain('SERVER');
+      expect(result).toContain('timed out');
+    });
+  });
 });
 
 describe('Tools - Path Traversal Security', () => {
@@ -364,14 +539,31 @@ describe('Tools - Path Traversal Security', () => {
     });
   });
 
-  describe('listFiles tool', () => {
-    it('should reject invalid paths (path traversal)', async () => {
-      await expect(
-        listFiles.execute?.(
-          { directory: '../outside', reason: 'Testing security' },
-          context as any,
-        ),
-      ).rejects.toThrow();
+  describe('getFileTree tool', () => {
+    beforeEach(async () => {
+      // Initialize sandbox for this test
+      await filesystemService.initializeSandbox(sessionId);
+    });
+
+    afterEach(async () => {
+      // Clean up sandbox
+      await filesystemService.cleanupSandbox(sessionId);
+    });
+
+    it('should not expose excluded directories', async () => {
+      const sandboxPath = filesystemService.getSandboxPath(sessionId);
+
+      // Setup: Create files that should be excluded
+      await mkdir(join(sandboxPath, 'node_modules'), { recursive: true });
+      await fsWriteFile(join(sandboxPath, 'node_modules/package.json'), '{}', 'utf-8');
+
+      const result = await getFileTree.execute?.(
+        { reason: 'Testing security exclusions' },
+        context as any,
+      );
+
+      // Should not contain excluded directories
+      expect(result).not.toMatch(/📁 node_modules/);
     });
   });
 });
