@@ -3,10 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   cleanupSandbox,
   copyTemplateToSandbox,
+  getFileTree,
   getSandboxPath,
   initializeSandbox,
   installNpmDep,
-  listFiles,
   readFile,
   writeFile,
 } from '../filesystem.service.js';
@@ -157,56 +157,145 @@ describe('Filesystem Service', () => {
     });
   });
 
-  describe('listFiles', () => {
+  describe('getFileTree', () => {
     beforeEach(async () => {
       await initializeSandbox(sessionId);
       await writeFile(sessionId, 'file1.txt', 'Content 1');
       await writeFile(sessionId, 'file2.js', 'Content 2');
       await writeFile(sessionId, 'subdir/nested.txt', 'Nested');
+      await writeFile(sessionId, 'subdir/deep/file.txt', 'Deep nested');
       await writeFile(sessionId, '.hidden', 'Hidden file');
     });
 
-    it('should list files in root directory', async () => {
-      const result = await listFiles(sessionId, '.');
+    it('should return complete file tree with all files and directories', async () => {
+      const result = await getFileTree(sessionId);
 
-      const names = result.map((f) => f.name);
-      expect(names).toContain('file1.txt');
-      expect(names).toContain('file2.js');
-      expect(names).toContain('subdir');
-      expect(names).toContain('.hidden');
+      expect(result).toContain('file1.txt');
+      expect(result).toContain('file2.js');
+      expect(result).toContain('subdir');
+      expect(result).toContain('nested.txt');
+      expect(result).toContain('.hidden');
+      expect(result).toContain('deep');
     });
 
-    it('should list files in subdirectory', async () => {
-      const result = await listFiles(sessionId, 'subdir');
+    it('should format tree with proper indentation and icons', async () => {
+      const result = await getFileTree(sessionId);
 
-      const names = result.map((f) => f.name);
-      expect(names).toContain('nested.txt');
+      // Should have root indicator
+      expect(result).toMatch(/^\./);
+
+      // Should have tree connectors (├── or └──)
+      expect(result).toContain('├──');
+      expect(result).toContain('└──');
+
+      // Should have file/directory icons
+      expect(result).toContain('📁');
+      expect(result).toContain('📄');
     });
 
-    it('should indicate directories with trailing slash', async () => {
-      const result = await listFiles(sessionId, '.');
+    it('should include file and directory counts', async () => {
+      const result = await getFileTree(sessionId);
 
-      const subdirEntry = result.find((f) => f.name === 'subdir');
-      expect(subdirEntry?.type).toBe('directory');
-
-      const file1Entry = result.find((f) => f.name === 'file1.txt');
-      expect(file1Entry?.type).toBe('file');
+      expect(result).toMatch(/\d+ files?, \d+ director(y|ies)/);
+      expect(result).toContain('5 files, 2 directories');
     });
 
-    it('should show message for empty directory', async () => {
-      await writeFile(sessionId, 'empty_dir/.gitkeep', '');
-      const result = await listFiles(sessionId, 'empty_dir');
+    it('should exclude node_modules directories', async () => {
+      await writeFile(sessionId, 'node_modules/package/index.js', 'Should be excluded');
 
-      const names = result.map((f) => f.name);
-      expect(names).toContain('.gitkeep');
+      const result = await getFileTree(sessionId);
+
+      // Check that the node_modules directory itself is not shown in the tree structure
+      expect(result).not.toMatch(/📁 node_modules/);
+      expect(result).not.toContain('index.js');
     });
 
-    it('should throw error for non-existent directory', async () => {
-      await expect(listFiles(sessionId, 'nonexistent')).rejects.toThrow();
+    it('should exclude dist directories', async () => {
+      await writeFile(sessionId, 'dist/bundle.js', 'Built output');
+
+      const result = await getFileTree(sessionId);
+
+      // Check that the dist directory itself is not shown (not just substring match)
+      expect(result).not.toMatch(/📁 dist/);
+      expect(result).not.toContain('bundle.js');
     });
 
-    it('should reject path traversal attempts', async () => {
-      await expect(listFiles(sessionId, '../..')).rejects.toThrow('Path traversal detected');
+    it('should exclude .git directories', async () => {
+      await writeFile(sessionId, '.git/config', 'Git config');
+
+      const result = await getFileTree(sessionId);
+
+      // Check that the .git directory itself is not shown (not just substring match)
+      expect(result).not.toMatch(/📁 \.git/);
+      expect(result).not.toContain('config');
+    });
+
+    it('should exclude database files', async () => {
+      await writeFile(sessionId, 'dev.db', 'Database');
+      await writeFile(sessionId, 'test.db-journal', 'Journal');
+
+      const result = await getFileTree(sessionId);
+
+      expect(result).not.toContain('dev.db');
+      expect(result).not.toContain('test.db-journal');
+    });
+
+    it('should exclude .tsbuildinfo files', async () => {
+      await writeFile(sessionId, 'tsconfig.tsbuildinfo', 'TS build info');
+
+      const result = await getFileTree(sessionId);
+
+      expect(result).not.toContain('tsconfig.tsbuildinfo');
+    });
+
+    it('should respect maxDepth parameter', async () => {
+      const result = await getFileTree(sessionId, 1);
+
+      // Should include root-level files
+      expect(result).toContain('file1.txt');
+      expect(result).toContain('subdir');
+
+      // Should include first-level subdirectory but not its contents
+      expect(result).not.toContain('nested.txt');
+      expect(result).not.toContain('deep');
+    });
+
+    it('should handle empty directory', async () => {
+      // Clean up the test files
+      await cleanupSandbox(sessionId);
+      await initializeSandbox(sessionId);
+
+      const result = await getFileTree(sessionId);
+
+      expect(result).toContain('Empty project directory');
+    });
+
+    it('should throw error for very large trees (>500 items)', async () => {
+      // Create 501 files to exceed limit
+      for (let i = 0; i < 501; i++) {
+        await writeFile(sessionId, `file${i}.txt`, `Content ${i}`);
+      }
+
+      await expect(getFileTree(sessionId)).rejects.toThrow('File tree too large');
+    });
+
+    it('should sort directories before files', async () => {
+      const result = await getFileTree(sessionId);
+      const lines = result.split('\n').filter((line) => line.includes('📁') || line.includes('📄'));
+
+      // Find first file and first directory in root level
+      const firstDirIndex = lines.findIndex((line) => line.includes('📁'));
+      const firstFileIndex = lines.findIndex((line) => line.includes('📄'));
+
+      // Directories should come before files
+      expect(firstDirIndex).toBeLessThan(firstFileIndex);
+    });
+
+    it('should show exclusion notice', async () => {
+      const result = await getFileTree(sessionId);
+
+      expect(result).toContain('excluded');
+      expect(result).toContain('node_modules');
     });
   });
 
@@ -251,32 +340,23 @@ describe('Filesystem Service', () => {
       // Should have copied all 16 template files
       expect(fileCount).toBe(16);
 
+      // Verify files exist using getFileTree
+      const tree = await getFileTree(sessionId);
+
       // Verify root files exist
-      const rootFiles = await listFiles(sessionId, '.');
-      const rootFileNames = rootFiles.map((f) => f.name);
-      expect(rootFileNames).toContain('package.json');
-      expect(rootFileNames).toContain('.env');
+      expect(tree).toContain('package.json');
+      expect(tree).toContain('.env');
 
-      // Verify client directory exists
-      expect(rootFileNames).toContain('client');
-      const clientFiles = await listFiles(sessionId, 'client');
-      const clientFileNames = clientFiles.map((f) => f.name);
-      expect(clientFileNames).toContain('package.json');
-      expect(clientFileNames).toContain('vite.config.ts');
-      expect(clientFileNames).toContain('src');
+      // Verify client directory and files exist
+      expect(tree).toContain('client');
+      expect(tree).toContain('vite.config.ts');
 
-      // Verify server directory exists
-      expect(rootFileNames).toContain('server');
-      const serverFiles = await listFiles(sessionId, 'server');
-      const serverFileNames = serverFiles.map((f) => f.name);
-      expect(serverFileNames).toContain('package.json');
-      expect(serverFileNames).toContain('src');
+      // Verify server directory and files exist
+      expect(tree).toContain('server');
 
       // Verify prisma directory exists
-      expect(rootFileNames).toContain('prisma');
-      const prismaFiles = await listFiles(sessionId, 'prisma');
-      const prismaFileNames = prismaFiles.map((f) => f.name);
-      expect(prismaFileNames).toContain('schema.prisma');
+      expect(tree).toContain('prisma');
+      expect(tree).toContain('schema.prisma');
     });
 
     it('should copy file contents correctly', async () => {
@@ -374,17 +454,17 @@ describe('Filesystem Service', () => {
     it('should preserve directory structure when copying', async () => {
       await copyTemplateToSandbox(sessionId, 'vite-fullstack-base');
 
-      // Verify nested structure is preserved
-      const clientSrcFiles = await listFiles(sessionId, 'client/src');
-      const clientSrcFileNames = clientSrcFiles.map((f) => f.name);
-      expect(clientSrcFileNames).toContain('App.tsx');
-      expect(clientSrcFileNames).toContain('index.css'); // Tailwind CSS import
-      expect(clientSrcFileNames).toContain('main.tsx');
-      expect(clientSrcFileNames).toContain('pages'); // Pages directory
+      // Verify nested structure is preserved using getFileTree
+      const tree = await getFileTree(sessionId);
 
-      const serverSrcFiles = await listFiles(sessionId, 'server/src');
-      const serverSrcFileNames = serverSrcFiles.map((f) => f.name);
-      expect(serverSrcFileNames).toContain('index.ts');
+      // Client files
+      expect(tree).toContain('App.tsx');
+      expect(tree).toContain('index.css'); // Tailwind CSS import
+      expect(tree).toContain('main.tsx');
+      expect(tree).toContain('pages'); // Pages directory
+
+      // Server files
+      expect(tree).toContain('index.ts');
     });
   });
 
@@ -409,8 +489,6 @@ describe('Filesystem Service', () => {
         );
 
         await expect(readFile(sessionId, path)).rejects.toThrow('Path traversal detected');
-
-        await expect(listFiles(sessionId, path)).rejects.toThrow('Path traversal detected');
       });
     });
   });

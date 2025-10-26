@@ -150,6 +150,106 @@ describe('Prompt Builder', () => {
       // Full prompt should be significantly longer
       expect(fullPrompt.length).toBeGreaterThan(basePrompt.length + 500);
     });
+
+    /**
+     * Critical Content Validation Tests
+     *
+     * These tests validate the actual content of critical prompt sections to prevent
+     * regressions in business-critical instructions (e.g., tsx requirement, dependency
+     * management workflow). Unlike composition tests above, these verify specific
+     * instructions are present and correct.
+     *
+     * Rationale: These instructions directly affect generated app functionality and
+     * should not be accidentally removed or modified without failing tests.
+     */
+    describe('Critical Content', () => {
+      it('should explicitly require tsx in base prompt', () => {
+        const prompt = buildSystemPrompt({
+          inputMode: 'naive',
+          planning: false,
+          compilerChecks: false,
+          buildingBlocks: false,
+          maxIterations: 3,
+        });
+
+        // Verify tsx is mentioned and required
+        expect(prompt).toContain('tsx');
+        expect(prompt).toContain('SERVER DEV SCRIPT:');
+        expect(prompt).toContain('NEVER use ts-node-dev');
+        expect(prompt).toContain('"dev": "PORT=3000 tsx watch src/index.ts"');
+
+        // Verify the anti-pattern is documented
+        expect(prompt).toContain("doesn't work with");
+        expect(prompt).toContain('"type": "module"');
+      });
+
+      it('should NOT include dependency check workflow in naive mode', () => {
+        const naivePrompt = buildSystemPrompt({
+          inputMode: 'naive',
+          planning: false,
+          compilerChecks: false,
+          buildingBlocks: false,
+          maxIterations: 3,
+        });
+
+        // Naive mode should NOT tell LLM to read existing package.json
+        // (files don't exist yet in naive mode)
+        expect(naivePrompt).not.toContain('BEFORE adding ANY dependencies');
+        expect(naivePrompt).not.toContain('readFile to check client/package.json');
+        expect(naivePrompt).not.toContain('readFile to check server/package.json');
+        expect(naivePrompt).not.toContain('Identify which packages are ALREADY installed');
+      });
+
+      it('should include dependency check workflow in template mode', () => {
+        const templatePrompt = buildSystemPrompt({
+          inputMode: 'template',
+          planning: false,
+          compilerChecks: false,
+          buildingBlocks: false,
+          maxIterations: 3,
+        });
+
+        // Template mode SHOULD tell LLM to read existing package.json
+        // (template files already exist)
+        expect(templatePrompt).toContain('BEFORE adding ANY dependencies');
+        expect(templatePrompt).toContain('readFile to check client/package.json');
+        expect(templatePrompt).toContain('readFile to check server/package.json');
+        expect(templatePrompt).toContain('Identify which packages are ALREADY installed');
+      });
+
+      it('should include writeFile instructions for package.json in base prompt', () => {
+        const prompt = buildSystemPrompt({
+          inputMode: 'naive',
+          planning: false,
+          compilerChecks: false,
+          buildingBlocks: false,
+          maxIterations: 3,
+        });
+
+        // Naive mode should instruct to write complete package.json files
+        expect(prompt).toContain('Write complete package.json files');
+        expect(prompt).toContain('ALL dependencies included');
+        expect(prompt).toContain('Use writeFile to create package.json');
+
+        // Naive mode should NOT mention installNpmDep (not available)
+        expect(prompt).not.toContain('installNpmDep');
+      });
+
+      it('should include installNpmDep instructions only in template mode', () => {
+        const templatePrompt = buildSystemPrompt({
+          inputMode: 'template',
+          planning: false,
+          compilerChecks: false,
+          buildingBlocks: false,
+          maxIterations: 3,
+        });
+
+        // Template mode SHOULD mention installNpmDep
+        expect(templatePrompt).toContain('installNpmDep');
+        expect(templatePrompt).toContain('Use installNpmDep tool to ADD new dependencies');
+        expect(templatePrompt).toContain('merges with existing dependencies');
+      });
+    });
   });
 
   describe('buildUserPrompt', () => {

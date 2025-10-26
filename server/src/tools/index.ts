@@ -1,5 +1,6 @@
 import { tool } from 'ai';
 import { z } from 'zod';
+import type { InputMode } from '@gen-fullstack/shared';
 import { checkFileSafety } from '../lib/file-safety.js';
 import { databaseLogger } from '../lib/logger.js';
 import * as commandService from '../services/command.service.js';
@@ -659,3 +660,24 @@ export const tools = {
  * Tool names for reference
  */
 export const TOOL_NAMES = Object.keys(tools) as Array<keyof typeof tools>;
+
+/**
+ * Get tools filtered by input mode
+ *
+ * installNpmDep is ONLY available in template mode where package.json files already exist.
+ * In naive mode, the LLM should write complete package.json files with all dependencies.
+ *
+ * @param inputMode - The generation input mode (naive or template)
+ * @returns Filtered tools object
+ */
+export function getToolsForMode(inputMode: InputMode) {
+  if (inputMode === 'template') {
+    // Template mode: all tools available (package.json files already exist)
+    return tools;
+  }
+
+  // Naive mode: exclude installNpmDep
+  // LLM should write complete package.json files directly
+  const { installNpmDep: _removed, ...filteredTools } = tools;
+  return filteredTools;
+}

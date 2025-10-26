@@ -474,7 +474,7 @@ describe('useGenerationStore', () => {
 
       const toolCall: ToolCall = {
         id: 'tool-1',
-        name: 'listFiles',
+        name: 'getFileTree',
         // No args
         timestamp: Date.now(),
       };

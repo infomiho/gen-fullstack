@@ -567,3 +567,46 @@ describe('Tools - Path Traversal Security', () => {
     });
   });
 });
+
+// Import getToolsForMode separately since it's not in the default tools export
+import { getToolsForMode, tools } from '../index.js';
+
+describe('getToolsForMode', () => {
+  it('should include all tools in template mode', () => {
+    const templateTools = getToolsForMode('template');
+
+    // Should include all tools including installNpmDep
+    expect(templateTools).toHaveProperty('writeFile');
+    expect(templateTools).toHaveProperty('readFile');
+    expect(templateTools).toHaveProperty('getFileTree');
+    expect(templateTools).toHaveProperty('executeCommand');
+    expect(templateTools).toHaveProperty('installNpmDep');
+    expect(templateTools).toHaveProperty('planArchitecture');
+    expect(templateTools).toHaveProperty('validatePrismaSchema');
+    expect(templateTools).toHaveProperty('validateTypeScript');
+    expect(templateTools).toHaveProperty('requestBlock');
+
+    // Should be the same as the full tools object
+    expect(Object.keys(templateTools).sort()).toEqual(Object.keys(tools).sort());
+  });
+
+  it('should exclude installNpmDep in naive mode', () => {
+    const naiveTools = getToolsForMode('naive');
+
+    // Should include most tools
+    expect(naiveTools).toHaveProperty('writeFile');
+    expect(naiveTools).toHaveProperty('readFile');
+    expect(naiveTools).toHaveProperty('getFileTree');
+    expect(naiveTools).toHaveProperty('executeCommand');
+    expect(naiveTools).toHaveProperty('planArchitecture');
+    expect(naiveTools).toHaveProperty('validatePrismaSchema');
+    expect(naiveTools).toHaveProperty('validateTypeScript');
+    expect(naiveTools).toHaveProperty('requestBlock');
+
+    // Should NOT include installNpmDep
+    expect(naiveTools).not.toHaveProperty('installNpmDep');
+
+    // Should have one fewer tool than template mode
+    expect(Object.keys(naiveTools).length).toBe(Object.keys(tools).length - 1);
+  });
+});

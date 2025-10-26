@@ -209,8 +209,9 @@ describe('BaseCapability - Error Handling', () => {
         toolResults: [
           {
             toolCallId: 'tc-8',
-            toolName: 'listFiles',
-            output: ['file1.txt', 'file2.js'],
+            toolName: 'getFileTree',
+            output:
+              '.\n├── 📄 file1.txt\n└── 📄 file2.js\n\n2 files, 0 directories\n(excluded: node_modules, dist, .git, coverage, .cache, etc.)',
           },
         ],
       });

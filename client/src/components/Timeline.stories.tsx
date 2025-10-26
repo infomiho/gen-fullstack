@@ -151,9 +151,9 @@ export const MixedTools: Story = {
         timestamp: Date.now() - 8000,
       },
       {
-        id: 'tool-list',
-        name: 'listFiles',
-        args: { directory: 'src' },
+        id: 'tool-tree',
+        name: 'getFileTree',
+        args: {},
         timestamp: Date.now() - 6000,
       },
       {
@@ -180,9 +180,9 @@ export const MixedTools: Story = {
         timestamp: Date.now() - 7500,
       },
       {
-        id: 'result-tool-list',
-        toolName: 'listFiles',
-        result: 'src/App.tsx\nsrc/index.tsx',
+        id: 'result-tool-tree',
+        toolName: 'getFileTree',
+        result: '.\n├── 📁 src\n│   ├── 📄 App.tsx\n│   └── 📄 index.tsx\n\n2 files, 1 directory',
         timestamp: Date.now() - 5500,
       },
       {

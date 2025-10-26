@@ -20,6 +20,9 @@ import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 export const sessions = sqliteTable('sessions', {
   id: text('id').primaryKey(),
   prompt: text('prompt').notNull(),
+  // NEW: Store assembled prompts for debugging (nullable for backward compatibility)
+  systemPrompt: text('system_prompt'),
+  fullUserPrompt: text('full_user_prompt'),
   // Capability-based configuration (JSON) - describes which capabilities to run
   capabilityConfig: text('capability_config').notNull(),
   // Status must be one of: 'pending', 'generating', 'completed', 'failed', 'cancelled'

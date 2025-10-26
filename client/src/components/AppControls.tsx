@@ -56,8 +56,11 @@ export function AppControls({
     }
 
     // App is ready/stopped/failed - show start button with CirclePlay icon
-    // Allow starting from both 'stopped' (no container) and 'ready' (container exists) states
-    const canStart = hasSession && !isGenerating && (status === 'ready' || status === 'stopped');
+    // Allow starting from 'stopped' (no container), 'ready' (container exists), and 'failed' (after fixing issues)
+    const canStart =
+      hasSession &&
+      !isGenerating &&
+      (status === 'ready' || status === 'stopped' || status === 'failed');
 
     // Determine tooltip based on why button is disabled
     let title: string;
@@ -65,6 +68,8 @@ export function AppControls({
       title = 'Generate an app first';
     } else if (isGenerating) {
       title = 'Wait for generation to complete';
+    } else if (status === 'failed') {
+      title = 'Retry running the application';
     } else if (canStart) {
       title = 'Run the application';
     } else {

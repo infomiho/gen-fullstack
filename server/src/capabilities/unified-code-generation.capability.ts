@@ -5,7 +5,7 @@ import { buildSystemPrompt, buildUserPrompt } from '../config/prompt-builder.js'
 import { getErrorMessage } from '../lib/error-utils.js';
 import type { ModelName } from '../services/llm.service.js';
 import { calculateCost } from '../services/llm.service.js';
-import { tools } from '../tools/index.js';
+import { getToolsForMode } from '../tools/index.js';
 import type {
   CapabilityContext,
   CapabilityResult,
@@ -82,6 +82,9 @@ export class UnifiedCodeGenerationCapability extends BaseCapability {
       const systemPrompt = buildSystemPrompt(this.config);
       const userPrompt = buildUserPrompt(context.prompt, context.plan);
 
+      // Store both prompts for debugging (don't fail generation if this fails)
+      await this.storePromptsForDebugging(sessionId, systemPrompt, userPrompt);
+
       // Emit initial message based on configuration
       const enabledFeatures: string[] = [];
       if (this.config.inputMode === 'template') enabledFeatures.push('template');
@@ -93,12 +96,15 @@ export class UnifiedCodeGenerationCapability extends BaseCapability {
 
       this.emitMessage('assistant', `Starting code generation${featuresText}...`, sessionId);
 
+      // Get tools filtered by input mode (installNpmDep only available in template mode)
+      const availableTools = getToolsForMode(this.config.inputMode);
+
       // Stream text generation with tools
       const result = streamText({
         model: this.model,
         system: systemPrompt,
         prompt: userPrompt,
-        tools,
+        tools: availableTools,
         experimental_context: { sessionId, io: this.io },
         stopWhen: stepCountIs(this.maxToolCalls),
         onStepFinish: this.createOnStepFinishHandler(sessionId),
@@ -170,6 +176,31 @@ export class UnifiedCodeGenerationCapability extends BaseCapability {
         success: false,
         error: errorMessage,
       };
+    }
+  }
+
+  /**
+   * Store assembled prompts in database for debugging
+   * Failures are logged but don't interrupt generation
+   */
+  private async storePromptsForDebugging(
+    sessionId: string,
+    systemPrompt: string,
+    userPrompt: string,
+  ): Promise<void> {
+    try {
+      const { databaseService } = await import('../services/database.service.js');
+      await databaseService.updateSession(sessionId, {
+        systemPrompt,
+        fullUserPrompt: userPrompt,
+      });
+      this.logger.debug({ sessionId }, 'Stored prompts for debugging');
+    } catch (error) {
+      // Log but don't fail generation if prompt storage fails
+      this.logger.warn(
+        { error, sessionId },
+        'Failed to store prompts for debugging (non-critical)',
+      );
     }
   }
 }

@@ -167,38 +167,203 @@ export async function readFile(sessionId: string, filePath: string): Promise<str
 }
 
 /**
- * List files in a directory within the sandbox
+ * File tree entry structure
+ */
+interface FileTreeEntry {
+  name: string;
+  type: 'file' | 'directory';
+  children?: FileTreeEntry[];
+  relativePath: string;
+}
+
+/**
+ * Default patterns to exclude from file tree
+ * Based on our stack: Vite + React + TypeScript + Prisma + Express
+ */
+const DEFAULT_EXCLUDES = [
+  'node_modules',
+  'dist',
+  '.git',
+  'coverage',
+  '.nyc_output',
+  '.vitest',
+  '.cache',
+  'storybook-static',
+  '.DS_Store',
+  '*.db',
+  '*.db-journal',
+  '*.db-shm',
+  '*.db-wal',
+  '*.tsbuildinfo',
+  '.idea',
+  '.vscode',
+  '*.swp',
+  '*.swo',
+];
+
+/**
+ * Check if a filename should be excluded
+ */
+function shouldExclude(name: string, excludePatterns: string[]): boolean {
+  return excludePatterns.some((pattern) => {
+    // Exact match
+    if (pattern === name) return true;
+
+    // Wildcard pattern (e.g., *.db)
+    if (pattern.includes('*')) {
+      const regex = new RegExp(`^${pattern.replace(/\*/g, '.*')}$`);
+      return regex.test(name);
+    }
+
+    return false;
+  });
+}
+
+/**
+ * Build file tree recursively
+ */
+async function buildFileTree(
+  dir: string,
+  sandboxPath: string,
+  currentDepth: number,
+  maxDepth: number | undefined,
+  excludePatterns: string[],
+  stats: { fileCount: number; dirCount: number },
+): Promise<FileTreeEntry[]> {
+  // Check depth limit
+  if (maxDepth !== undefined && currentDepth >= maxDepth) {
+    return [];
+  }
+
+  // Check file count limit
+  if (stats.fileCount + stats.dirCount > 500) {
+    throw new Error('File tree too large (exceeded 500 items)');
+  }
+
+  const entries = await fs.readdir(dir, { withFileTypes: true });
+  const result: FileTreeEntry[] = [];
+
+  for (const entry of entries) {
+    // Skip if excluded
+    if (shouldExclude(entry.name, excludePatterns)) {
+      continue;
+    }
+
+    // Skip symlinks for security
+    if (entry.isSymbolicLink()) {
+      filesystemLogger.debug({ name: entry.name }, 'Skipping symlink in file tree');
+      continue;
+    }
+
+    const fullPath = path.join(dir, entry.name);
+    const relativePath = path.relative(sandboxPath, fullPath);
+
+    if (entry.isDirectory()) {
+      stats.dirCount++;
+      const children = await buildFileTree(
+        fullPath,
+        sandboxPath,
+        currentDepth + 1,
+        maxDepth,
+        excludePatterns,
+        stats,
+      );
+
+      result.push({
+        name: entry.name,
+        type: 'directory',
+        relativePath,
+        children: children.length > 0 ? children : undefined,
+      });
+    } else if (entry.isFile()) {
+      stats.fileCount++;
+      result.push({
+        name: entry.name,
+        type: 'file',
+        relativePath,
+      });
+    }
+  }
+
+  // Sort: directories first, then files, both alphabetically
+  return result.sort((a, b) => {
+    if (a.type === b.type) {
+      return a.name.localeCompare(b.name);
+    }
+    return a.type === 'directory' ? -1 : 1;
+  });
+}
+
+/**
+ * Format file tree as a string with tree-style indentation
+ */
+function formatFileTree(entries: FileTreeEntry[], prefix = ''): string {
+  let output = '';
+
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i];
+    const isLastEntry = i === entries.length - 1;
+    const connector = isLastEntry ? '└── ' : '├── ';
+    const icon = entry.type === 'directory' ? '📁' : '📄';
+
+    output += `${prefix}${connector}${icon} ${entry.name}\n`;
+
+    if (entry.children && entry.children.length > 0) {
+      const childPrefix = prefix + (isLastEntry ? '    ' : '│   ');
+      output += formatFileTree(entry.children, childPrefix);
+    }
+  }
+
+  return output;
+}
+
+/**
+ * Get complete file tree from sandbox
+ *
+ * Returns a tree-style view of all files and directories in the session sandbox,
+ * excluding common build artifacts and dependencies.
  *
  * @param sessionId - Session identifier
- * @param dirPath - Relative directory path within sandbox (default: '.')
- * @returns Array of file/directory names with types
+ * @param maxDepth - Maximum depth to traverse (default: unlimited)
+ * @returns Formatted tree string with file counts
  */
-export async function listFiles(
-  sessionId: string,
-  dirPath: string = '.',
-): Promise<Array<{ name: string; type: 'file' | 'directory' }>> {
-  validatePath(dirPath, sessionId);
-
+export async function getFileTree(sessionId: string, maxDepth?: number): Promise<string> {
   const sandboxPath = getSandboxPath(sessionId);
-  const fullPath = path.resolve(sandboxPath, dirPath);
 
   try {
-    const entries = await fs.readdir(fullPath, { withFileTypes: true });
-    const result = entries.map((entry) => ({
-      name: entry.name,
-      type: entry.isDirectory() ? ('directory' as const) : ('file' as const),
-    }));
+    const stats = { fileCount: 0, dirCount: 0 };
+    const tree = await buildFileTree(
+      sandboxPath,
+      sandboxPath,
+      0,
+      maxDepth,
+      DEFAULT_EXCLUDES,
+      stats,
+    );
 
-    const relativePath = path.relative(sandboxPath, fullPath);
+    if (tree.length === 0) {
+      return 'Empty project directory (no files found)';
+    }
+
+    const header = '.\n';
+    const treeOutput = formatFileTree(tree);
+    const footer = `\n${stats.fileCount} files, ${stats.dirCount} directories`;
+    const excluded = '(excluded: node_modules, dist, .git, coverage, .cache, etc.)';
+
+    const result = `${header}${treeOutput}${footer}\n${excluded}`;
+
     filesystemLogger.info(
-      { relativePath: relativePath || '.', count: result.length },
-      'Listed directory',
+      { fileCount: stats.fileCount, dirCount: stats.dirCount },
+      'Generated file tree',
     );
 
     return result;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      throw new Error(`Directory not found: ${dirPath}`);
+      throw new Error('Project directory not found');
+    }
+    if (error instanceof Error && error.message.includes('File tree too large')) {
+      throw error;
     }
     throw error;
   }
