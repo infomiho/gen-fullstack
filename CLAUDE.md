@@ -170,7 +170,124 @@ export const Default: Story = {
 
 ## Recent Changes
 
-### Template Upgrade: Tailwind 4 + React Router 7 (Latest - January 2025) ✅
+### Dependency Version Reference (Latest - January 2025) ✅
+Added comprehensive dependency version reference to base prompt to prevent version-guessing failures.
+
+**Problem** (discovered via session 534dd3c2):
+- LLM generated `@tailwindcss/vite@^1.0.0` which doesn't exist (correct version is `^4.0.27`)
+- Base prompt mentioned Tailwind CSS 4 but didn't specify versions
+- LLM had to guess versions → incorrect guesses → npm install failures
+- Cascaded into false success messages and app startup failures
+
+**Solution**:
+1. Added "COMMON DEPENDENCY VERSIONS" section to BASE_SYSTEM_PROMPT with tested versions:
+   - Client deps: react, react-dom, react-router, react-router-dom
+   - Client devDeps: @tailwindcss/vite, tailwindcss, vite, typescript, @vitejs/plugin-react
+   - Server deps: express, @prisma/client, cors
+   - Server devDeps: tsx, typescript, @types/express, @types/node, prisma
+   - Root devDeps: concurrently
+
+2. Applied DRY principles to eliminate version duplication:
+   - Removed hardcoded version from SERVER DEV SCRIPT section (now references COMMON DEPENDENCY VERSIONS)
+   - Removed example versions from DEPENDENCY MANAGEMENT section (now references COMMON DEPENDENCY VERSIONS)
+   - Updated template addon to reference COMMON DEPENDENCY VERSIONS instead of repeating versions
+   - Single source of truth: all versions only specified once in COMMON DEPENDENCY VERSIONS section
+
+**Why this approach is good**:
+- ✅ General enough: Lists commonly-used packages across all app types
+- ✅ Not overfitted: Doesn't prescribe exact app structure, just versions
+- ✅ Solves root cause: LLM no longer guesses major versions
+- ✅ Consistent with template: Uses same versions as working template
+- ✅ Helps all modes: Benefits naive, plan-first, and compiler-check (not just template)
+- ✅ Flexible: Explicitly allows newer minor/patch versions
+
+**Impact**:
+- ✅ Prevents version-guessing failures for Tailwind, React, Express, Vite, etc.
+- ✅ Reduces npm install failures due to non-existent package versions
+- ✅ Consistent, working apps across all generation modes
+- ✅ Single source of truth for versions (easier to maintain and update)
+- ✅ Fixes session 534dd3c2 failure pattern
+
+**Files Modified**:
+1. `server/src/config/prompt-builder.ts` - Added dependency version reference and applied DRY principles throughout
+
+**Testing**: All 322 tests passing, typecheck passing, DRY verification passing ✅
+
+### Tool Filtering: Removed installNpmDep from Naive Mode (January 2025) ✅
+Fixed critical issue where `installNpmDep` tool was available in naive mode, causing the LLM to try installing dependencies before package.json files existed.
+
+**Problem** (discovered via session 534dd3c2):
+- In naive mode, LLM called `installNpmDep` before package.json files were created
+- Example sequence: writeFile(schema) → installNpmDep(server) → writeFile(server/package.json)
+- This wasted 2-4 tool calls per generation and confused the LLM
+- Root cause: `installNpmDep` was available in all modes but should only be in template mode
+
+**Solution**:
+1. **Added `getToolsForMode()` helper** (`server/src/tools/index.ts:673`)
+   - Returns full tools in template mode (package.json files exist)
+   - Returns filtered tools (no installNpmDep) in naive mode
+   - Uses correct `InputMode` type from shared package
+
+2. **Updated capability** (`server/src/capabilities/unified-code-generation.capability.ts:100`)
+   - Now uses `getToolsForMode(this.config.inputMode)` instead of raw `tools`
+   - Tools are filtered dynamically based on generation mode
+
+3. **Updated prompts** (`server/src/config/prompt-builder.ts`)
+   - Base prompt: Changed from "use installNpmDep" to "write complete package.json files"
+   - Template addon: Retained installNpmDep instructions (only mode where it's available)
+
+**Testing**:
+- Added 2 tests for getToolsForMode filtering (template includes all, naive excludes installNpmDep)
+- Updated 2 prompt tests to verify installNpmDep absence/presence
+- All 50 tests passing (16 prompt + 34 tool tests)
+- Code review identified and fixed type safety issue (using correct InputMode type)
+
+**Impact**:
+- ✅ Naive mode no longer calls installNpmDep before package.json exists
+- ✅ Saves 2-4 wasted tool calls per generation
+- ✅ Clearer workflow: write complete files in naive mode, merge deps in template mode
+- ✅ Fixes issue reported by user
+
+**Files Modified**:
+1. `server/src/tools/index.ts` - Added getToolsForMode helper
+2. `server/src/capabilities/unified-code-generation.capability.ts` - Use conditional tools
+3. `server/src/config/prompt-builder.ts` - Updated dependency management instructions
+4. `server/src/config/__tests__/prompt-builder.test.ts` - Added prompt content tests
+5. `server/src/tools/__tests__/tools.test.ts` - Added tool filtering tests
+
+### Prompt Fixes: tsx and Unnecessary File Reads (January 2025) ✅
+Fixed two critical issues in the base system prompt that caused generation failures:
+
+**Fix #1: tsx Instead of ts-node-dev**
+- Added explicit instruction to use `tsx` for server dev script
+- Added new "SERVER DEV SCRIPT" section in base prompt
+- Specifies: `"dev": "PORT=3000 tsx watch src/index.ts"`
+- Prevents ES module errors (ts-node-dev doesn't support "type": "module")
+- Location: `server/src/config/prompt-builder.ts` (lines 43-48)
+
+**Fix #2: Removed Unnecessary File Reads in Naive Mode**
+- Moved "check existing package.json" workflow from base prompt to template addon
+- Base prompt now only has generic dependency management instructions
+- Template addon now has specific workflow: read files → check existing deps → add new deps
+- Prevents LLM from reading non-existent files in naive/plan-first/compiler-check modes
+- Saves 2-3 unnecessary tool calls per generation
+
+**Root Cause Analysis**:
+- Issue discovered via session analysis (session 93307df0)
+- LLM was following base prompt instructions to check files that didn't exist yet
+- ts-node-dev was being used because prompt didn't specify tsx
+- Template uses tsx, but base prompt had no explicit instruction
+
+**Impact**:
+- ✅ Generated apps now use tsx and work correctly with ES modules
+- ✅ Naive mode no longer wastes tool calls reading non-existent files
+- ✅ Template mode retains intelligent dependency checking
+- ✅ All 3 workspaces pass typecheck
+
+**Files Modified**:
+1. `server/src/config/prompt-builder.ts` - Base prompt and template addon updates
+
+### Template Upgrade: Tailwind 4 + React Router 7 (January 2025) ✅
 Complete upgrade of the full-stack template with modern styling and routing:
 
 **Template Changes**:
@@ -643,9 +760,40 @@ cd server
 sqlite3 data/gen-fullstack.db ".tables"
 
 # Common queries
-sqlite3 server/data/gen-fullstack.db "SELECT id, prompt, strategy, status FROM sessions ORDER BY timestamp DESC LIMIT 10;"
+sqlite3 server/data/gen-fullstack.db "SELECT id, substr(prompt, 1, 50) as prompt, capability_config, status FROM sessions ORDER BY created_at DESC LIMIT 10;"
 sqlite3 server/data/gen-fullstack.db "SELECT content FROM timeline_items WHERE session_id = 'SESSION_ID' AND type = 'message' ORDER BY timestamp;"
 ```
+
+### Session Analysis
+
+For detailed analysis of generation sessions (especially failures), use the **Session Analysis Cookbook**:
+
+**Location**: `SESSION-ANALYSIS-COOKBOOK.md` (project root)
+
+**Quick Start**:
+```bash
+# Automated analysis script
+./scripts/analyze-session.sh <session-id>
+
+# Example
+./scripts/analyze-session.sh 5083b604-8829-4fae-93b3-af8fad133c82
+```
+
+**What it provides**:
+- 10-step systematic analysis process
+- Pre-tested SQL queries for all common investigations
+- Common failure pattern recognition
+- Analysis report template
+- Tips for identifying root causes
+
+**When to use**:
+- After a generation fails (status = 'failed')
+- When an app completes but doesn't work correctly
+- To understand what the LLM generated and why
+- To gather evidence for improving prompts or strategies
+- Before creating bug reports or GitHub issues
+
+See the cookbook for complete details on database schema, query examples, and analysis best practices.
 
 ### Cleanup Script
 

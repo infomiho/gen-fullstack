@@ -35,10 +35,17 @@ REQUIRED FILES:
    - src/index.css (single line: @import "tailwindcss")
 
 3. server/:
-   - package.json (name: "server", type: "module")
+   - package.json (name: "server", type: "module", dev script uses tsx)
    - tsconfig.json (strict mode, ES modules)
    - src/index.ts (Express app with automatic async error handling)
    - src/routes/ (API route modules)
+
+SERVER DEV SCRIPT:
+**CRITICAL**: Server MUST use tsx (not ts-node-dev) for ES module support:
+- Dev script: "dev": "PORT=3000 tsx watch src/index.ts"
+- Add tsx to devDependencies (see COMMON DEPENDENCY VERSIONS for version)
+- tsx provides fast TypeScript execution with watch mode and ES module support
+- NEVER use ts-node-dev (doesn't work with "type": "module")
 
 4. prisma/:
    - schema.prisma (datasource db, generator client, models)
@@ -137,29 +144,51 @@ YOUR WORKFLOW:
 6. Generate ALL files required for a working app
 
 DEPENDENCY MANAGEMENT:
-Common packages are already included in the template:
-- react-router (^7.6.2) and react-router-dom (^7.6.2) - for routing
-- @tailwindcss/vite (^4.0.27) and tailwindcss (^4.0.27) - for styling
-- @prisma/client (^6.10.0), express (^5.1.0), cors (^2.8.5) - server basics
+**CRITICAL**: Write complete package.json files with ALL dependencies included.
+- Include ALL required dependencies with specific versions (see COMMON DEPENDENCY VERSIONS below)
+- Include ALL required devDependencies with specific versions (see COMMON DEPENDENCY VERSIONS below)
+- Use writeFile to create package.json files with dependencies already listed
 
-**CRITICAL WORKFLOW - Follow these steps in order:**
+Building blocks auto-install their dependencies:
+- auth-password block adds: bcryptjs, @types/bcryptjs
+- These are added automatically - don't add them manually
 
-1. BEFORE adding ANY dependencies:
-   - Use readFile to check client/package.json for existing client dependencies
-   - Use readFile to check server/package.json for existing server dependencies
-   - Identify which packages are ALREADY installed in the template
-   - Only proceed to step 2 for NEW packages that don't exist yet
+COMMON DEPENDENCY VERSIONS:
+When writing package.json files, use these tested versions for core packages:
 
-2. Use installNpmDep tool to ADD new dependencies (do NOT use writeFile on package.json):
-   - Example: installNpmDep({ target: "server", dependencies: { "zod": "^3.22.2" } })
-   - This tool intelligently merges with existing dependencies without removing them
-   - ALWAYS provide specific versions in the dependencies object
+Client dependencies:
+- "react": "^19.2.0"
+- "react-dom": "^19.2.0"
+- "react-router": "^7.6.2"
+- "react-router-dom": "^7.6.2"
 
-3. Building blocks auto-install their dependencies:
-   - auth-password block adds: bcryptjs, @types/bcryptjs
-   - These dependencies are added automatically - don't add them manually
+Client devDependencies:
+- "@tailwindcss/vite": "^4.0.27"
+- "tailwindcss": "^4.0.27"
+- "@vitejs/plugin-react": "^5.0.4"
+- "vite": "^7.1.9"
+- "typescript": "~5.9.3"
+- "@types/react": "^19.2.2"
+- "@types/react-dom": "^19.2.2"
 
-Common additional packages to consider:
+Server dependencies:
+- "express": "^5.1.0"
+- "@prisma/client": "^6.10.0"
+- "cors": "^2.8.5"
+
+Server devDependencies:
+- "tsx": "^4.19.2"
+- "typescript": "~5.9.3"
+- "@types/express": "^5.0.2"
+- "@types/node": "^22.10.9"
+- "prisma": "^6.10.0"
+
+Root devDependencies:
+- "concurrently": "^9.1.2"
+
+NOTE: These are tested, working versions. You may use slightly newer minor/patch versions if needed.
+
+Additional packages to consider for specific features:
 - zod - for advanced form validation beyond HTML5
 - date-fns - for date manipulation
 - uuid - for generating unique IDs
@@ -196,21 +225,23 @@ YOUR TASK:
 5. Use React Router for multi-page navigation
 6. Keep configuration files (vite.config.ts, tsconfig.json, etc.) intact
 
-CRITICAL - DEPENDENCY MANAGEMENT:
-1. ALWAYS read package.json files FIRST before adding dependencies:
-   - readFile('client/package.json') to see what's already installed
-   - readFile('server/package.json') to see what's already installed
-   - Check if packages are already present to avoid duplicates
+CRITICAL - DEPENDENCY MANAGEMENT IN TEMPLATE MODE:
 
-2. Use installNpmDep tool to ADD only NEW dependencies:
-   - DO NOT use writeFile for package.json files
-   - Example: installNpmDep({ target: "client", dependencies: { "zod": "^3.0.0" } })
-   - This merges with existing dependencies without removing template packages
+**WORKFLOW - Follow these steps in order:**
 
-3. Template dependencies MUST be preserved:
-   - react-router, react-router-dom (routing)
-   - tailwindcss, @tailwindcss/vite (styling)
-   - express, cors, @prisma/client (server basics)
+1. BEFORE adding ANY dependencies:
+   - Use readFile to check client/package.json for existing client dependencies
+   - Use readFile to check server/package.json for existing server dependencies
+   - Identify which packages are ALREADY installed in the template
+   - Only proceed to step 2 for NEW packages that don't exist yet
+
+2. Use installNpmDep tool to ADD new dependencies:
+   - This tool merges with existing dependencies without removing them
+   - ALWAYS provide specific versions in the dependencies object
+   - Refer to "COMMON DEPENDENCY VERSIONS" above for version numbers of common packages
+
+All core packages (react, react-router, tailwindcss, express, prisma, etc.) are already installed.
+Refer to the COMMON DEPENDENCY VERSIONS section for the exact versions.
 
 All tsconfig.json, vite.config.ts files are ready.
 Focus on implementing the specific features requested by the user.`,
