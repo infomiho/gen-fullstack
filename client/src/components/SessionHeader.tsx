@@ -1,5 +1,6 @@
 import { Link } from 'react-router';
 import { padding, transitions, typography } from '../lib/design-tokens';
+import { CopyButton } from './CopyButton';
 import { StatusBadge } from './StatusBadge';
 
 interface SessionHeaderProps {
@@ -12,9 +13,8 @@ interface SessionHeaderProps {
  * SessionHeader component
  *
  * Displays the header for a session page with:
- * - App title and home link
- * - Session ID
- * - Session status badge (with live indicator for active sessions)
+ * - App title and home link (left)
+ * - Session ID with copy button and status badge (right)
  */
 export function SessionHeader({ sessionId, status, isOwnSession }: SessionHeaderProps) {
   const showLiveBadge = status === 'generating' && isOwnSession;
@@ -22,19 +22,20 @@ export function SessionHeader({ sessionId, status, isOwnSession }: SessionHeader
   return (
     <header className={`border-b ${padding.page}`}>
       <div className="flex items-center justify-between">
+        <Link
+          to="/"
+          className={`${typography.label} text-lg hover:opacity-80 ${transitions.colors}`}
+        >
+          <span className="text-foreground">Gen </span>
+          <span className="bg-gradient-to-b from-[#1488FC] to-[#03305D] dark:from-white dark:to-[#1488FC] bg-clip-text text-transparent">
+            Fullstack
+          </span>
+        </Link>
         <div className="flex items-center gap-3">
-          <Link
-            to="/"
-            className={`${typography.label} text-lg hover:opacity-80 ${transitions.colors}`}
-          >
-            <span className="text-foreground">Gen </span>
-            <span className="bg-gradient-to-b from-[#1488FC] to-[#03305D] dark:from-white dark:to-[#1488FC] bg-clip-text text-transparent">
-              Fullstack
-            </span>
-          </Link>
-          <span className={typography.caption}>Session: {sessionId}</span>
-        </div>
-        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <span className={typography.caption}>Session: {sessionId}</span>
+            {sessionId && <CopyButton text={sessionId} title="Copy session ID" iconSize={14} />}
+          </div>
           <StatusBadge status={status} variant="session" showLiveIndicator={showLiveBadge} />
         </div>
       </div>
