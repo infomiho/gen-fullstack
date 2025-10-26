@@ -24,6 +24,23 @@ export function AppControls({
   const status = appStatus?.status || 'stopped';
   const hasSession = currentSessionId !== null;
 
+  // Helper to get tooltip for start button based on current state
+  const getStartButtonTitle = (canStart: boolean): string => {
+    if (!hasSession) {
+      return 'Generate an app first';
+    }
+    if (isGenerating) {
+      return 'Wait for generation to complete';
+    }
+    if (status === 'failed') {
+      return 'Retry running the application';
+    }
+    if (canStart) {
+      return 'Run the application';
+    }
+    return `Cannot start app from ${status} state`;
+  };
+
   // Determine button state based on app status
   const getButtonConfig = () => {
     // App is running - show stop button with subtle gray styling and square icon
@@ -62,20 +79,6 @@ export function AppControls({
       !isGenerating &&
       (status === 'ready' || status === 'stopped' || status === 'failed');
 
-    // Determine tooltip based on why button is disabled
-    let title: string;
-    if (!hasSession) {
-      title = 'Generate an app first';
-    } else if (isGenerating) {
-      title = 'Wait for generation to complete';
-    } else if (status === 'failed') {
-      title = 'Retry running the application';
-    } else if (canStart) {
-      title = 'Run the application';
-    } else {
-      title = `Cannot start app from ${status} state`;
-    }
-
     return {
       label: 'Run',
       icon: <CirclePlay size={18} />,
@@ -88,7 +91,7 @@ export function AppControls({
       },
       disabled: !canStart,
       className: button.primary,
-      title,
+      title: getStartButtonTitle(canStart),
     };
   };
 
