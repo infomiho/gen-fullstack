@@ -1,14 +1,16 @@
 import type { CapabilityConfig } from '@gen-fullstack/shared';
 import { Send } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { CapabilitySection } from '../components/CapabilitySection';
 import { PromptDisplay } from '../components/PromptDisplay';
 import { PromptInput } from '../components/PromptInput';
-import { StatusBadge } from '../components/StatusBadge';
+import { SessionFilters, type SessionFiltersState } from '../components/SessionFilters';
+import { SessionMetadata } from '../components/SessionMetadata';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { card, focus, spacing, transitions, typography } from '../lib/design-tokens';
+import { parseCapabilityConfig } from '../lib/format-utils';
 
 const SERVER_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
@@ -18,12 +20,61 @@ const SERVER_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 interface SessionListItem {
   id: string;
   prompt: string;
-  strategy: string;
   capabilityConfig: string; // JSON string of CapabilityConfig
   status: 'generating' | 'completed' | 'failed';
   createdAt: string;
   updatedAt?: string;
   completedAt?: string;
+  // Generation metrics
+  inputTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
+  durationMs?: number;
+  stepCount?: number;
+}
+
+/**
+ * Session with pre-parsed capability config for performance
+ * Parsing is done once when sessions are loaded to avoid repeated JSON parsing during filtering
+ */
+interface SessionWithParsedConfig extends SessionListItem {
+  parsedConfig: CapabilityConfig | null;
+}
+
+/**
+ * Check if a session matches the current filter criteria
+ */
+function matchesFilters(session: SessionWithParsedConfig, filters: SessionFiltersState): boolean {
+  // Search filter (trim to handle spaces-only input)
+  const trimmedSearch = filters.search.trim().toLowerCase();
+  if (trimmedSearch && !session.prompt.toLowerCase().includes(trimmedSearch)) {
+    return false;
+  }
+
+  // Status filter
+  if (filters.status !== 'all' && session.status !== filters.status) {
+    return false;
+  }
+
+  // Use pre-parsed capability config (performance optimization)
+  const config = session.parsedConfig;
+  if (!config) return true; // If parsing failed, include the session
+
+  // Capability filters (must have all selected capabilities)
+  if (filters.capabilities.template && config.inputMode !== 'template') {
+    return false;
+  }
+  if (filters.capabilities.planning && !config.planning) {
+    return false;
+  }
+  if (filters.capabilities.compilerChecks && !config.compilerChecks) {
+    return false;
+  }
+  if (filters.capabilities.buildingBlocks && !config.buildingBlocks) {
+    return false;
+  }
+
+  return true;
 }
 
 /**
@@ -51,17 +102,41 @@ function HomePage() {
     maxIterations: 3,
   });
 
-  const [sessions, setSessions] = useState<SessionListItem[]>([]);
+  const [sessions, setSessions] = useState<SessionWithParsedConfig[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(true);
 
-  // Fetch previous sessions
+  // Filter state
+  const [filters, setFilters] = useState<SessionFiltersState>({
+    search: '',
+    status: 'all',
+    capabilities: {
+      template: false,
+      planning: false,
+      compilerChecks: false,
+      buildingBlocks: false,
+    },
+  });
+
+  // Filtered sessions using useMemo for performance
+  const filteredSessions = useMemo(() => {
+    return sessions.filter((session) => matchesFilters(session, filters));
+  }, [sessions, filters]);
+
+  // Fetch previous sessions and pre-parse capability configs for performance
   useEffect(() => {
     const fetchSessions = async () => {
       try {
         const response = await fetch(`${SERVER_URL}/api/sessions`);
         if (response.ok) {
           const data = await response.json();
-          setSessions(data.sessions || []);
+          // Parse capability configs once to avoid repeated parsing during filtering
+          const sessionsWithParsedConfig: SessionWithParsedConfig[] = (data.sessions || []).map(
+            (session: SessionListItem) => ({
+              ...session,
+              parsedConfig: parseCapabilityConfig(session.capabilityConfig),
+            }),
+          );
+          setSessions(sessionsWithParsedConfig);
         }
       } catch (error) {
         // biome-ignore lint/suspicious/noConsole: Useful for debugging session fetch failures
@@ -79,21 +154,6 @@ function HomePage() {
       startGeneration(prompt, capabilityConfig, 'gpt-5-mini');
       setPrompt('');
     }
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString();
   };
 
   return (
@@ -151,14 +211,7 @@ function HomePage() {
 
         {/* Previous sessions */}
         <div>
-          <h3 className={`mb-4 ${typography.sectionHeader}`}>
-            Previous Sessions
-            {sessions.length > 0 && (
-              <span className="ml-2 text-sm text-muted-foreground font-normal">
-                ({sessions.length})
-              </span>
-            )}
-          </h3>
+          <h3 className={`mb-4 ${typography.sectionHeader}`}>Previous Sessions</h3>
 
           {loadingSessions ? (
             <div className="text-center py-12">
@@ -172,25 +225,49 @@ function HomePage() {
               </p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {sessions.map((session) => {
-                return (
-                  <Link key={session.id} to={`/${session.id}`} className={card.link}>
-                    <div className="space-y-3">
-                      {/* Prompt with copy button */}
-                      <PromptDisplay prompt={session.prompt} />
+            <div className="space-y-6">
+              {/* Filters */}
+              <SessionFilters
+                filters={filters}
+                onFiltersChange={setFilters}
+                sessionCount={filteredSessions.length}
+                totalCount={sessions.length}
+              />
 
-                      {/* Bottom row: timestamp (left) and status (right) */}
-                      <div className="flex items-center justify-between gap-4">
-                        <span className={`${typography.caption}`}>
-                          {formatDate(session.createdAt)}
-                        </span>
-                        <StatusBadge status={session.status} />
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
+              {/* Session list */}
+              {filteredSessions.length === 0 ? (
+                <div className="text-center py-12 border border-dashed border-border rounded-lg">
+                  <p className={`${typography.bodySecondary} mb-2`}>
+                    No sessions match your filters
+                  </p>
+                  <p className={`${typography.caption}`}>
+                    Try adjusting your search or filter criteria
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filteredSessions.map((session) => {
+                    return (
+                      <Link key={session.id} to={`/${session.id}`} className={card.link}>
+                        <div className="space-y-3">
+                          {/* Prompt with copy button */}
+                          <PromptDisplay prompt={session.prompt} />
+
+                          {/* Session metadata */}
+                          <SessionMetadata
+                            capabilityConfig={session.capabilityConfig}
+                            status={session.status}
+                            createdAt={session.createdAt}
+                            durationMs={session.durationMs}
+                            stepCount={session.stepCount}
+                            totalTokens={session.totalTokens}
+                          />
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>

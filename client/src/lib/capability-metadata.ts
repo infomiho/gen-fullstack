@@ -78,3 +78,47 @@ export const CAPABILITY_METADATA = {
  * Type for capability keys
  */
 export type CapabilityKey = keyof typeof CAPABILITY_METADATA;
+
+/**
+ * Badge styles for capability badges (compact display)
+ *
+ * Centralized styling to maintain consistency across:
+ * - CapabilityBadge component (session list metadata)
+ * - Filter chips
+ * - Any future badge displays
+ *
+ * Note: Uses 'compilerChecks' and 'buildingBlocks' keys to match
+ * the CapabilityConfig type from shared package
+ */
+export const CAPABILITY_BADGE_STYLES = {
+  planning: {
+    icon: BrainCircuit,
+    bgColor: 'bg-purple-500/10',
+    textColor: 'text-purple-600 dark:text-purple-400',
+    borderColor: 'border-purple-500/20',
+    shortLabel: 'Planning',
+  },
+  compilerChecks: {
+    icon: ScanSearch,
+    bgColor: 'bg-orange-500/10',
+    textColor: 'text-orange-600 dark:text-orange-400',
+    borderColor: 'border-orange-500/20',
+    shortLabel: 'Compiler',
+  },
+  buildingBlocks: {
+    icon: Blocks,
+    bgColor: 'bg-amber-500/10',
+    textColor: 'text-amber-600 dark:text-amber-400',
+    borderColor: 'border-amber-500/20',
+    shortLabel: 'Blocks',
+  },
+} as const satisfies Record<
+  string,
+  {
+    icon: LucideIcon;
+    bgColor: string;
+    textColor: string;
+    borderColor: string;
+    shortLabel: string;
+  }
+>;
