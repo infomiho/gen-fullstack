@@ -5,7 +5,7 @@ import { buildSystemPrompt, buildUserPrompt } from '../config/prompt-builder.js'
 import { getErrorMessage } from '../lib/error-utils.js';
 import type { ModelName } from '../services/llm.service.js';
 import { calculateCost } from '../services/llm.service.js';
-import { getToolsForMode } from '../tools/index.js';
+import { getToolsForCapability } from '../tools/index.js';
 import type {
   CapabilityContext,
   CapabilityResult,
@@ -96,8 +96,10 @@ export class UnifiedCodeGenerationCapability extends BaseCapability {
 
       this.emitMessage('assistant', `Starting code generation${featuresText}...`, sessionId);
 
-      // Get tools filtered by input mode (installNpmDep only available in template mode)
-      const availableTools = getToolsForMode(this.config.inputMode);
+      // Get tools filtered by capability configuration
+      // - installNpmDep: only available in template mode
+      // - requestBlock: only available when buildingBlocks is enabled
+      const availableTools = getToolsForCapability(this.config);
 
       // Stream text generation with tools
       const result = streamText({

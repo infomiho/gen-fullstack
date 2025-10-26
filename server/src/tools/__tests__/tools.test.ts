@@ -568,45 +568,232 @@ describe('Tools - Path Traversal Security', () => {
   });
 });
 
-// Import getToolsForMode separately since it's not in the default tools export
-import { getToolsForMode, tools } from '../index.js';
+// Import tool filtering functions separately since they're not in the default tools export
+import { getToolsForCapability, tools } from '../index.js';
 
-describe('getToolsForMode', () => {
-  it('should include all tools in template mode', () => {
-    const templateTools = getToolsForMode('template');
+describe('getToolsForCapability', () => {
+  describe('all capabilities enabled', () => {
+    it('should include all tools', () => {
+      const filteredTools = getToolsForCapability({
+        inputMode: 'template',
+        planning: true,
+        buildingBlocks: true,
+        compilerChecks: true,
+        maxIterations: 3,
+      });
 
-    // Should include all tools including installNpmDep
-    expect(templateTools).toHaveProperty('writeFile');
-    expect(templateTools).toHaveProperty('readFile');
-    expect(templateTools).toHaveProperty('getFileTree');
-    expect(templateTools).toHaveProperty('executeCommand');
-    expect(templateTools).toHaveProperty('installNpmDep');
-    expect(templateTools).toHaveProperty('planArchitecture');
-    expect(templateTools).toHaveProperty('validatePrismaSchema');
-    expect(templateTools).toHaveProperty('validateTypeScript');
-    expect(templateTools).toHaveProperty('requestBlock');
+      // Should include ALL tools from all capability groups
+      expect(filteredTools).toHaveProperty('writeFile');
+      expect(filteredTools).toHaveProperty('readFile');
+      expect(filteredTools).toHaveProperty('getFileTree');
+      expect(filteredTools).toHaveProperty('executeCommand');
+      expect(filteredTools).toHaveProperty('planArchitecture');
+      expect(filteredTools).toHaveProperty('installNpmDep');
+      expect(filteredTools).toHaveProperty('validatePrismaSchema');
+      expect(filteredTools).toHaveProperty('validateTypeScript');
+      expect(filteredTools).toHaveProperty('requestBlock');
 
-    // Should be the same as the full tools object
-    expect(Object.keys(templateTools).sort()).toEqual(Object.keys(tools).sort());
+      // Should be the same as the full tools object
+      expect(Object.keys(filteredTools).sort()).toEqual(Object.keys(tools).sort());
+    });
   });
 
-  it('should exclude installNpmDep in naive mode', () => {
-    const naiveTools = getToolsForMode('naive');
+  describe('template mode only', () => {
+    it('should include base tools and installNpmDep only', () => {
+      const filteredTools = getToolsForCapability({
+        inputMode: 'template',
+        planning: false,
+        buildingBlocks: false,
+        compilerChecks: false,
+        maxIterations: 3,
+      });
 
-    // Should include most tools
-    expect(naiveTools).toHaveProperty('writeFile');
-    expect(naiveTools).toHaveProperty('readFile');
-    expect(naiveTools).toHaveProperty('getFileTree');
-    expect(naiveTools).toHaveProperty('executeCommand');
-    expect(naiveTools).toHaveProperty('planArchitecture');
-    expect(naiveTools).toHaveProperty('validatePrismaSchema');
-    expect(naiveTools).toHaveProperty('validateTypeScript');
-    expect(naiveTools).toHaveProperty('requestBlock');
+      // Should include base tools
+      expect(filteredTools).toHaveProperty('writeFile');
+      expect(filteredTools).toHaveProperty('readFile');
+      expect(filteredTools).toHaveProperty('getFileTree');
+      expect(filteredTools).toHaveProperty('executeCommand');
 
-    // Should NOT include installNpmDep
-    expect(naiveTools).not.toHaveProperty('installNpmDep');
+      // Should include installNpmDep (template mode)
+      expect(filteredTools).toHaveProperty('installNpmDep');
 
-    // Should have one fewer tool than template mode
-    expect(Object.keys(naiveTools).length).toBe(Object.keys(tools).length - 1);
+      // Should NOT include capability-specific tools
+      expect(filteredTools).not.toHaveProperty('planArchitecture');
+      expect(filteredTools).not.toHaveProperty('requestBlock');
+      expect(filteredTools).not.toHaveProperty('validatePrismaSchema');
+      expect(filteredTools).not.toHaveProperty('validateTypeScript');
+
+      // Should have 5 tools (4 base + 1 template)
+      expect(Object.keys(filteredTools).length).toBe(5);
+    });
+  });
+
+  describe('buildingBlocks only', () => {
+    it('should include base tools and requestBlock only', () => {
+      const filteredTools = getToolsForCapability({
+        inputMode: 'naive',
+        planning: false,
+        buildingBlocks: true,
+        compilerChecks: false,
+        maxIterations: 3,
+      });
+
+      // Should include base tools
+      expect(filteredTools).toHaveProperty('writeFile');
+      expect(filteredTools).toHaveProperty('readFile');
+      expect(filteredTools).toHaveProperty('getFileTree');
+      expect(filteredTools).toHaveProperty('executeCommand');
+
+      // Should include requestBlock (buildingBlocks enabled)
+      expect(filteredTools).toHaveProperty('requestBlock');
+
+      // Should NOT include other capability tools
+      expect(filteredTools).not.toHaveProperty('planArchitecture');
+      expect(filteredTools).not.toHaveProperty('installNpmDep');
+      expect(filteredTools).not.toHaveProperty('validatePrismaSchema');
+      expect(filteredTools).not.toHaveProperty('validateTypeScript');
+
+      // Should have 5 tools (4 base + 1 building block)
+      expect(Object.keys(filteredTools).length).toBe(5);
+    });
+  });
+
+  describe('compilerChecks only', () => {
+    it('should include base tools and validation tools only', () => {
+      const filteredTools = getToolsForCapability({
+        inputMode: 'naive',
+        planning: false,
+        buildingBlocks: false,
+        compilerChecks: true,
+        maxIterations: 3,
+      });
+
+      // Should include base tools
+      expect(filteredTools).toHaveProperty('writeFile');
+      expect(filteredTools).toHaveProperty('readFile');
+      expect(filteredTools).toHaveProperty('getFileTree');
+      expect(filteredTools).toHaveProperty('executeCommand');
+
+      // Should include validation tools
+      expect(filteredTools).toHaveProperty('validatePrismaSchema');
+      expect(filteredTools).toHaveProperty('validateTypeScript');
+
+      // Should NOT include other capability tools
+      expect(filteredTools).not.toHaveProperty('planArchitecture');
+      expect(filteredTools).not.toHaveProperty('installNpmDep');
+      expect(filteredTools).not.toHaveProperty('requestBlock');
+
+      // Should have 6 tools (4 base + 2 compiler check)
+      expect(Object.keys(filteredTools).length).toBe(6);
+    });
+  });
+
+  describe('planning only', () => {
+    it('should include base tools and planArchitecture only', () => {
+      const filteredTools = getToolsForCapability({
+        inputMode: 'naive',
+        planning: true,
+        buildingBlocks: false,
+        compilerChecks: false,
+        maxIterations: 3,
+      });
+
+      // Should include base tools
+      expect(filteredTools).toHaveProperty('writeFile');
+      expect(filteredTools).toHaveProperty('readFile');
+      expect(filteredTools).toHaveProperty('getFileTree');
+      expect(filteredTools).toHaveProperty('executeCommand');
+
+      // Should include planArchitecture
+      expect(filteredTools).toHaveProperty('planArchitecture');
+
+      // Should NOT include other capability tools
+      expect(filteredTools).not.toHaveProperty('installNpmDep');
+      expect(filteredTools).not.toHaveProperty('requestBlock');
+      expect(filteredTools).not.toHaveProperty('validatePrismaSchema');
+      expect(filteredTools).not.toHaveProperty('validateTypeScript');
+
+      // Should have 5 tools (4 base + 1 plan)
+      expect(Object.keys(filteredTools).length).toBe(5);
+    });
+  });
+
+  describe('all capabilities disabled', () => {
+    it('should only include base tools', () => {
+      const filteredTools = getToolsForCapability({
+        inputMode: 'naive',
+        planning: false,
+        buildingBlocks: false,
+        compilerChecks: false,
+        maxIterations: 3,
+      });
+
+      // Should include base tools only
+      expect(filteredTools).toHaveProperty('writeFile');
+      expect(filteredTools).toHaveProperty('readFile');
+      expect(filteredTools).toHaveProperty('getFileTree');
+      expect(filteredTools).toHaveProperty('executeCommand');
+
+      // Should NOT include any capability-specific tools
+      expect(filteredTools).not.toHaveProperty('planArchitecture');
+      expect(filteredTools).not.toHaveProperty('installNpmDep');
+      expect(filteredTools).not.toHaveProperty('requestBlock');
+      expect(filteredTools).not.toHaveProperty('validatePrismaSchema');
+      expect(filteredTools).not.toHaveProperty('validateTypeScript');
+
+      // Should only have 4 base tools
+      expect(Object.keys(filteredTools).length).toBe(4);
+    });
+  });
+
+  describe('maxIterations parameter', () => {
+    it('should not affect tool composition regardless of value', () => {
+      // Test with different maxIterations values
+      const tools1 = getToolsForCapability({
+        inputMode: 'naive',
+        planning: false,
+        buildingBlocks: false,
+        compilerChecks: false,
+        maxIterations: 1,
+      });
+
+      const tools5 = getToolsForCapability({
+        inputMode: 'naive',
+        planning: false,
+        buildingBlocks: false,
+        compilerChecks: false,
+        maxIterations: 5,
+      });
+
+      // Both should have identical tool sets
+      expect(Object.keys(tools1).sort()).toEqual(Object.keys(tools5).sort());
+
+      // Verify they both have only base tools
+      expect(Object.keys(tools1).length).toBe(4);
+      expect(Object.keys(tools5).length).toBe(4);
+    });
+
+    it('should not affect tool composition even with capabilities enabled', () => {
+      // Test with capabilities enabled and different maxIterations
+      const tools1 = getToolsForCapability({
+        inputMode: 'template',
+        planning: true,
+        buildingBlocks: true,
+        compilerChecks: true,
+        maxIterations: 1,
+      });
+
+      const tools5 = getToolsForCapability({
+        inputMode: 'template',
+        planning: true,
+        buildingBlocks: true,
+        compilerChecks: true,
+        maxIterations: 5,
+      });
+
+      // Both should include all tools
+      expect(Object.keys(tools1).sort()).toEqual(Object.keys(tools5).sort());
+      expect(Object.keys(tools1).sort()).toEqual(Object.keys(tools).sort());
+    });
   });
 });

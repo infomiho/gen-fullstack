@@ -35,29 +35,34 @@ export interface TemplateOptions {
 // Capability Configuration
 // ============================================================================
 
-export const CapabilityConfigSchema = z.object({
-  // Input mode: how to start generation (naive vs template)
-  inputMode: InputModeSchema.default('naive'),
+export const CapabilityConfigSchema = z
+  .object({
+    // Input mode: how to start generation (naive vs template)
+    inputMode: InputModeSchema.default('naive'),
 
-  // Template options (required if inputMode is 'template')
-  templateOptions: z
-    .object({
-      templateName: z.string(),
-    })
-    .optional(),
+    // Template options (required if inputMode is 'template')
+    templateOptions: z
+      .object({
+        templateName: z.string(),
+      })
+      .optional(),
 
-  // Planning: whether to generate architectural plan first
-  planning: z.boolean().optional().default(false),
+    // Planning: whether to generate architectural plan first
+    planning: z.boolean().optional().default(false),
 
-  // Compiler checks: whether to validate with TypeScript/Prisma and auto-fix errors
-  compilerChecks: z.boolean().optional().default(false),
+    // Compiler checks: whether to validate with TypeScript/Prisma and auto-fix errors
+    compilerChecks: z.boolean().optional().default(false),
 
-  // Compiler check iterations (only used if compilerChecks is true)
-  maxIterations: z.number().int().min(1).max(5).optional().default(3),
+    // Compiler check iterations (only used if compilerChecks is true)
+    maxIterations: z.number().int().min(1).max(5).optional().default(3),
 
-  // Building blocks: whether to enable pre-built reusable components
-  buildingBlocks: z.boolean().optional().default(false),
-});
+    // Building blocks: whether to enable pre-built reusable components
+    buildingBlocks: z.boolean().optional().default(false),
+  })
+  .refine((data) => data.inputMode !== 'template' || data.templateOptions !== undefined, {
+    message: 'templateOptions is required when inputMode is "template"',
+    path: ['templateOptions'],
+  });
 
 // Use input type for creating configs (optional fields) and output type for using configs (with defaults applied)
 export type CapabilityConfigInput = z.input<typeof CapabilityConfigSchema>;

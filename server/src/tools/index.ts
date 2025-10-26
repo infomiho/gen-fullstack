@@ -1,6 +1,6 @@
 import { tool } from 'ai';
 import { z } from 'zod';
-import type { InputMode } from '@gen-fullstack/shared';
+import type { CapabilityConfig } from '@gen-fullstack/shared';
 import { checkFileSafety } from '../lib/file-safety.js';
 import { databaseLogger } from '../lib/logger.js';
 import * as commandService from '../services/command.service.js';
@@ -642,18 +642,122 @@ Example:
 });
 
 /**
- * All tools bundled for easy import
+ * Tools organized by capability
+ *
+ * This organization makes it clear which tools belong to which capability,
+ * and simplifies the tool composition logic. Tools are grouped into separate
+ * objects that are composed together based on the active capability configuration.
  */
-export const tools = {
+
+/**
+ * Base tools - always available regardless of configuration
+ *
+ * These tools provide fundamental file system and command execution capabilities
+ * that are needed in all generation modes:
+ * - writeFile: Create or update files in the session workspace
+ * - readFile: Read existing file contents
+ * - getFileTree: List complete project structure
+ * - executeCommand: Execute whitelisted shell commands
+ *
+ * @example
+ * // Base tools are included in all capability configurations
+ * const tools = getToolsForCapability({ inputMode: 'naive', ... });
+ * // tools always includes: writeFile, readFile, getFileTree, executeCommand
+ */
+export const baseTools = {
   writeFile,
   readFile,
   getFileTree,
   executeCommand,
-  requestBlock,
+};
+
+/**
+ * Planning tools - only available when planning: true
+ *
+ * These tools enable architectural planning before implementation:
+ * - planArchitecture: Create structured plan with database models, API routes, and components
+ *
+ * The planning capability allows the LLM to design the application architecture
+ * before writing code, which can lead to more coherent and well-structured applications.
+ *
+ * @example
+ * // Planning tools are included when planning is enabled
+ * const tools = getToolsForCapability({ planning: true, ... });
+ * // tools includes: ...baseTools, planArchitecture
+ */
+export const planTools = {
   planArchitecture,
+};
+
+/**
+ * Template tools - only available when inputMode: 'template'
+ *
+ * These tools are specific to template-based generation where package.json files
+ * already exist and need to be incrementally updated:
+ * - installNpmDep: Add dependencies to existing package.json files
+ *
+ * In template mode, the LLM starts with a pre-configured full-stack template
+ * and adds new dependencies as needed. In naive mode, the LLM writes complete
+ * package.json files from scratch.
+ *
+ * @example
+ * // Template tools are included only in template mode
+ * const tools = getToolsForCapability({ inputMode: 'template', ... });
+ * // tools includes: ...baseTools, installNpmDep
+ */
+export const templateTools = {
+  installNpmDep,
+};
+
+/**
+ * Compiler check tools - only available when compilerChecks: true
+ *
+ * These tools enable validation and iterative fixing of generated code:
+ * - validatePrismaSchema: Validate Prisma schema for errors
+ * - validateTypeScript: Run TypeScript compiler to check for type errors
+ *
+ * When compiler checks are enabled, the LLM can validate generated code
+ * and automatically fix errors through multiple iterations. This significantly
+ * improves code quality but increases generation time and token usage.
+ *
+ * @example
+ * // Compiler check tools are included when compilerChecks is enabled
+ * const tools = getToolsForCapability({ compilerChecks: true, ... });
+ * // tools includes: ...baseTools, validatePrismaSchema, validateTypeScript
+ */
+export const compilerCheckTools = {
   validatePrismaSchema,
   validateTypeScript,
-  installNpmDep,
+};
+
+/**
+ * Building blocks tools - only available when buildingBlocks: true
+ *
+ * These tools provide access to pre-built, reusable components:
+ * - requestBlock: Copy pre-built building blocks (e.g., auth-password) into the project
+ *
+ * Building blocks accelerate development by providing battle-tested implementations
+ * of common features. Each block includes server code, client components, database
+ * models, and integration guides.
+ *
+ * @example
+ * // Building blocks tools are included when buildingBlocks is enabled
+ * const tools = getToolsForCapability({ buildingBlocks: true, ... });
+ * // tools includes: ...baseTools, requestBlock
+ */
+export const buildingBlockTools = {
+  requestBlock,
+};
+
+/**
+ * All tools bundled (for reference and testing)
+ */
+export const tools = {
+  ...baseTools,
+  ...planTools,
+  ...templateTools,
+  ...compilerCheckTools,
+  ...buildingBlockTools,
 };
 
 /**
@@ -662,22 +766,41 @@ export const tools = {
 export const TOOL_NAMES = Object.keys(tools) as Array<keyof typeof tools>;
 
 /**
- * Get tools filtered by input mode
+ * Get tools composed by capability configuration
  *
- * installNpmDep is ONLY available in template mode where package.json files already exist.
- * In naive mode, the LLM should write complete package.json files with all dependencies.
+ * Composes tool groups based on enabled capabilities:
+ * - Base tools: always included (writeFile, readFile, getFileTree, executeCommand)
+ * - Plan tools: included when planning is enabled
+ * - Template tools: included when inputMode is 'template'
+ * - Compiler check tools: included when compilerChecks is enabled
+ * - Building blocks tools: included when buildingBlocks is enabled
  *
- * @param inputMode - The generation input mode (naive or template)
- * @returns Filtered tools object
+ * @param config - The capability configuration
+ * @returns Composed tools object
  */
-export function getToolsForMode(inputMode: InputMode) {
-  if (inputMode === 'template') {
-    // Template mode: all tools available (package.json files already exist)
-    return tools;
+export function getToolsForCapability(config: CapabilityConfig) {
+  // Start with base tools (always available)
+  let composedTools = { ...baseTools };
+
+  // Add planning tools if enabled
+  if (config.planning) {
+    composedTools = { ...composedTools, ...planTools };
   }
 
-  // Naive mode: exclude installNpmDep
-  // LLM should write complete package.json files directly
-  const { installNpmDep: _removed, ...filteredTools } = tools;
-  return filteredTools;
+  // Add template tools if in template mode
+  if (config.inputMode === 'template') {
+    composedTools = { ...composedTools, ...templateTools };
+  }
+
+  // Add compiler check tools if enabled
+  if (config.compilerChecks) {
+    composedTools = { ...composedTools, ...compilerCheckTools };
+  }
+
+  // Add building blocks tools if enabled
+  if (config.buildingBlocks) {
+    composedTools = { ...composedTools, ...buildingBlockTools };
+  }
+
+  return composedTools;
 }
