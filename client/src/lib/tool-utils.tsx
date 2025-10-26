@@ -33,9 +33,9 @@ export function getToolSummary(
       const { path } = args as { path?: string };
       return `Reading ${path || 'unknown'}`;
     }
-    case 'listFiles': {
-      const { directory } = args as { directory?: string };
-      return `Listing ${directory || '.'}`;
+    case 'getFileTree': {
+      const { maxDepth } = args as { maxDepth?: number };
+      return maxDepth ? `Getting file tree (depth: ${maxDepth})` : 'Getting file tree';
     }
     case 'executeCommand': {
       const { command } = args as { command?: string };
@@ -57,6 +57,20 @@ export function getToolSummary(
         clientComponents?.length && `${clientComponents.length} components`,
       ].filter(Boolean);
       return `Planning: ${parts.join(', ')}`;
+    }
+    case 'installNpmDep': {
+      const { target, dependencies, devDependencies } = args as {
+        target?: string;
+        dependencies?: Record<string, string>;
+        devDependencies?: Record<string, string>;
+      };
+      const depCount = Object.keys(dependencies || {}).length;
+      const devDepCount = Object.keys(devDependencies || {}).length;
+      const parts = [
+        depCount && `${depCount} dep${depCount > 1 ? 's' : ''}`,
+        devDepCount && `${devDepCount} devDep${devDepCount > 1 ? 's' : ''}`,
+      ].filter(Boolean);
+      return `Installing to ${target || 'unknown'}: ${parts.join(', ')}`;
     }
     default:
       return 'Click for details';
@@ -117,13 +131,18 @@ export function renderToolParameters(
     );
   }
 
-  // Custom formatting for listFiles
-  if (toolName === 'listFiles') {
-    const { directory } = args as { directory?: string };
+  // Custom formatting for getFileTree
+  if (toolName === 'getFileTree') {
+    const { maxDepth } = args as { maxDepth?: number };
     return (
       <div className={typography.body}>
-        <span className="text-muted-foreground">directory:</span>
-        <span className={`${typography.mono} text-foreground ml-2`}>{directory || '.'}</span>
+        {maxDepth && (
+          <div>
+            <span className="text-muted-foreground">maxDepth:</span>
+            <span className={`${typography.mono} text-foreground ml-2`}>{maxDepth}</span>
+          </div>
+        )}
+        {!maxDepth && <div className="text-muted-foreground">Full tree (unlimited depth)</div>}
       </div>
     );
   }

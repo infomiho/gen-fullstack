@@ -1,5 +1,5 @@
 import * as Dialog from '@radix-ui/react-dialog';
-import { Wrench, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import {
   focus,
   padding,
@@ -11,6 +11,7 @@ import {
 } from '../../lib/design-tokens';
 import { formatTimestamp } from '../../lib/time-utils';
 import { getToolSummary, renderToolParameters } from '../../lib/tool-utils';
+import { getToolIcon } from '../../lib/tool-icons';
 
 export interface ToolExecution {
   id: string;
@@ -49,6 +50,7 @@ export interface ToolItemProps {
  */
 export function ToolItem({ tool, isOpen, onOpenChange }: ToolItemProps) {
   const colors = roleColors.tool;
+  const { icon: ToolIcon, color: iconColor } = getToolIcon(tool.name, tool.args);
 
   return (
     <Dialog.Root open={isOpen} onOpenChange={onOpenChange}>
@@ -58,7 +60,7 @@ export function ToolItem({ tool, isOpen, onOpenChange }: ToolItemProps) {
           className={`w-full flex gap-3 ${radius.md} ${padding.card} ${colors.bg} border ${colors.border} hover:border-border hover:bg-card ${transitions.colors} ${focus.ring} text-left`}
         >
           <div className="flex-shrink-0">
-            <Wrench size={20} className={colors.icon} />
+            <ToolIcon size={20} className={iconColor} />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
@@ -84,7 +86,7 @@ export function ToolItem({ tool, isOpen, onOpenChange }: ToolItemProps) {
           className={`fixed left-1/2 top-1/2 z-50 w-full max-w-2xl max-h-[85vh] -translate-x-1/2 -translate-y-1/2 ${radius.md} border bg-card ${padding.panel} shadow-lg overflow-y-auto data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]`}
         >
           <Dialog.Title className={`${typography.label} text-lg mb-4 flex items-center gap-2`}>
-            <Wrench size={20} className="text-muted-foreground" />
+            <ToolIcon size={20} className={iconColor} />
             <span className={typography.mono}>{tool.name}</span>
           </Dialog.Title>
 
