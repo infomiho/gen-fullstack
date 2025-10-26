@@ -289,13 +289,18 @@ function SessionPage() {
   useDisconnectionToast(isConnected, isActiveSession, showToast);
 
   // Cleanup stores when sessionId changes
-  // biome-ignore lint/correctness/useExhaustiveDependencies: sessionId is intentionally included to reset stores
   useEffect(() => {
+    // Exit replay mode if it's active for a different session
+    const replayState = useReplayStore.getState();
+    if (replayState.isReplayMode && replayState.sessionId !== sessionId) {
+      exitReplayMode();
+    }
+
     return () => {
       useGenerationStore.getState().reset();
       useAppStore.getState().reset();
     };
-  }, [sessionId]);
+  }, [sessionId, exitReplayMode]);
 
   return (
     <div className="grid h-screen grid-rows-[auto_1fr] bg-background">
