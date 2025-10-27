@@ -35,6 +35,26 @@ export function Timeline({
   // This state is lifted to Timeline to persist across re-renders
   const [openToolId, setOpenToolId] = useState<string | null>(null);
 
+  // Track which sections are expanded in PlanArchitectureDisplay for each tool
+  // Key: `${toolId}-${sectionName}`, Value: boolean (true = expanded)
+  // This state is lifted to Timeline to persist across re-renders when new data arrives
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+
+  // Toggle a section's expanded state
+  const toggleSection = (toolId: string, section: string) => {
+    const key = `${toolId}-${section}`;
+    setExpandedSections((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
+  // Get whether a section is expanded
+  const isSectionExpanded = (toolId: string, section: string): boolean => {
+    const key = `${toolId}-${section}`;
+    return expandedSections[key] ?? false;
+  };
+
   const toolExecutions = useMemo(() => {
     const resultsMap = new Map<string, ToolResult>();
     toolResults.forEach((result) => {
@@ -107,6 +127,8 @@ export function Timeline({
             tool={item.data}
             isOpen={openToolId === item.data.id}
             onOpenChange={(open) => setOpenToolId(open ? item.data.id : null)}
+            isSectionExpanded={isSectionExpanded}
+            onToggleSection={toggleSection}
           />
         ),
       )}

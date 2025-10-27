@@ -17,13 +17,42 @@ export interface PlanArchitectureDisplayProps {
   databaseModels?: DatabaseModel[];
   apiRoutes?: ApiRoute[];
   clientComponents?: ClientComponent[];
+  /** Tool ID for state management (optional, enables controlled mode) */
+  toolId?: string;
+  /** Check if a section is expanded (optional, for controlled mode) */
+  isSectionExpanded?: (toolId: string, section: string) => boolean;
+  /** Toggle a section's expanded state (optional, for controlled mode) */
+  onToggleSection?: (toolId: string, section: string) => void;
 }
 
 export function PlanArchitectureDisplay({
   databaseModels,
   apiRoutes,
   clientComponents,
+  toolId,
+  isSectionExpanded,
+  onToggleSection,
 }: PlanArchitectureDisplayProps) {
+  /**
+   * Get collapsible state props - either controlled or uncontrolled
+   *
+   * When toolId and state functions are provided (Timeline modal context),
+   * returns controlled props: { open, onOpenChange }
+   *
+   * Otherwise (Storybook, tests), returns uncontrolled props: { defaultOpen }
+   */
+  const getSectionState = (section: string) => {
+    if (toolId && isSectionExpanded && onToggleSection) {
+      // CONTROLLED mode (used in Timeline modal for state persistence)
+      return {
+        open: isSectionExpanded(toolId, section),
+        onOpenChange: () => onToggleSection(toolId, section),
+      };
+    }
+    // UNCONTROLLED mode (fallback for Storybook, tests, etc.)
+    return { defaultOpen: false };
+  };
+
   // Helper to render HTTP method badges with appropriate colors
   const renderMethodBadge = (method: string) => {
     const colors = {
@@ -48,7 +77,7 @@ export function PlanArchitectureDisplay({
     <div className={`${typography.body} ${spacing.form}`}>
       {/* Database Models Section */}
       {databaseModels && databaseModels.length > 0 && (
-        <Collapsible.Root defaultOpen={false} className="mb-4">
+        <Collapsible.Root {...getSectionState('databaseModels')} className="mb-4">
           <Collapsible.Trigger
             className="flex items-center gap-2 w-full group"
             aria-label={`Toggle database models section (${databaseModels.length} models)`}
@@ -98,7 +127,7 @@ export function PlanArchitectureDisplay({
 
       {/* API Routes Section */}
       {apiRoutes && apiRoutes.length > 0 && (
-        <Collapsible.Root defaultOpen={false} className="mb-4">
+        <Collapsible.Root {...getSectionState('apiRoutes')} className="mb-4">
           <Collapsible.Trigger
             className="flex items-center gap-2 w-full group"
             aria-label={`Toggle API routes section (${apiRoutes.length} routes)`}
@@ -131,7 +160,7 @@ export function PlanArchitectureDisplay({
 
       {/* Client Components Section */}
       {clientComponents && clientComponents.length > 0 && (
-        <Collapsible.Root defaultOpen={false}>
+        <Collapsible.Root {...getSectionState('clientComponents')}>
           <Collapsible.Trigger
             className="flex items-center gap-2 w-full group"
             aria-label={`Toggle client components section (${clientComponents.length} components)`}

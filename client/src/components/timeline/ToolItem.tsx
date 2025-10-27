@@ -31,6 +31,10 @@ export interface ToolItemProps {
   isOpen: boolean;
   /** Callback when dialog open state changes */
   onOpenChange: (open: boolean) => void;
+  /** Check if a section is expanded (optional, for state persistence) */
+  isSectionExpanded?: (toolId: string, section: string) => boolean;
+  /** Toggle a section's expanded state (optional, for state persistence) */
+  onToggleSection?: (toolId: string, section: string) => void;
 }
 
 /**
@@ -48,7 +52,13 @@ export interface ToolItemProps {
  * />
  * ```
  */
-export function ToolItem({ tool, isOpen, onOpenChange }: ToolItemProps) {
+export function ToolItem({
+  tool,
+  isOpen,
+  onOpenChange,
+  isSectionExpanded,
+  onToggleSection,
+}: ToolItemProps) {
   const colors = roleColors.tool;
   const { icon: ToolIcon, color: iconColor } = getToolIcon(tool.name, tool.args);
 
@@ -123,7 +133,13 @@ export function ToolItem({ tool, isOpen, onOpenChange }: ToolItemProps) {
 
             <div>
               <h3 className={`${typography.label} mb-2`}>Parameters</h3>
-              {renderToolParameters(tool.name, tool.args)}
+              {renderToolParameters(
+                tool.name,
+                tool.args,
+                tool.id,
+                isSectionExpanded,
+                onToggleSection,
+              )}
             </div>
 
             {tool.isComplete && tool.result && (

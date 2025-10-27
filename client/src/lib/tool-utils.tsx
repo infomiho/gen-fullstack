@@ -103,6 +103,9 @@ export function getToolSummary(
  *
  * @param toolName - Name of the tool being executed
  * @param args - Tool arguments to display
+ * @param toolId - Optional tool ID for state management
+ * @param isSectionExpanded - Optional function to check if a section is expanded
+ * @param onToggleSection - Optional function to toggle a section's expanded state
  * @returns React node with formatted parameters
  *
  * @example
@@ -111,6 +114,9 @@ export function getToolSummary(
 export function renderToolParameters(
   toolName: string,
   args: Record<string, unknown> | undefined,
+  toolId?: string,
+  isSectionExpanded?: (toolId: string, section: string) => boolean,
+  onToggleSection?: (toolId: string, section: string) => void,
 ): React.ReactNode {
   if (!args) {
     return <div className={`${typography.body} text-muted-foreground`}>No parameters</div>;
@@ -196,6 +202,9 @@ export function renderToolParameters(
         databaseModels={databaseModels}
         apiRoutes={apiRoutes}
         clientComponents={clientComponents}
+        toolId={toolId}
+        isSectionExpanded={isSectionExpanded}
+        onToggleSection={onToggleSection}
       />
     );
   }
