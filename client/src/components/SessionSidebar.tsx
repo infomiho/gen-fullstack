@@ -1,7 +1,8 @@
 import type { AppInfo } from '@gen-fullstack/shared';
-import { typography } from '../lib/design-tokens';
+import { useUIStore } from '../stores/ui.store';
 import { Alert } from './Alert';
 import { CapabilitiesList } from './CapabilitiesList';
+import { CollapsibleSection } from './CollapsibleSection';
 import { MetricsDisplay } from './MetricsDisplay';
 import { PromptDisplay } from './PromptDisplay';
 import { UnifiedStatusSection } from './UnifiedStatusSection';
@@ -68,22 +69,33 @@ export function SessionSidebar({
     // Ignore parse errors for legacy sessions
   }
 
+  // Get collapse state from UI store
+  const { sidebarCollapsed, toggleSection } = useUIStore();
+
   return (
     <div className="border-r border-border bg-card p-6 overflow-y-auto">
       <div className="space-y-6">
         {/* Capability Configuration */}
         {capabilityConfig && (
-          <div>
-            <h3 className={`${typography.sectionHeader} mb-3`}>Capabilities</h3>
+          <CollapsibleSection
+            title="Capabilities"
+            isOpen={!sidebarCollapsed.capabilities}
+            onToggle={() => toggleSection('capabilities')}
+            ariaLabel="Toggle capabilities section"
+          >
             <CapabilitiesList capabilityConfig={capabilityConfig} />
-          </div>
+          </CollapsibleSection>
         )}
 
         {/* Prompt */}
-        <div>
-          <h3 className={`${typography.sectionHeader} mb-3`}>Prompt</h3>
+        <CollapsibleSection
+          title="Prompt"
+          isOpen={!sidebarCollapsed.prompt}
+          onToggle={() => toggleSection('prompt')}
+          ariaLabel="Toggle prompt section"
+        >
           <PromptDisplay prompt={sessionData.session.prompt} />
-        </div>
+        </CollapsibleSection>
 
         {/* Warning for disconnected active sessions */}
         {sessionData.session.status === 'generating' && !isConnected && (
@@ -95,15 +107,19 @@ export function SessionSidebar({
 
         {/* Metrics for completed sessions */}
         {sessionData.session.status === 'completed' && sessionData.session.totalTokens && (
-          <div>
-            <h3 className={`${typography.sectionHeader} mb-3`}>Metrics</h3>
+          <CollapsibleSection
+            title="Metrics"
+            isOpen={!sidebarCollapsed.metrics}
+            onToggle={() => toggleSection('metrics')}
+            ariaLabel="Toggle metrics section"
+          >
             <MetricsDisplay
               totalTokens={sessionData.session.totalTokens}
               cost={sessionData.session.cost || '0'}
               durationMs={sessionData.session.durationMs || 0}
               stepCount={sessionData.session.stepCount || 0}
             />
-          </div>
+          </CollapsibleSection>
         )}
 
         {/* Error message */}

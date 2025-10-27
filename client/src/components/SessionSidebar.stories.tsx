@@ -2,6 +2,13 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { SessionSidebar } from './SessionSidebar';
 import type { AppInfo } from '@gen-fullstack/shared';
 
+/**
+ * SessionSidebar stories demonstrating different session states.
+ *
+ * Note: The Capabilities, Prompt, and Metrics sections are collapsible.
+ * Click on the section headers to collapse/expand them. Collapse state
+ * is persisted to localStorage via the UI store.
+ */
 const meta = {
   title: 'UI/Session/SessionSidebar',
   component: SessionSidebar,

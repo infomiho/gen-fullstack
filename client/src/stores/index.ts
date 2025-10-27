@@ -8,3 +8,4 @@
 export { useAppStore } from './app';
 export { useConnectionStore } from './connection';
 export { useGenerationStore } from './generation';
+export { useUIStore } from './ui.store';

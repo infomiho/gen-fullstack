@@ -1,9 +1,19 @@
-import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { SessionSidebar } from '../SessionSidebar';
+import { useUIStore } from '../../stores/ui.store';
 import type { AppInfo } from '@gen-fullstack/shared';
 
 describe('SessionSidebar', () => {
+  // Reset UI store before each test
+  beforeEach(() => {
+    localStorage.clear();
+    act(() => {
+      useUIStore.getState().resetSidebarCollapse();
+    });
+  });
+
   const mockSessionData = {
     session: {
       prompt: 'Build a todo app',
@@ -159,5 +169,137 @@ describe('SessionSidebar', () => {
     expect(screen.getByText('$0.0000')).toBeInTheDocument();
     expect(screen.getByText('0.0s')).toBeInTheDocument();
     expect(screen.getByText('0')).toBeInTheDocument();
+  });
+
+  describe('Collapsible Sections', () => {
+    it('renders capabilities section as collapsible', () => {
+      render(<SessionSidebar {...defaultProps} />);
+      const trigger = screen.getByRole('button', { name: /toggle capabilities/i });
+      expect(trigger).toBeInTheDocument();
+    });
+
+    it('renders prompt section as collapsible', () => {
+      render(<SessionSidebar {...defaultProps} />);
+      const trigger = screen.getByRole('button', { name: /toggle prompt/i });
+      expect(trigger).toBeInTheDocument();
+    });
+
+    it('renders metrics section as collapsible', () => {
+      render(<SessionSidebar {...defaultProps} />);
+      const trigger = screen.getByRole('button', { name: /toggle metrics/i });
+      expect(trigger).toBeInTheDocument();
+    });
+
+    it('can collapse capabilities section', async () => {
+      const user = userEvent.setup();
+      render(<SessionSidebar {...defaultProps} />);
+
+      const trigger = screen.getByRole('button', { name: /toggle capabilities/i });
+
+      // Initially visible
+      expect(screen.getByText('Code Generation')).toBeInTheDocument();
+
+      // Click to collapse
+      await user.click(trigger);
+
+      // Content should be hidden
+      expect(screen.queryByText('Code Generation')).not.toBeInTheDocument();
+    });
+
+    it('can collapse prompt section', async () => {
+      const user = userEvent.setup();
+      render(<SessionSidebar {...defaultProps} />);
+
+      const trigger = screen.getByRole('button', { name: /toggle prompt/i });
+
+      // Initially visible
+      expect(screen.getByText('Build a todo app')).toBeInTheDocument();
+
+      // Click to collapse
+      await user.click(trigger);
+
+      // Content should be hidden
+      expect(screen.queryByText('Build a todo app')).not.toBeInTheDocument();
+    });
+
+    it('can collapse metrics section', async () => {
+      const user = userEvent.setup();
+      render(<SessionSidebar {...defaultProps} />);
+
+      const trigger = screen.getByRole('button', { name: /toggle metrics/i });
+
+      // Initially visible
+      expect(screen.getByText('5,000')).toBeInTheDocument();
+
+      // Click to collapse
+      await user.click(trigger);
+
+      // Content should be hidden
+      expect(screen.queryByText('5,000')).not.toBeInTheDocument();
+    });
+
+    it('can expand collapsed section', async () => {
+      const user = userEvent.setup();
+      render(<SessionSidebar {...defaultProps} />);
+
+      const trigger = screen.getByRole('button', { name: /toggle capabilities/i });
+
+      // Collapse
+      await user.click(trigger);
+      expect(screen.queryByText('Code Generation')).not.toBeInTheDocument();
+
+      // Expand
+      await user.click(trigger);
+      expect(screen.getByText('Code Generation')).toBeInTheDocument();
+    });
+
+    it('persists collapse state in UI store', async () => {
+      const user = userEvent.setup();
+      render(<SessionSidebar {...defaultProps} />);
+
+      const trigger = screen.getByRole('button', { name: /toggle capabilities/i });
+
+      // Initially not collapsed
+      expect(useUIStore.getState().sidebarCollapsed.capabilities).toBe(false);
+
+      // Click to collapse
+      await user.click(trigger);
+
+      // Store should be updated
+      expect(useUIStore.getState().sidebarCollapsed.capabilities).toBe(true);
+    });
+
+    it('can collapse multiple sections independently', async () => {
+      const user = userEvent.setup();
+      render(<SessionSidebar {...defaultProps} />);
+
+      const capsTrigger = screen.getByRole('button', { name: /toggle capabilities/i });
+      const promptTrigger = screen.getByRole('button', { name: /toggle prompt/i });
+
+      // Collapse capabilities
+      await user.click(capsTrigger);
+      expect(screen.queryByText('Code Generation')).not.toBeInTheDocument();
+      expect(screen.getByText('Build a todo app')).toBeInTheDocument();
+
+      // Collapse prompt
+      await user.click(promptTrigger);
+      expect(screen.queryByText('Code Generation')).not.toBeInTheDocument();
+      expect(screen.queryByText('Build a todo app')).not.toBeInTheDocument();
+    });
+
+    it('restores collapse state from localStorage', () => {
+      // Set initial collapsed state
+      act(() => {
+        useUIStore.getState().setSection('capabilities', true);
+        useUIStore.getState().setSection('prompt', true);
+      });
+
+      render(<SessionSidebar {...defaultProps} />);
+
+      // Sections should be collapsed
+      expect(screen.queryByText('Code Generation')).not.toBeInTheDocument();
+      expect(screen.queryByText('Build a todo app')).not.toBeInTheDocument();
+      expect(screen.getByText('5,000')).toBeInTheDocument(); // metrics still visible
+    });
   });
 });
