@@ -194,11 +194,12 @@ export function VictoryOverlay() {
           initial={{ opacity: 0, y: 50 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5, duration: 0.5 }}
-          className="border-4 p-12"
+          className="border-4 p-8 max-h-[80vh] overflow-y-auto"
           style={{
             borderColor: presentationTokens.colors.gold,
             backgroundColor: 'rgba(0, 0, 0, 0.9)',
-            minWidth: '700px',
+            minWidth: '600px',
+            maxWidth: '800px',
             boxShadow: `0 0 50px ${presentationTokens.colors.gold}`,
           }}
         >
@@ -216,7 +217,7 @@ export function VictoryOverlay() {
             📊 FINAL STATS
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-4">
             <StatRow
               icon="⏱️"
               label="Duration"
