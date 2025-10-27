@@ -153,9 +153,9 @@ export function VictoryOverlay() {
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.2, type: 'spring', bounce: 0.4 }}
           style={{
-            fontSize: presentationTokens.fonts.bodySize,
+            fontSize: '1.5rem',
             color: presentationTokens.colors.gold,
-            marginBottom: '2rem',
+            marginBottom: '1rem',
           }}
         >
           ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★
@@ -177,12 +177,12 @@ export function VictoryOverlay() {
             rotateZ: { duration: 2, repeat: Infinity, repeatType: 'reverse' },
           }}
           style={{
-            fontSize: presentationTokens.fonts.heroSize,
+            fontSize: '5rem',
             fontFamily: presentationTokens.fonts.heroFamily,
             color: presentationTokens.colors.gold,
             textShadow: presentationTokens.colors.textShadowGold,
             letterSpacing: '0.3em',
-            marginBottom: '3rem',
+            marginBottom: '1.5rem',
             perspective: '1000px',
           }}
         >
@@ -194,19 +194,19 @@ export function VictoryOverlay() {
           initial={{ opacity: 0, y: 50 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5, duration: 0.5 }}
-          className="border-4 p-8 max-h-[80vh] overflow-y-auto"
+          className="border-4 p-6 max-h-[70vh] overflow-y-auto"
           style={{
             borderColor: presentationTokens.colors.gold,
             backgroundColor: 'rgba(0, 0, 0, 0.9)',
-            minWidth: '600px',
-            maxWidth: '800px',
+            minWidth: '500px',
+            maxWidth: '700px',
             boxShadow: `0 0 50px ${presentationTokens.colors.gold}`,
           }}
         >
           <div
-            className="mb-8 pb-4 border-b-2"
+            className="mb-4 pb-3 border-b-2"
             style={{
-              fontSize: presentationTokens.fonts.titleSize,
+              fontSize: '2rem',
               fontFamily: presentationTokens.fonts.heroFamily,
               color: presentationTokens.colors.gold,
               textAlign: 'center',
@@ -217,7 +217,7 @@ export function VictoryOverlay() {
             📊 FINAL STATS
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             <StatRow
               icon="⏱️"
               label="Duration"
@@ -266,14 +266,14 @@ function StatRow({ icon, label, value, percentage }: StatRowProps) {
   return (
     <div>
       <div
-        className="flex items-center justify-between mb-2"
+        className="flex items-center justify-between mb-1.5"
         style={{
-          fontSize: presentationTokens.fonts.bodySize,
+          fontSize: '1.25rem',
           fontFamily: presentationTokens.fonts.bodyFamily,
           color: presentationTokens.colors.neonCyan,
         }}
       >
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <span>{icon}</span>
           <span>{label}:</span>
         </div>
@@ -289,7 +289,7 @@ function StatRow({ icon, label, value, percentage }: StatRowProps) {
 
       {/* Progress Bar */}
       <div
-        className="relative h-4 border-2"
+        className="relative h-3 border-2"
         style={{
           backgroundColor: 'rgba(0, 0, 0, 0.5)',
           borderColor: presentationTokens.colors.neonCyan,

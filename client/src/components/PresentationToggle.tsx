@@ -1,4 +1,5 @@
 import { usePresentationStore } from '../stores/presentationStore';
+import { useReplayStore } from '../stores/replay.store';
 import { transitions, focus } from '../lib/design-tokens';
 
 /**
@@ -6,14 +7,25 @@ import { transitions, focus } from '../lib/design-tokens';
  *
  * A compact toggle button that shows active/inactive states with visual feedback.
  * Uses the design system for consistent styling.
+ *
+ * When activated in replay mode, automatically starts playback.
  */
 export function PresentationToggle() {
   const { isEnabled, toggleEnabled } = usePresentationStore();
+  const { isReplayMode, isPlaying, play } = useReplayStore();
+
+  const handleToggle = () => {
+    // If entering presentation mode while in replay mode, auto-start playback
+    if (!isEnabled && isReplayMode && !isPlaying) {
+      play();
+    }
+    toggleEnabled();
+  };
 
   return (
     <button
       type="button"
-      onClick={toggleEnabled}
+      onClick={handleToggle}
       className={`
         rounded border px-3 py-1 text-sm font-medium
         ${transitions.colors} ${focus.ring}
