@@ -21,6 +21,7 @@ import { Timeline } from '../components/Timeline';
 import { TimelineScrubber } from '../components/TimelineScrubber';
 import { useToast } from '../components/ToastProvider';
 import { usePresentationEvents } from '../hooks/usePresentationEvents';
+import { usePresentationMode } from '../hooks/usePresentationMode';
 import { PresentationToggle } from '../components/PresentationToggle';
 import { useSessionData } from '../hooks/useSessionData';
 import { useSessionRevalidation } from '../hooks/useSessionRevalidation';
@@ -201,6 +202,9 @@ function SessionPage() {
   const navigate = useNavigate();
   const sessionData = useLoaderData() as SessionData;
   const { showToast } = useToast();
+
+  // Enable presentation mode keyboard shortcuts (Escape to close)
+  usePresentationMode();
 
   const {
     socket,
