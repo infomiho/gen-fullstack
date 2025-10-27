@@ -8,7 +8,6 @@ import {
 } from '../lib/format-utils';
 import { typography } from '../lib/design-tokens';
 import { StatusBadge } from './StatusBadge';
-import { InputModeBadge } from './InputModeBadge';
 import { CapabilityBadge } from './CapabilityBadge';
 
 interface SessionMetadataProps {
@@ -24,7 +23,7 @@ interface SessionMetadataProps {
  * SessionMetadata component
  *
  * Displays comprehensive session metadata in a compact two-row layout:
- * - Row 1: Input mode badge, capability badges, timestamp, status badge, duration
+ * - Row 1: Capability badges (Template Base, Smart Planning, etc.), timestamp, status badge, duration
  * - Row 2: Tool count, token count
  */
 export function SessionMetadata({
@@ -43,12 +42,9 @@ export function SessionMetadata({
 
   return (
     <div className="space-y-1.5">
-      {/* Row 1: Badges + Time + Status + Duration */}
+      {/* Row 1: Capability Badges + Time + Status + Duration */}
       <div className="flex items-center gap-2 flex-wrap">
-        {/* Input mode badge */}
-        {config && <InputModeBadge inputMode={config.inputMode} />}
-
-        {/* Active capability badges */}
+        {/* Active capability badges (includes Template Base when template mode is enabled) */}
         {activeCapabilities.map((capability) => (
           <CapabilityBadge key={capability} capability={capability} />
         ))}

@@ -87,35 +87,58 @@ export type CapabilityKey = keyof typeof CAPABILITY_METADATA;
  * - Filter chips
  * - Any future badge displays
  *
- * Note: Uses 'compilerChecks' and 'buildingBlocks' keys to match
- * the CapabilityConfig type from shared package
+ * Visual Design:
+ * - Neutral badge background/text/border for reduced visual noise
+ * - Colored icons only for recognition and consistency with AI Capabilities picker
+ * - Uses design system semantic colors (bg-muted, text-foreground, border-border)
+ * - Icon colors come directly from CAPABILITY_METADATA for consistency
  */
 export const CAPABILITY_BADGE_STYLES = {
+  codeGeneration: {
+    icon: CAPABILITY_METADATA.codeGeneration.icon,
+    iconColor: CAPABILITY_METADATA.codeGeneration.iconColor,
+    bgColor: 'bg-muted',
+    textColor: 'text-foreground',
+    borderColor: 'border-border',
+    shortLabel: 'Code Gen',
+  },
+  templateBase: {
+    icon: CAPABILITY_METADATA.template.icon,
+    iconColor: CAPABILITY_METADATA.template.iconColor,
+    bgColor: 'bg-muted',
+    textColor: 'text-foreground',
+    borderColor: 'border-border',
+    shortLabel: 'Template',
+  },
   planning: {
-    icon: BrainCircuit,
-    bgColor: 'bg-purple-500/10',
-    textColor: 'text-purple-600 dark:text-purple-400',
-    borderColor: 'border-purple-500/20',
+    icon: CAPABILITY_METADATA.planning.icon,
+    iconColor: CAPABILITY_METADATA.planning.iconColor,
+    bgColor: 'bg-muted',
+    textColor: 'text-foreground',
+    borderColor: 'border-border',
     shortLabel: 'Planning',
   },
   compilerChecks: {
-    icon: ScanSearch,
-    bgColor: 'bg-orange-500/10',
-    textColor: 'text-orange-600 dark:text-orange-400',
-    borderColor: 'border-orange-500/20',
-    shortLabel: 'Compiler',
+    icon: CAPABILITY_METADATA.compiler.icon,
+    iconColor: CAPABILITY_METADATA.compiler.iconColor,
+    bgColor: 'bg-muted',
+    textColor: 'text-foreground',
+    borderColor: 'border-border',
+    shortLabel: 'Error-Fixing',
   },
   buildingBlocks: {
-    icon: Blocks,
-    bgColor: 'bg-amber-500/10',
-    textColor: 'text-amber-600 dark:text-amber-400',
-    borderColor: 'border-amber-500/20',
+    icon: CAPABILITY_METADATA.buildingBlocks.icon,
+    iconColor: CAPABILITY_METADATA.buildingBlocks.iconColor,
+    bgColor: 'bg-muted',
+    textColor: 'text-foreground',
+    borderColor: 'border-border',
     shortLabel: 'Blocks',
   },
 } as const satisfies Record<
   string,
   {
     icon: LucideIcon;
+    iconColor: string;
     bgColor: string;
     textColor: string;
     borderColor: string;

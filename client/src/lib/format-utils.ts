@@ -132,12 +132,23 @@ export function parseCapabilityConfig(jsonString: string): CapabilityConfig | nu
  */
 export function getActiveCapabilities(
   config: CapabilityConfig | null,
-): Array<'planning' | 'compilerChecks' | 'buildingBlocks'> {
+): Array<'codeGeneration' | 'templateBase' | 'planning' | 'compilerChecks' | 'buildingBlocks'> {
   if (!config) return [];
 
-  const active: Array<'planning' | 'compilerChecks' | 'buildingBlocks'> = [];
+  const active: Array<
+    'codeGeneration' | 'templateBase' | 'planning' | 'compilerChecks' | 'buildingBlocks'
+  > = [];
 
+  // Order matches AI Capabilities picker:
+  // 1. Code Generation (always enabled)
+  // 2. Smart Planning
+  // 3. Template Base
+  // 4. Auto Error-Fixing
+  // 5. Building Blocks
+
+  active.push('codeGeneration');
   if (config.planning) active.push('planning');
+  if (config.inputMode === 'template') active.push('templateBase');
   if (config.compilerChecks) active.push('compilerChecks');
   if (config.buildingBlocks) active.push('buildingBlocks');
 

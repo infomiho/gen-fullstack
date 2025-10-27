@@ -127,24 +127,28 @@ export function SessionFilters({
           <div className="flex flex-wrap gap-2">
             <CapabilityFilterChip
               icon={CAPABILITY_METADATA.template.icon}
+              iconColor={CAPABILITY_METADATA.template.iconColor}
               label={CAPABILITY_METADATA.template.label}
               active={filters.capabilities.template}
               onClick={() => updateCapability('template')}
             />
             <CapabilityFilterChip
               icon={CAPABILITY_METADATA.planning.icon}
+              iconColor={CAPABILITY_METADATA.planning.iconColor}
               label={CAPABILITY_METADATA.planning.label}
               active={filters.capabilities.planning}
               onClick={() => updateCapability('planning')}
             />
             <CapabilityFilterChip
               icon={CAPABILITY_METADATA.compiler.icon}
+              iconColor={CAPABILITY_METADATA.compiler.iconColor}
               label={CAPABILITY_METADATA.compiler.label}
               active={filters.capabilities.compilerChecks}
               onClick={() => updateCapability('compilerChecks')}
             />
             <CapabilityFilterChip
               icon={CAPABILITY_METADATA.buildingBlocks.icon}
+              iconColor={CAPABILITY_METADATA.buildingBlocks.iconColor}
               label={CAPABILITY_METADATA.buildingBlocks.label}
               active={filters.capabilities.buildingBlocks}
               onClick={() => updateCapability('buildingBlocks')}
@@ -228,16 +232,28 @@ function StatusChip({ label, active, onClick, variant }: StatusChipProps) {
 }
 
 /**
- * CapabilityFilterChip - Compact filter chip for capabilities with icon
+ * CapabilityFilterChip - Compact filter chip for capabilities with colored icon
+ *
+ * Visual Design:
+ * - Neutral background/text/border (not fully colored)
+ * - Colored icon only for recognition (matches badge and picker design)
+ * - Active state shows subtle primary color hint
  */
 interface CapabilityFilterChipProps {
   icon: LucideIcon;
+  iconColor: string;
   label: string;
   active: boolean;
   onClick: () => void;
 }
 
-function CapabilityFilterChip({ icon: Icon, label, active, onClick }: CapabilityFilterChipProps) {
+function CapabilityFilterChip({
+  icon: Icon,
+  iconColor,
+  label,
+  active,
+  onClick,
+}: CapabilityFilterChipProps) {
   return (
     <button
       type="button"
@@ -246,11 +262,11 @@ function CapabilityFilterChip({ icon: Icon, label, active, onClick }: Capability
       aria-label={`Filter by ${label} capability`}
       className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium ${transitions.colors} ${
         active
-          ? 'border-primary bg-primary/10 text-primary'
-          : 'border-border bg-background text-muted-foreground hover:bg-muted'
+          ? 'border-primary bg-primary/10 text-foreground'
+          : 'border-border bg-background text-foreground hover:bg-muted'
       }`}
     >
-      <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+      <Icon className={`h-3.5 w-3.5 ${iconColor}`} aria-hidden="true" />
       {label}
     </button>
   );
