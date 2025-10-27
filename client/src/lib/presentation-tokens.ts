@@ -13,9 +13,11 @@ export const presentationTokens = {
     errorRed: 'rgb(255, 50, 50)',
     successGreen: 'rgb(0, 255, 100)',
 
-    // Background overlays
+    // Background overlays - radial gradient for spotlight effect
     overlayDark: 'rgba(0, 0, 0, 0.9)',
     overlayGlow: 'rgba(0, 255, 255, 0.2)',
+    overlayRadial:
+      'radial-gradient(circle at center, rgba(0, 0, 0, 0.5) 0%, rgba(0, 0, 0, 0.7) 70%, rgba(0, 0, 0, 0.85) 100%)',
 
     // Text shadows for stage visibility
     textShadowStrong: '0 0 20px rgba(0, 255, 255, 0.8), 0 0 40px rgba(0, 255, 255, 0.5)',
@@ -108,6 +110,11 @@ export const presentationTokens = {
 
     // Combo timing
     comboWindow: 1000, // Time to maintain combo
+  },
+
+  assets: {
+    // Victory overlay assets
+    victoryGif: '/borat-very-nice.gif',
   },
 } as const;
 

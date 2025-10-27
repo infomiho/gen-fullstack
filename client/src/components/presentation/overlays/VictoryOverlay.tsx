@@ -1,52 +1,40 @@
 import { motion } from 'motion/react';
-import React, { useId } from 'react';
+import { useId, useState, useEffect } from 'react';
 import Particles from '@tsparticles/react';
 import { presentationTokens } from '../../../lib/presentation-tokens';
 import { usePresentationStore } from '../../../stores/presentationStore';
+import { ClickBlockLayer } from './ClickBlockLayer';
+import { useCountUp } from '../../../hooks/useCountUp';
 
 /**
- * VictoryOverlay: "PERFECT!" Final Stats Screen
+ * VictoryOverlay: "COMPLETED" and Stats Screen
  *
- * Displays when generation completes successfully:
- * - Large "PERFECT!!!" text in gold
+ * Two-phase victory sequence:
+ * Phase 1: Just "COMPLETED" text (2s)
+ * Phase 2: Animated stats scattered around the screen
+ *
  * - Animated stat counters (duration, tool calls, files, combos)
- * - Progress bars with count-up animations
  * - Continuous fireworks in background
  * - Stays visible until dismissed
  */
 export function VictoryOverlay() {
   const { stats } = usePresentationStore();
   const particlesId = useId();
+  const [phase, setPhase] = useState<'completed' | 'stats'>('completed');
+  const [imageError, setImageError] = useState(false);
 
-  // Animated counter hook
-  const useCountUp = (end: number, duration: number = 1000) => {
-    const [count, setCount] = React.useState(0);
+  useEffect(() => {
+    // Transition to stats phase after 2 seconds
+    const timer = setTimeout(() => {
+      setPhase('stats');
+    }, 2000);
 
-    React.useEffect(() => {
-      let startTime: number;
-      let animationFrame: number;
-
-      const animate = (currentTime: number) => {
-        if (!startTime) startTime = currentTime;
-        const progress = Math.min((currentTime - startTime) / duration, 1);
-        setCount(Math.floor(progress * end));
-
-        if (progress < 1) {
-          animationFrame = requestAnimationFrame(animate);
-        }
-      };
-
-      animationFrame = requestAnimationFrame(animate);
-      return () => cancelAnimationFrame(animationFrame);
-    }, [end, duration]);
-
-    return count;
-  };
+    return () => clearTimeout(timer);
+  }, []);
 
   const durationCount = useCountUp(Math.round(stats.duration * 10), 1500);
   const toolCallsCount = useCountUp(stats.toolCalls, 1500);
   const filesCount = useCountUp(stats.filesCreated, 1500);
-  const successRateCount = useCountUp(stats.successRate, 1500);
   const combosCount = useCountUp(stats.combos, 1500);
 
   return (
@@ -135,177 +123,208 @@ export function VictoryOverlay() {
         }}
       />
 
+      {/* Clickblock Layer */}
+      <ClickBlockLayer />
+
       {/* Victory Screen */}
       <motion.div
         className="fixed inset-0 flex flex-col items-center justify-center"
         style={{
-          backgroundColor: 'rgba(0, 0, 0, 0.95)',
+          background: presentationTokens.colors.overlayRadial,
           zIndex: presentationTokens.zIndex.overlay,
+          pointerEvents: 'none',
         }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.5 }}
       >
-        {/* Stars Border */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.2, type: 'spring', bounce: 0.4 }}
-          style={{
-            fontSize: '1.5rem',
-            color: presentationTokens.colors.gold,
-            marginBottom: '1rem',
-          }}
-        >
-          ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★
-        </motion.div>
+        {phase === 'completed' && (
+          <>
+            {/* Stars Border */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.2, type: 'spring', bounce: 0.4 }}
+              style={{
+                fontSize: '1.5rem',
+                color: presentationTokens.colors.gold,
+                marginBottom: '1rem',
+              }}
+            >
+              ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★
+            </motion.div>
 
-        {/* "PERFECT!" Title */}
-        <motion.div
-          initial={{ scale: 0.5, opacity: 0, rotateY: -90 }}
-          animate={{
-            scale: 1,
-            opacity: 1,
-            rotateY: 0,
-            rotateZ: [0, -3, 3, 0],
-          }}
-          transition={{
-            scale: { type: 'spring', bounce: 0.5, duration: 1 },
-            opacity: { duration: 0.5 },
-            rotateY: { duration: 1, ease: 'easeOut' },
-            rotateZ: { duration: 2, repeat: Infinity, repeatType: 'reverse' },
-          }}
-          style={{
-            fontSize: '5rem',
-            fontFamily: presentationTokens.fonts.heroFamily,
-            color: presentationTokens.colors.gold,
-            textShadow: presentationTokens.colors.textShadowGold,
-            letterSpacing: '0.3em',
-            marginBottom: '1.5rem',
-            perspective: '1000px',
-          }}
-        >
-          PERFECT!!!
-        </motion.div>
+            {/* "COMPLETED" Title */}
+            <motion.div
+              initial={{ scale: 0.5, opacity: 0, rotateY: -90 }}
+              animate={{
+                scale: 1,
+                opacity: 1,
+                rotateY: 0,
+                rotateZ: [0, -3, 3, 0],
+              }}
+              transition={{
+                scale: { type: 'spring', bounce: 0.5, duration: 1 },
+                opacity: { duration: 0.5 },
+                rotateY: { duration: 1, ease: 'easeOut' },
+                rotateZ: { duration: 2, repeat: Infinity, repeatType: 'reverse' },
+              }}
+              style={{
+                fontSize: presentationTokens.fonts.heroSize,
+                fontFamily: presentationTokens.fonts.heroFamily,
+                color: presentationTokens.colors.gold,
+                textShadow: presentationTokens.colors.textShadowGold,
+                letterSpacing: '0.3em',
+                perspective: '1000px',
+              }}
+            >
+              COMPLETED
+            </motion.div>
 
-        {/* Stats Panel */}
-        <motion.div
-          initial={{ opacity: 0, y: 50 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5, duration: 0.5 }}
-          className="border-4 p-6 max-h-[70vh] overflow-y-auto"
-          style={{
-            borderColor: presentationTokens.colors.gold,
-            backgroundColor: 'rgba(0, 0, 0, 0.9)',
-            minWidth: '500px',
-            maxWidth: '700px',
-            boxShadow: `0 0 50px ${presentationTokens.colors.gold}`,
-          }}
-        >
-          <div
-            className="mb-4 pb-3 border-b-2"
-            style={{
-              fontSize: '2rem',
-              fontFamily: presentationTokens.fonts.heroFamily,
-              color: presentationTokens.colors.gold,
-              textAlign: 'center',
-              letterSpacing: '0.1em',
-              borderColor: presentationTokens.colors.gold,
-            }}
-          >
-            📊 FINAL STATS
-          </div>
+            {/* Stars Border Bottom */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.2, type: 'spring', bounce: 0.4 }}
+              style={{
+                fontSize: '1.5rem',
+                color: presentationTokens.colors.gold,
+                marginTop: '1rem',
+              }}
+            >
+              ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★
+            </motion.div>
+          </>
+        )}
 
-          <div className="space-y-3">
-            <StatRow
-              icon="⏱️"
-              label="Duration"
-              value={`${(durationCount / 10).toFixed(1)}s`}
-              percentage={100}
-            />
-            <StatRow
-              icon="🔧"
-              label="Tool Calls"
-              value={toolCallsCount.toString()}
-              percentage={100}
-            />
-            <StatRow
-              icon="📁"
-              label="Files Created"
-              value={filesCount.toString()}
-              percentage={100}
-            />
-            <StatRow
-              icon="💯"
-              label="Success Rate"
-              value={`${successRateCount}%`}
-              percentage={successRateCount}
-            />
-            <StatRow
-              icon="🎯"
-              label="Max Combo"
-              value={`${combosCount}x`}
-              percentage={Math.min((combosCount / 10) * 100, 100)}
-            />
-          </div>
-        </motion.div>
+        {phase === 'stats' && (
+          <>
+            {/* Borat Gif */}
+            {!imageError && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.5, y: -50 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ delay: 0.3, type: 'spring', bounce: 0.5, duration: 0.8 }}
+                style={{
+                  marginBottom: '2rem',
+                }}
+              >
+                <img
+                  src={presentationTokens.assets.victoryGif}
+                  alt="Borat Very Nice"
+                  onError={() => setImageError(true)}
+                  loading="lazy"
+                  style={{
+                    width: '500px',
+                    height: 'auto',
+                    borderRadius: '12px',
+                    boxShadow: `0 0 40px ${presentationTokens.colors.gold}`,
+                  }}
+                />
+              </motion.div>
+            )}
+
+            {/* Scattered Stats - Organic placement */}
+            {/* Top Left - Duration */}
+            <motion.div
+              initial={{ opacity: 0, x: -100, rotate: -15 }}
+              animate={{ opacity: 1, x: 0, rotate: -8 }}
+              transition={{ delay: 0.5, type: 'spring' }}
+              style={{
+                position: 'absolute',
+                top: '15%',
+                left: '10%',
+                fontSize: presentationTokens.fonts.subtitleSize,
+                fontFamily: presentationTokens.fonts.monoFamily,
+                color: presentationTokens.colors.neonCyan,
+                textShadow: presentationTokens.colors.textShadowStrong,
+              }}
+            >
+              <div style={{ fontSize: '4rem' }}>{(durationCount / 10).toFixed(1)}s</div>
+              <div style={{ fontSize: '1.5rem', opacity: 0.8 }}>DURATION</div>
+            </motion.div>
+
+            {/* Top Right - Tool Calls */}
+            <motion.div
+              initial={{ opacity: 0, x: 100, rotate: 15 }}
+              animate={{ opacity: 1, x: 0, rotate: 8 }}
+              transition={{ delay: 0.6, type: 'spring' }}
+              style={{
+                position: 'absolute',
+                top: '15%',
+                right: '10%',
+                fontSize: presentationTokens.fonts.subtitleSize,
+                fontFamily: presentationTokens.fonts.monoFamily,
+                color: presentationTokens.colors.neonMagenta,
+                textShadow: '0 0 20px rgba(255, 0, 255, 0.8)',
+              }}
+            >
+              <div style={{ fontSize: '4rem' }}>{toolCallsCount}</div>
+              <div style={{ fontSize: '1.5rem', opacity: 0.8 }}>TOOL CALLS</div>
+            </motion.div>
+
+            {/* Bottom Left - Files */}
+            <motion.div
+              initial={{ opacity: 0, y: 100, rotate: -10 }}
+              animate={{ opacity: 1, y: 0, rotate: -5 }}
+              transition={{ delay: 0.7, type: 'spring' }}
+              style={{
+                position: 'absolute',
+                bottom: '20%',
+                left: '15%',
+                fontSize: presentationTokens.fonts.subtitleSize,
+                fontFamily: presentationTokens.fonts.monoFamily,
+                color: presentationTokens.colors.neonYellow,
+                textShadow: '0 0 20px rgba(255, 255, 0, 0.8)',
+              }}
+            >
+              <div style={{ fontSize: '4rem' }}>{filesCount}</div>
+              <div style={{ fontSize: '1.5rem', opacity: 0.8 }}>FILES</div>
+            </motion.div>
+
+            {/* Bottom Right - Great Success */}
+            <motion.div
+              initial={{ opacity: 0, y: 100, rotate: 10 }}
+              animate={{ opacity: 1, y: 0, rotate: 5 }}
+              transition={{ delay: 0.8, type: 'spring' }}
+              style={{
+                position: 'absolute',
+                bottom: '20%',
+                right: '15%',
+                fontSize: presentationTokens.fonts.subtitleSize,
+                fontFamily: presentationTokens.fonts.monoFamily,
+                color: presentationTokens.colors.successGreen,
+                textShadow: '0 0 20px rgba(0, 255, 100, 0.8)',
+              }}
+            >
+              <div style={{ fontSize: '4rem', fontStyle: 'italic' }}>Great</div>
+              <div style={{ fontSize: '1.5rem', opacity: 0.8, fontStyle: 'italic' }}>success!</div>
+            </motion.div>
+
+            {/* Center Bottom - Max Combo */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.9, type: 'spring', bounce: 0.6 }}
+              style={{
+                position: 'absolute',
+                bottom: '8%',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                fontSize: presentationTokens.fonts.subtitleSize,
+                fontFamily: presentationTokens.fonts.monoFamily,
+                color: presentationTokens.colors.gold,
+                textShadow: presentationTokens.colors.textShadowGold,
+                textAlign: 'center',
+              }}
+            >
+              <div style={{ fontSize: '5rem' }}>{combosCount}x</div>
+              <div style={{ fontSize: '1.5rem', opacity: 0.8 }}>MAX COMBO</div>
+            </motion.div>
+          </>
+        )}
       </motion.div>
     </>
-  );
-}
-
-interface StatRowProps {
-  icon: string;
-  label: string;
-  value: string;
-  percentage: number;
-}
-
-function StatRow({ icon, label, value, percentage }: StatRowProps) {
-  return (
-    <div>
-      <div
-        className="flex items-center justify-between mb-1.5"
-        style={{
-          fontSize: '1.25rem',
-          fontFamily: presentationTokens.fonts.bodyFamily,
-          color: presentationTokens.colors.neonCyan,
-        }}
-      >
-        <div className="flex items-center gap-3">
-          <span>{icon}</span>
-          <span>{label}:</span>
-        </div>
-        <span
-          style={{
-            fontFamily: presentationTokens.fonts.monoFamily,
-            color: presentationTokens.colors.gold,
-          }}
-        >
-          {value}
-        </span>
-      </div>
-
-      {/* Progress Bar */}
-      <div
-        className="relative h-3 border-2"
-        style={{
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          borderColor: presentationTokens.colors.neonCyan,
-        }}
-      >
-        <motion.div
-          className="absolute inset-0"
-          style={{
-            backgroundColor: presentationTokens.colors.gold,
-            boxShadow: `0 0 20px ${presentationTokens.colors.gold}`,
-          }}
-          initial={{ width: '0%' }}
-          animate={{ width: `${percentage}%` }}
-          transition={{ duration: 1.5, ease: 'easeOut' }}
-        />
-      </div>
-    </div>
   );
 }

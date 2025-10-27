@@ -11,6 +11,7 @@ import { presentationTokens } from '../../../lib/presentation-tokens';
  *
  * Duration: 3 seconds loading, 2-3 seconds result
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Handles multiple validation states with conditional rendering logic
 export function ValidationOverlay() {
   const { currentOverlay, overlayData } = usePresentationStore();
   const result = overlayData.validationResult;
@@ -25,7 +26,7 @@ export function ValidationOverlay() {
       <motion.div
         className="fixed inset-0 flex flex-col items-center justify-center"
         style={{
-          backgroundColor: 'rgba(0, 0, 0, 0.95)',
+          background: presentationTokens.colors.overlayRadial,
           zIndex: presentationTokens.zIndex.overlay,
         }}
         initial={{ opacity: 0 }}
@@ -40,9 +41,17 @@ export function ValidationOverlay() {
           style={{
             fontSize: '8rem',
             marginBottom: '2rem',
+            fontFamily: presentationTokens.fonts.heroFamily,
+            color: presentationTokens.colors.neonYellow,
+            textShadow: '0 0 20px rgba(255, 255, 0, 0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '8rem',
+            height: '8rem',
           }}
         >
-          ⚡
+          ⟳
         </motion.div>
 
         {/* Title */}
@@ -84,7 +93,7 @@ export function ValidationOverlay() {
   if (isResult && result) {
     const isSuccess = result.passed;
     const icon = isSuccess ? '✓' : '✗';
-    const title = isSuccess ? 'VALIDATION PASSED' : 'ERRORS FOUND';
+    const title = isSuccess ? 'PASSED' : 'FAILED';
     const color = isSuccess
       ? presentationTokens.colors.successGreen
       : presentationTokens.colors.errorRed;
@@ -96,7 +105,7 @@ export function ValidationOverlay() {
       <motion.div
         className="fixed inset-0 flex flex-col items-center justify-center"
         style={{
-          backgroundColor: 'rgba(0, 0, 0, 0.95)',
+          background: presentationTokens.colors.overlayRadial,
           zIndex: presentationTokens.zIndex.overlay,
         }}
         initial={{ opacity: 0, scale: 0.8 }}

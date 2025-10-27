@@ -39,7 +39,7 @@ export function ErrorOverlay({
     <motion.div
       className="fixed inset-0 flex flex-col items-center justify-center"
       style={{
-        backgroundColor: 'rgba(0, 0, 0, 0.95)',
+        background: presentationTokens.colors.overlayRadial,
         zIndex: presentationTokens.zIndex.overlay,
       }}
       initial={{ opacity: 0 }}
@@ -111,7 +111,7 @@ export function ErrorOverlay({
           zIndex: 1,
         }}
       >
-        ⚠️ {errorMessage}
+        {errorMessage}
       </motion.div>
 
       {/* Retry Counter */}

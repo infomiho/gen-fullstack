@@ -13,17 +13,22 @@ import { AppPreview } from '../components/AppPreview';
 import { ErrorBoundary as ErrorBoundaryComponent } from '../components/ErrorBoundary';
 import { FileWorkspace } from '../components/FileWorkspace';
 import { LogViewer } from '../components/LogViewer';
-import { PresentationMode } from '../components/presentation/PresentationMode';
 import { ReplayControls } from '../components/ReplayControls';
 import { SessionHeader } from '../components/SessionHeader';
 import { SessionSidebar } from '../components/SessionSidebar';
 import { Timeline } from '../components/Timeline';
 import { TimelineScrubber } from '../components/TimelineScrubber';
 import { useToast } from '../components/ToastProvider';
-import { usePresentationEvents } from '../hooks/usePresentationEvents';
-import { usePresentationMode } from '../hooks/usePresentationMode';
-import { PresentationToggle } from '../components/PresentationToggle';
 import { useSessionData } from '../hooks/useSessionData';
+// Presentation Mode - Single import point (can be removed to disable presentation features)
+import {
+  PresentationMode,
+  PresentationToggle,
+  usePresentationMode,
+  usePresentationPlayback,
+  buildPresentationQueue,
+  usePresentationStore,
+} from '../components/presentation';
 import { useSessionRevalidation } from '../hooks/useSessionRevalidation';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { focus, padding, spacing, transitions, typography } from '../lib/design-tokens';
@@ -304,8 +309,33 @@ function SessionPage() {
     // Ignore parse errors, capabilityConfig will remain undefined
   }
 
-  // Wire generation events to presentation mode
-  usePresentationEvents(isActiveSession, messages, toolCalls, toolResults, capabilityConfig);
+  // Load presentation queue when entering presentation mode
+  const isEnabled = usePresentationStore((state) => state.isEnabled);
+  const previouslyEnabledRef = useRef(false);
+
+  useEffect(() => {
+    // Only build queue when first entering presentation mode
+    if (isEnabled && !previouslyEnabledRef.current) {
+      // IMPORTANT: Use persistedData directly, not the derived messages/toolCalls/toolResults
+      // The derived variables use replayData when in replay mode, but presentation mode
+      // needs the FULL session data regardless of replay state
+      const queue = buildPresentationQueue(
+        persistedData.messages,
+        persistedData.toolCalls,
+        persistedData.toolResults,
+        capabilityConfig,
+        sessionData.session.durationMs,
+      );
+
+      // Set the capability config for overlays to use
+      usePresentationStore.getState().setCurrentConfig(capabilityConfig || null);
+      usePresentationStore.getState().loadPresentationQueue(queue);
+    }
+    previouslyEnabledRef.current = isEnabled;
+  }, [isEnabled, persistedData, capabilityConfig, sessionData.session.durationMs]);
+
+  // Handle presentation playback (auto-advance through overlays)
+  usePresentationPlayback();
 
   useSessionSubscription(socket, sessionId, hasSubscribedRef);
   useDisconnectionToast(isConnected, isActiveSession, showToast);
@@ -442,10 +472,7 @@ function SessionPage() {
                 )}
 
                 {/* Presentation Mode Toggle - Available on all tabs */}
-                <PresentationToggle
-                  onEnterReplayMode={handleEnterReplayMode}
-                  sessionStatus={sessionData.session.status}
-                />
+                <PresentationToggle sessionStatus={sessionData.session.status} />
               </div>
             </div>
           </div>

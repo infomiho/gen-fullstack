@@ -1,6 +1,5 @@
-import { usePresentationStore } from '../stores/presentationStore';
-import { useReplayStore } from '../stores/replay.store';
-import { transitions, focus } from '../lib/design-tokens';
+import { usePresentationStore } from '../../stores/presentationStore';
+import { transitions, focus } from '../../lib/design-tokens';
 
 /**
  * PresentationToggle - Toggle button for presentation mode
@@ -8,36 +7,24 @@ import { transitions, focus } from '../lib/design-tokens';
  * A compact toggle button that shows active/inactive states with visual feedback.
  * Uses the design system for consistent styling.
  *
- * When activated:
- * - If not in replay mode, enters replay mode first (for completed/failed sessions)
- * - Automatically starts playback if not already playing
- * - Activates presentation mode overlays
+ * Presentation mode is completely independent of replay mode.
+ * Users can activate presentation mode on any session (live or completed)
+ * without affecting replay mode state.
  */
 interface PresentationToggleProps {
-  onEnterReplayMode?: () => Promise<void>;
   sessionStatus?: 'generating' | 'completed' | 'failed';
 }
 
-export function PresentationToggle({ onEnterReplayMode, sessionStatus }: PresentationToggleProps) {
+export function PresentationToggle({ sessionStatus }: PresentationToggleProps) {
   const { isEnabled, toggleEnabled } = usePresentationStore();
-  const { isReplayMode, isPlaying, play } = useReplayStore();
 
-  const handleToggle = async () => {
+  const handleToggle = () => {
     // Don't allow presentation mode during active generation
     if (!isEnabled && sessionStatus === 'generating') {
       return;
     }
 
-    // If entering presentation mode and not in replay mode yet, enter replay mode first
-    if (!isEnabled && !isReplayMode && onEnterReplayMode) {
-      await onEnterReplayMode();
-      // Play will be triggered after replay mode is entered
-      play();
-    } else if (!isEnabled && isReplayMode && !isPlaying) {
-      // If already in replay mode but not playing, start playback
-      play();
-    }
-
+    // Simply toggle presentation mode - completely independent of replay
     toggleEnabled();
   };
 

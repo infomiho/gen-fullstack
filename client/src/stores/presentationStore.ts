@@ -16,6 +16,26 @@ export type PresentationOverlay =
   | 'error-ko' // "K.O." screen
   | 'victory'; // Final stats
 
+/**
+ * Presentation overlay event - pre-computed from timeline
+ */
+export interface PresentationEvent {
+  type: PresentationOverlay;
+  duration: number; // milliseconds to show overlay
+  data?: {
+    planItem?: {
+      type: 'model' | 'endpoint' | 'component';
+      name: string;
+    };
+    blockName?: string;
+    validationResult?: { passed: boolean; errorCount?: number; iteration?: number };
+    comboMilestone?: number;
+    toolCall?: { name: string; file?: string };
+    stats?: PresentationStats;
+    fileName?: string;
+  };
+}
+
 export interface ComboState {
   count: number;
   lastToolCallTime: number;
@@ -35,6 +55,17 @@ export interface PresentationState {
   isEnabled: boolean;
   setEnabled: (enabled: boolean) => void;
   toggleEnabled: () => void;
+
+  // Presentation queue (independent of replay timing)
+  presentationQueue: PresentationEvent[];
+  currentEventIndex: number;
+  isAutoPlaying: boolean;
+  loadPresentationQueue: (events: PresentationEvent[]) => void;
+  nextEvent: () => void;
+  previousEvent: () => void;
+  playPresentation: () => void;
+  pausePresentation: () => void;
+  resetPresentation: () => void;
 
   // Current overlay
   currentOverlay: PresentationOverlay;
@@ -62,12 +93,25 @@ export interface PresentationState {
   }>;
   addToolCall: (name: string, file?: string) => void;
 
+  // Planning history for trailing effect
+  planningHistory: Array<{
+    type: 'model' | 'endpoint' | 'component';
+    name: string;
+    timestamp: number;
+  }>;
+  addPlanningItem: (type: 'model' | 'endpoint' | 'component', name: string) => void;
+  clearPlanningHistory: () => void;
+
   // Overlay-specific data
   overlayData: {
-    planSummary?: { models: number; endpoints: number; components: number };
+    planItem?: {
+      type: 'model' | 'endpoint' | 'component';
+      name: string;
+    };
     blockName?: string;
     validationResult?: { passed: boolean; errorCount?: number; iteration?: number };
     comboMilestone?: number;
+    fileName?: string;
   };
   setOverlayData: (data: PresentationState['overlayData']) => void;
 
@@ -97,6 +141,100 @@ export const usePresentationStore = create<PresentationState>((set) => ({
   isEnabled: false,
   setEnabled: (enabled) => set({ isEnabled: enabled }),
   toggleEnabled: () => set((state) => ({ isEnabled: !state.isEnabled })),
+
+  // Presentation queue
+  presentationQueue: [],
+  currentEventIndex: -1,
+  isAutoPlaying: false,
+
+  loadPresentationQueue: (events) => {
+    // Immediately show first event when loading queue and start auto-playing
+    const firstEvent = events[0];
+    const updates: Partial<PresentationState> = {
+      presentationQueue: events,
+      currentEventIndex: 0,
+      isAutoPlaying: true, // Auto-start playback
+      currentOverlay: firstEvent?.type || 'none',
+      overlayData: firstEvent?.data || {},
+      planningHistory: [], // Clear planning history for fresh start
+    };
+
+    // If first event has stats (e.g., victory overlay), update stats immediately
+    if (firstEvent?.data?.stats) {
+      updates.stats = firstEvent.data.stats as PresentationStats;
+    }
+
+    set(updates);
+  },
+
+  nextEvent: () =>
+    set((state) => {
+      const nextIndex = state.currentEventIndex + 1;
+      if (nextIndex >= state.presentationQueue.length) {
+        // End of presentation
+        return { isAutoPlaying: false };
+      }
+
+      const event = state.presentationQueue[nextIndex];
+
+      // Update stats if the event has stats data (e.g., victory overlay)
+      const updates: Partial<PresentationState> = {
+        currentEventIndex: nextIndex,
+        currentOverlay: event.type,
+        overlayData: event.data || {},
+      };
+
+      if (event.data?.stats) {
+        updates.stats = event.data.stats as PresentationStats;
+      }
+
+      return updates;
+    }),
+
+  previousEvent: () =>
+    set((state) => {
+      const prevIndex = state.currentEventIndex - 1;
+      if (prevIndex < 0) {
+        // Can't go before first event
+        return {};
+      }
+
+      const event = state.presentationQueue[prevIndex];
+      return {
+        currentEventIndex: prevIndex,
+        currentOverlay: event.type,
+        overlayData: event.data || {},
+      };
+    }),
+
+  playPresentation: () =>
+    set((state) => {
+      // If at end, restart from beginning
+      if (state.currentEventIndex >= state.presentationQueue.length - 1) {
+        const firstEvent = state.presentationQueue[0];
+        return {
+          isAutoPlaying: true,
+          currentEventIndex: 0,
+          currentOverlay: firstEvent?.type || 'none',
+          overlayData: firstEvent?.data || {},
+        };
+      }
+      return { isAutoPlaying: true };
+    }),
+
+  pausePresentation: () => set({ isAutoPlaying: false }),
+
+  resetPresentation: () =>
+    set((state) => {
+      const firstEvent = state.presentationQueue[0];
+      return {
+        currentEventIndex: 0,
+        isAutoPlaying: false,
+        currentOverlay: firstEvent?.type || 'none',
+        overlayData: firstEvent?.data || {},
+        planningHistory: [], // Clear planning history on reset
+      };
+    }),
 
   // Current overlay
   currentOverlay: 'none',
@@ -154,6 +292,7 @@ export const usePresentationStore = create<PresentationState>((set) => ({
       stats: initialStats,
       combo: initialCombo,
       recentToolCalls: [],
+      planningHistory: [],
     }),
 
   // Recent activity
@@ -171,6 +310,30 @@ export const usePresentationStore = create<PresentationState>((set) => ({
 
       return { recentToolCalls: updated };
     }),
+
+  // Planning history
+  planningHistory: [],
+  addPlanningItem: (type, name) =>
+    set((state) => {
+      // Check if this exact item is already the most recent
+      const mostRecent = state.planningHistory[0];
+      if (mostRecent && mostRecent.type === type && mostRecent.name === name) {
+        // Don't add duplicate
+        return {};
+      }
+
+      const newItem = {
+        type,
+        name,
+        timestamp: Date.now(),
+      };
+
+      // Keep last 3 items for trailing effect
+      const updated = [newItem, ...state.planningHistory].slice(0, 3);
+
+      return { planningHistory: updated };
+    }),
+  clearPlanningHistory: () => set({ planningHistory: [] }),
 
   // Overlay-specific data
   overlayData: {},

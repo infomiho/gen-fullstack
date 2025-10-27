@@ -1,5 +1,6 @@
-import { AnimatePresence } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import { usePresentationStore } from '../../stores/presentationStore';
+import { ErrorBoundary } from '../ErrorBoundary';
 import { GenerationStartOverlay } from './overlays/GenerationStartOverlay';
 import { TemplateLoadingOverlay } from './overlays/TemplateLoadingOverlay';
 import { PlanningOverlay } from './overlays/PlanningOverlay';
@@ -38,20 +39,37 @@ export function PresentationMode() {
 
   return (
     <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 10000 }} aria-live="polite">
-      <AnimatePresence mode="wait">
-        {currentOverlay === 'generation-start' && <GenerationStartOverlay key="start" />}
-        {currentOverlay === 'template-loading' && <TemplateLoadingOverlay key="template" />}
-        {currentOverlay === 'planning' && <PlanningOverlay key="planning" />}
-        {currentOverlay === 'block-request' && <BlockRequestOverlay key="block" />}
-        {currentOverlay === 'tool-hud' && <ToolCallHUD key="hud" />}
-        {currentOverlay === 'combo-milestone' && <ComboMilestoneOverlay key="combo" />}
-        {(currentOverlay === 'validation-prisma' ||
-          currentOverlay === 'validation-typescript' ||
-          currentOverlay === 'validation-result') && <ValidationOverlay key="validation" />}
-        {currentOverlay === 'file-created' && <FileCreatedOverlay key="file" />}
-        {currentOverlay === 'error-ko' && <ErrorOverlay key="error" />}
-        {currentOverlay === 'victory' && <VictoryOverlay key="victory" />}
-      </AnimatePresence>
+      {/* Constant background overlay - always visible when presentation mode is active */}
+      <motion.div
+        className="fixed inset-0 pointer-events-auto"
+        style={{
+          background:
+            'radial-gradient(circle at center, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.5) 70%, rgba(0, 0, 0, 0.7) 100%)',
+          zIndex: 1,
+        }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.5 }}
+      />
+
+      {/* Dynamic overlays on top of constant background */}
+      <ErrorBoundary>
+        <AnimatePresence mode="wait">
+          {currentOverlay === 'generation-start' && <GenerationStartOverlay key="start" />}
+          {currentOverlay === 'template-loading' && <TemplateLoadingOverlay key="template" />}
+          {currentOverlay === 'planning' && <PlanningOverlay key="planning" />}
+          {currentOverlay === 'block-request' && <BlockRequestOverlay key="block" />}
+          {currentOverlay === 'tool-hud' && <ToolCallHUD key="hud" />}
+          {currentOverlay === 'combo-milestone' && <ComboMilestoneOverlay key="combo" />}
+          {(currentOverlay === 'validation-prisma' ||
+            currentOverlay === 'validation-typescript' ||
+            currentOverlay === 'validation-result') && <ValidationOverlay key="validation" />}
+          {currentOverlay === 'file-created' && <FileCreatedOverlay key="file" />}
+          {currentOverlay === 'error-ko' && <ErrorOverlay key="error" />}
+          {currentOverlay === 'victory' && <VictoryOverlay key="victory" />}
+        </AnimatePresence>
+      </ErrorBoundary>
     </div>
   );
 }

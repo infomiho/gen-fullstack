@@ -3,6 +3,7 @@ import Particles from '@tsparticles/react';
 import { useId } from 'react';
 import { usePresentationStore } from '../../../stores/presentationStore';
 import { presentationTokens } from '../../../lib/presentation-tokens';
+import { ClickBlockLayer } from './ClickBlockLayer';
 
 /**
  * ComboMilestoneOverlay: "5x COMBO!" / "10x COMBO!" / "MEGA COMBO!"
@@ -109,6 +110,22 @@ export function ComboMilestoneOverlay() {
             },
           },
         }}
+      />
+
+      {/* Clickblock Layer */}
+      <ClickBlockLayer />
+
+      {/* Background Overlay */}
+      <motion.div
+        className="fixed inset-0"
+        style={{
+          background: presentationTokens.colors.overlayRadial,
+          zIndex: presentationTokens.zIndex.overlay - 1,
+        }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.15 }}
       />
 
       {/* Combo text */}

@@ -1,12 +1,8 @@
 import { motion } from 'motion/react';
-import { useEffect, useId } from 'react';
+import { useId } from 'react';
 import Particles from '@tsparticles/react';
 import { presentationTokens } from '../../../lib/presentation-tokens';
 import { usePresentationStore } from '../../../stores/presentationStore';
-
-interface FileCreatedOverlayProps {
-  fileName?: string;
-}
 
 /**
  * FileCreatedOverlay: Achievement Toast with Confetti
@@ -15,20 +11,11 @@ interface FileCreatedOverlayProps {
  * - Brief flash of "FILE CREATED!" message
  * - File name display
  * - Confetti particle explosion
- * - Auto-dismisses after 2 seconds
  */
-export function FileCreatedOverlay({ fileName }: FileCreatedOverlayProps) {
-  const { setOverlay } = usePresentationStore();
+export function FileCreatedOverlay() {
+  const { overlayData } = usePresentationStore();
+  const fileName = overlayData.fileName;
   const particlesId = useId();
-
-  useEffect(() => {
-    // Auto-dismiss and return to HUD after toast duration
-    const timer = setTimeout(() => {
-      setOverlay('tool-hud');
-    }, presentationTokens.timing.toastDuration);
-
-    return () => clearTimeout(timer);
-  }, [setOverlay]);
 
   return (
     <>
@@ -112,27 +99,50 @@ export function FileCreatedOverlay({ fileName }: FileCreatedOverlayProps) {
         }}
       />
 
+      {/* Clickblock Layer */}
+      <div
+        className="fixed inset-0"
+        style={{
+          zIndex: presentationTokens.zIndex.overlay - 1,
+          pointerEvents: 'auto',
+        }}
+      />
+
+      {/* Background Overlay */}
+      <motion.div
+        className="fixed inset-0"
+        style={{
+          background: presentationTokens.colors.overlayRadial,
+          zIndex: presentationTokens.zIndex.overlay - 1,
+        }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.15 }}
+      />
+
       {/* Achievement Message */}
       <motion.div
         className="fixed inset-0 flex flex-col items-center justify-center"
         style={{
           zIndex: presentationTokens.zIndex.overlay,
-          pointerEvents: 'none',
+          pointerEvents: 'none', // Content only, clicks blocked by layer below
         }}
-        initial={{ opacity: 0, scale: 0.5 }}
+        initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.5 }}
-        transition={{ type: 'spring', bounce: 0.5, duration: 0.5 }}
+        exit={{ opacity: 0, scale: 0.9 }}
+        transition={{ duration: 0.15 }}
       >
         <motion.div
           animate={{
-            scale: [1, 1.1, 1],
-            rotate: [0, 5, -5, 0],
+            y: [0, -10, 0],
+            scale: [1, 1.05, 1],
           }}
           transition={{
-            duration: 0.5,
+            duration: 0.6,
             repeat: Infinity,
             repeatType: 'reverse',
+            ease: 'easeInOut',
           }}
           style={{
             fontSize: presentationTokens.fonts.titleSize,
@@ -143,14 +153,14 @@ export function FileCreatedOverlay({ fileName }: FileCreatedOverlayProps) {
             textAlign: 'center',
           }}
         >
-          ✨ FILE CREATED! ✨
+          FILE CREATED!
         </motion.div>
 
         {fileName && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.1, duration: 0.15 }}
             style={{
               fontSize: presentationTokens.fonts.bodySize,
               fontFamily: presentationTokens.fonts.monoFamily,
