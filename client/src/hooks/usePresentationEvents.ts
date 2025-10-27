@@ -34,15 +34,37 @@ export function usePresentationEvents(
   capabilityConfig?: CapabilityConfig,
 ) {
   const { isReplayMode, isPlaying } = useReplayStore();
-  const {
-    isEnabled,
-    setOverlay,
-    setOverlayData,
-    incrementCombo,
-    addToolCall,
-    updateStats,
-    resetStats,
-  } = usePresentationStore();
+
+  // CRITICAL: Only subscribe to isEnabled to avoid re-renders from stats/combo/activity updates
+  const isEnabled = usePresentationStore((state) => state.isEnabled);
+
+  // CRITICAL FIX: Get actions WITHOUT subscribing using getState()
+  // This prevents re-renders when resetStats() or other actions update the store
+  // Actions are stable references that never change, so we only need to get them once
+  const actionsRef = useRef<{
+    setOverlay: typeof usePresentationStore.getState.prototype.setOverlay;
+    setOverlayData: typeof usePresentationStore.getState.prototype.setOverlayData;
+    incrementCombo: typeof usePresentationStore.getState.prototype.incrementCombo;
+    addToolCall: typeof usePresentationStore.getState.prototype.addToolCall;
+    updateStats: typeof usePresentationStore.getState.prototype.updateStats;
+    resetStats: typeof usePresentationStore.getState.prototype.resetStats;
+  } | null>(null);
+
+  // Get actions once without subscribing
+  if (!actionsRef.current) {
+    const state = usePresentationStore.getState();
+    actionsRef.current = {
+      setOverlay: state.setOverlay,
+      setOverlayData: state.setOverlayData,
+      incrementCombo: state.incrementCombo,
+      addToolCall: state.addToolCall,
+      updateStats: state.updateStats,
+      resetStats: state.resetStats,
+    };
+  }
+
+  const { setOverlay, setOverlayData, incrementCombo, addToolCall, updateStats, resetStats } =
+    actionsRef.current;
 
   const startTimeRef = useRef<number>(0);
   const previousActiveRef = useRef(false);
@@ -79,51 +101,55 @@ export function usePresentationEvents(
   const isActive = isReplayMode ? isPlaying : isGenerating;
 
   // Process overlay queue - show next overlay after minimum duration
-  const processQueue = useCallback(
-    function processQueueImpl() {
-      if (overlayQueueRef.current.length === 0) {
-        isShowingOverlayRef.current = false;
-        setOverlay('tool-hud'); // Return to HUD when queue is empty
-        return;
-      }
+  // Wrapped in useCallback but Zustand actions (setOverlay, setOverlayData) are omitted
+  // from dependencies as they are stable and never change
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Zustand actions are stable references from getState()
+  const processQueue = useCallback(() => {
+    // Only process if presentation mode is enabled and we're not already showing an overlay
+    if (!isEnabled) return;
 
-      const nextOverlay = overlayQueueRef.current.shift();
-      if (!nextOverlay) return;
+    if (overlayQueueRef.current.length === 0) {
+      isShowingOverlayRef.current = false;
+      setOverlay('tool-hud'); // Return to HUD when queue is empty
+      return;
+    }
 
-      isShowingOverlayRef.current = true;
+    const nextOverlay = overlayQueueRef.current.shift();
+    if (!nextOverlay) return;
 
-      // Set overlay data and type based on overlay
-      switch (nextOverlay.type) {
-        case 'template-loading':
-          setOverlay('template-loading');
-          break;
-        case 'planning':
-          setOverlayData({ planSummary: nextOverlay.planSummary });
-          setOverlay('planning');
-          break;
-        case 'block-request':
-          setOverlayData({ blockName: nextOverlay.blockName });
-          setOverlay('block-request');
-          break;
-        case 'validation-prisma':
-          setOverlay('validation-prisma');
-          break;
-        case 'validation-typescript':
-          setOverlay('validation-typescript');
-          break;
-        case 'validation-result':
-          setOverlayData({ validationResult: nextOverlay.result });
-          setOverlay('validation-result');
-          break;
-      }
+    isShowingOverlayRef.current = true;
 
-      // Schedule next overlay after minimum duration
-      overlayTimeoutRef.current = setTimeout(() => {
-        processQueueImpl();
-      }, nextOverlay.duration);
-    },
-    [setOverlay, setOverlayData],
-  );
+    // Set overlay data and type based on overlay
+    switch (nextOverlay.type) {
+      case 'template-loading':
+        setOverlay('template-loading');
+        break;
+      case 'planning':
+        setOverlayData({ planSummary: nextOverlay.planSummary });
+        setOverlay('planning');
+        break;
+      case 'block-request':
+        setOverlayData({ blockName: nextOverlay.blockName });
+        setOverlay('block-request');
+        break;
+      case 'validation-prisma':
+        setOverlay('validation-prisma');
+        break;
+      case 'validation-typescript':
+        setOverlay('validation-typescript');
+        break;
+      case 'validation-result':
+        setOverlayData({ validationResult: nextOverlay.result });
+        setOverlay('validation-result');
+        break;
+    }
+
+    // Schedule next overlay after minimum duration
+    overlayTimeoutRef.current = setTimeout(() => {
+      processQueue();
+    }, nextOverlay.duration);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEnabled]);
 
   // Cleanup overlay timeout on unmount
   useEffect(() => {
@@ -136,9 +162,13 @@ export function usePresentationEvents(
 
   // Detect session start (live or replay)
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Session lifecycle management requires multiple conditionals and state checks
-  // biome-ignore lint/correctness/useExhaustiveDependencies: processQueue is stable and uses refs, should not trigger re-renders
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Zustand actions are stable references from getState()
   useEffect(() => {
     if (isEnabled && isActive && !previousActiveRef.current) {
+      // CRITICAL: Set previousActiveRef IMMEDIATELY to prevent effect from running again
+      // if resetStats() triggers a re-render
+      previousActiveRef.current = isActive;
+
       // Session just started (live generation or replay playback)
       startTimeRef.current = Date.now();
       resetStats();
@@ -201,11 +231,12 @@ export function usePresentationEvents(
     }
 
     previousActiveRef.current = isActive;
-  }, [isEnabled, isActive, messages, setOverlay, updateStats, resetStats, capabilityConfig]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEnabled, isActive, messages, capabilityConfig, processQueue]);
 
   // Track tool calls and update HUD (works for both live and replay)
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Event tracking logic requires multiple conditionals and loops
-  // biome-ignore lint/correctness/useExhaustiveDependencies: processQueue is stable and uses refs, should not trigger re-renders
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Zustand actions are stable references from getState()
   useEffect(() => {
     if (!isEnabled || !isActive) return;
 
@@ -294,11 +325,11 @@ export function usePresentationEvents(
     }
 
     previousToolCallsCountRef.current = newToolCallsCount;
-  }, [isEnabled, isActive, toolCalls, incrementCombo, addToolCall, updateStats]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEnabled, isActive, toolCalls, processQueue]);
 
   // Track tool results to parse plan summaries and validation results
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Tool result parsing requires multiple conditionals for different overlay types
-  // biome-ignore lint/correctness/useExhaustiveDependencies: processQueue is stable and uses refs, should not trigger re-renders
   useEffect(() => {
     if (!isEnabled || !isActive) return;
 
@@ -371,9 +402,11 @@ export function usePresentationEvents(
     }
 
     previousToolResultsCountRef.current = newToolResultsCount;
-  }, [isEnabled, isActive, toolResults]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEnabled, isActive, toolResults, processQueue]);
 
   // Update duration periodically while active (live or replay)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Zustand updateStats is a stable reference from getState()
   useEffect(() => {
     if (!isEnabled || !isActive || startTimeRef.current === 0) return;
 
@@ -383,7 +416,8 @@ export function usePresentationEvents(
     }, 100); // Update every 100ms for smooth counting
 
     return () => clearInterval(interval);
-  }, [isEnabled, isActive, updateStats]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEnabled, isActive]);
 }
 
 /**
