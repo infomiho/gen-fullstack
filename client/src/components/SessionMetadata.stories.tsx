@@ -28,8 +28,6 @@ export const NaiveBasic: Story = {
     status: 'completed',
     createdAt: new Date(Date.now() - 37 * 60 * 1000).toISOString(), // 37 minutes ago
     durationMs: 154000, // 2m 34s
-    stepCount: 12,
-    totalTokens: 15234,
   },
 };
 
@@ -48,8 +46,6 @@ export const NaiveWithCapabilities: Story = {
     status: 'completed',
     createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
     durationMs: 192000, // 3m 12s
-    stepCount: 18,
-    totalTokens: 22400,
   },
 };
 
@@ -71,8 +67,6 @@ export const TemplateWithPlanning: Story = {
     status: 'completed',
     createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), // 1 hour ago
     durationMs: 105000, // 1m 45s
-    stepCount: 8,
-    totalTokens: 8900,
   },
 };
 
@@ -91,13 +85,11 @@ export const FailedSession: Story = {
     status: 'failed',
     createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), // 1 hour ago
     durationMs: 72000, // 1m 12s
-    stepCount: 9,
-    totalTokens: 11300,
   },
 };
 
 /**
- * Currently generating (no duration/tokens yet)
+ * Currently generating (no duration yet)
  */
 export const Generating: Story = {
   args: {
@@ -111,8 +103,6 @@ export const Generating: Story = {
     status: 'generating',
     createdAt: new Date(Date.now() - 30 * 1000).toISOString(), // 30 seconds ago
     durationMs: undefined,
-    stepCount: undefined,
-    totalTokens: undefined,
   },
 };
 
@@ -134,7 +124,5 @@ export const AllCapabilities: Story = {
     status: 'completed',
     createdAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(), // 5 minutes ago
     durationMs: 243000, // 4m 3s
-    stepCount: 24,
-    totalTokens: 28700,
   },
 };

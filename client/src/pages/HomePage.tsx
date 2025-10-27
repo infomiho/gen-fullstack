@@ -259,8 +259,6 @@ function HomePage() {
                             status={session.status}
                             createdAt={session.createdAt}
                             durationMs={session.durationMs}
-                            stepCount={session.stepCount}
-                            totalTokens={session.totalTokens}
                           />
                         </div>
                       </Link>
