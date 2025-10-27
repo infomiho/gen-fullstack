@@ -199,7 +199,7 @@ export class UnifiedOrchestrator {
   private buildPipeline(config: CapabilityConfig): BaseCapability[] {
     const capabilities: BaseCapability[] = [];
 
-    // Step 1: Template copy (if template mode)
+    // Step 1: Template copy (if inputMode: 'template')
     if (config.inputMode === 'template') {
       capabilities.push(
         new TemplateCapability(

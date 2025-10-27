@@ -200,11 +200,11 @@ Additional packages to consider for specific features:
  */
 const PROMPT_ADDONS = {
   /**
-   * Template mode addon
+   * Template input mode addon (inputMode: 'template')
    * Informs LLM that structure is already set up
    */
   template: `
-TEMPLATE MODE:
+TEMPLATE INPUT MODE:
 A complete full-stack template has been pre-loaded with all configuration files:
 - Root package.json (workspaces + scripts configured)
 - client/ (Vite + React 19 + TypeScript + Tailwind 4 + React Router 7 configured)
@@ -225,7 +225,7 @@ YOUR TASK:
 5. Use React Router for multi-page navigation
 6. Keep configuration files (vite.config.ts, tsconfig.json, etc.) intact
 
-CRITICAL - DEPENDENCY MANAGEMENT IN TEMPLATE MODE:
+CRITICAL - DEPENDENCY MANAGEMENT (Template Input Mode):
 
 **WORKFLOW - Follow these steps in order:**
 

@@ -598,7 +598,7 @@ describe('getToolsForCapability', () => {
     });
   });
 
-  describe('template mode only', () => {
+  describe("inputMode: 'template' only", () => {
     it('should include base tools and installNpmDep only', () => {
       const filteredTools = getToolsForCapability({
         inputMode: 'template',
@@ -614,7 +614,7 @@ describe('getToolsForCapability', () => {
       expect(filteredTools).toHaveProperty('getFileTree');
       expect(filteredTools).toHaveProperty('executeCommand');
 
-      // Should include installNpmDep (template mode)
+      // Should include installNpmDep (inputMode: 'template')
       expect(filteredTools).toHaveProperty('installNpmDep');
 
       // Should NOT include capability-specific tools

@@ -696,12 +696,12 @@ export const planTools = {
  * already exist and need to be incrementally updated:
  * - installNpmDep: Add dependencies to existing package.json files
  *
- * In template mode, the LLM starts with a pre-configured full-stack template
- * and adds new dependencies as needed. In naive mode, the LLM writes complete
+ * When inputMode is 'template', the LLM starts with a pre-configured full-stack template
+ * and adds new dependencies as needed. When inputMode is 'naive', the LLM writes complete
  * package.json files from scratch.
  *
  * @example
- * // Template tools are included only in template mode
+ * // Template tools are included only when inputMode: 'template'
  * const tools = getToolsForCapability({ inputMode: 'template', ... });
  * // tools includes: ...baseTools, installNpmDep
  */
@@ -787,7 +787,7 @@ export function getToolsForCapability(config: CapabilityConfig) {
     composedTools = { ...composedTools, ...planTools };
   }
 
-  // Add template tools if in template mode
+  // Add template tools if inputMode is 'template'
   if (config.inputMode === 'template') {
     composedTools = { ...composedTools, ...templateTools };
   }

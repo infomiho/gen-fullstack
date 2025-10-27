@@ -158,9 +158,9 @@ cat /tmp/system-prompt.txt
   - ❌ BAD: "Use Tailwind CSS 4" (LLM guesses `@tailwindcss/vite@^1.0.0` which doesn't exist)
   - ✅ GOOD: "Use @tailwindcss/vite@^4.0.27 and tailwindcss@^4.0.27"
 
-- ✅ **Tool availability**: Does it mention tools that aren't available in this mode?
-  - ❌ BAD: Naive mode prompt says "use installNpmDep" but tool is filtered out
-  - ✅ GOOD: Naive mode says "write complete package.json", template mode says "use installNpmDep"
+- ✅ **Tool availability**: Does it mention tools that aren't available for this input mode?
+  - ❌ BAD: Prompt for `inputMode: 'naive'` says "use installNpmDep" but tool is filtered out
+  - ✅ GOOD: Prompt for `inputMode: 'naive'` says "write complete package.json", prompt for `inputMode: 'template'` says "use installNpmDep"
 
 - ✅ **Dev script instructions**: Does it specify the correct dev runner?
   - ❌ BAD: No mention of tsx vs ts-node-dev (LLM guesses wrong one)
@@ -202,7 +202,7 @@ EOF
 - Are there implied requirements not explicitly stated?
 - Does the full prompt add helpful context, or does it confuse the LLM?
 
-#### 3c. Compare Against Template (if template mode)
+#### 3c. Compare Against Template (if inputMode: 'template')
 
 ```bash
 # Check what versions the template actually uses
@@ -216,7 +216,7 @@ cat "$GEN_PATH/../templates/vite-fullstack-base/server/package.json" | grep -A15
 - Does the prompt mention template features (Tailwind 4, React Router 7)?
 - Are there mismatches that would confuse the LLM?
 
-#### 3d. Check Capability Config (what mode was used)
+#### 3d. Check Capability Config (what configuration was used)
 
 ```bash
 sqlite3 "$DB_PATH" <<EOF
@@ -233,8 +233,8 @@ EOF
 - `buildingBlocks`: true/false
 
 **Cross-check**: Does the system prompt match the inputMode?
-- Naive mode should NOT mention template-specific features
-- Template mode should NOT tell LLM to create config files (they already exist)
+- `inputMode: 'naive'` should NOT mention template-specific features
+- `inputMode: 'template'` should NOT tell LLM to create config files (they already exist)
 
 #### 3e. Common Prompt Issues (Real Examples)
 

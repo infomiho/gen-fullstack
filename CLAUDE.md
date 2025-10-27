@@ -62,15 +62,25 @@ gen-fullstack/
   - **Gray**: User messages and tool calls
   - **Amber**: System messages
 
-### 3. Generation Strategies
-Multiple approaches to full-stack app generation (extensible):
-- **Naive**: Direct prompt-to-code generation of complete full-stack apps
-- **Plan First**: Generate architectural plan (database schema, API endpoints, components) before implementation
-- **With Template**: Start from pre-built full-stack template
-- **Compiler Checks**: Validate with Prisma and TypeScript compilers, iterate to fix errors
-- **Building Blocks**: Use higher-level components (future)
+### 3. Capability-Based Generation
+Flexible capability system with composable options:
 
-All strategies generate monorepo structure with npm workspaces:
+**Input Modes** (mutually exclusive):
+- **Naive** (`inputMode: 'naive'`): Generate from scratch, write all files directly
+- **Template** (`inputMode: 'template'`): Start from pre-built full-stack template
+
+**Capability Toggles** (can be combined with any input mode):
+- **Planning**: Generate architectural plan (database schema, API endpoints, components) before implementation
+- **Compiler Checks**: Validate with Prisma and TypeScript compilers, iterate to fix errors
+- **Building Blocks**: Use higher-level reusable components (future)
+
+**Example Configurations**:
+- Quick Start: `{ inputMode: 'naive', planning: false, compilerChecks: false }`
+- Naive + Planning: `{ inputMode: 'naive', planning: true, compilerChecks: false }`
+- Template + Checks: `{ inputMode: 'template', planning: false, compilerChecks: true }`
+- Full-Featured: `{ inputMode: 'template', planning: true, compilerChecks: true }`
+
+All configurations generate monorepo structure with npm workspaces:
 ```
 generated/session-id/
 ├── package.json       (root with workspaces, concurrently)
@@ -213,28 +223,28 @@ Added comprehensive dependency version reference to base prompt to prevent versi
 
 **Testing**: All 322 tests passing, typecheck passing, DRY verification passing ✅
 
-### Tool Filtering: Removed installNpmDep from Naive Mode (January 2025) ✅
-Fixed critical issue where `installNpmDep` tool was available in naive mode, causing the LLM to try installing dependencies before package.json files existed.
+### Tool Filtering: Removed installNpmDep from Naive Input Mode (January 2025) ✅
+Fixed critical issue where `installNpmDep` tool was available when `inputMode: 'naive'`, causing the LLM to try installing dependencies before package.json files existed.
 
 **Problem** (discovered via session 534dd3c2):
-- In naive mode, LLM called `installNpmDep` before package.json files were created
+- With `inputMode: 'naive'`, LLM called `installNpmDep` before package.json files were created
 - Example sequence: writeFile(schema) → installNpmDep(server) → writeFile(server/package.json)
 - This wasted 2-4 tool calls per generation and confused the LLM
-- Root cause: `installNpmDep` was available in all modes but should only be in template mode
+- Root cause: `installNpmDep` was available for all input modes but should only be for `inputMode: 'template'`
 
 **Solution**:
 1. **Added `getToolsForMode()` helper** (`server/src/tools/index.ts:673`)
-   - Returns full tools in template mode (package.json files exist)
-   - Returns filtered tools (no installNpmDep) in naive mode
+   - Returns full tools when `inputMode: 'template'` (package.json files exist)
+   - Returns filtered tools (no installNpmDep) when `inputMode: 'naive'`
    - Uses correct `InputMode` type from shared package
 
 2. **Updated capability** (`server/src/capabilities/unified-code-generation.capability.ts:100`)
    - Now uses `getToolsForMode(this.config.inputMode)` instead of raw `tools`
-   - Tools are filtered dynamically based on generation mode
+   - Tools are filtered dynamically based on input mode
 
 3. **Updated prompts** (`server/src/config/prompt-builder.ts`)
    - Base prompt: Changed from "use installNpmDep" to "write complete package.json files"
-   - Template addon: Retained installNpmDep instructions (only mode where it's available)
+   - Template addon: Retained installNpmDep instructions (only available when inputMode: 'template')
 
 **Testing**:
 - Added 2 tests for getToolsForMode filtering (template includes all, naive excludes installNpmDep)
@@ -243,9 +253,9 @@ Fixed critical issue where `installNpmDep` tool was available in naive mode, cau
 - Code review identified and fixed type safety issue (using correct InputMode type)
 
 **Impact**:
-- ✅ Naive mode no longer calls installNpmDep before package.json exists
+- ✅ `inputMode: 'naive'` no longer calls installNpmDep before package.json exists
 - ✅ Saves 2-4 wasted tool calls per generation
-- ✅ Clearer workflow: write complete files in naive mode, merge deps in template mode
+- ✅ Clearer workflow: write complete files with naive input, merge deps with template input
 - ✅ Fixes issue reported by user
 
 **Files Modified**:
@@ -265,11 +275,11 @@ Fixed two critical issues in the base system prompt that caused generation failu
 - Prevents ES module errors (ts-node-dev doesn't support "type": "module")
 - Location: `server/src/config/prompt-builder.ts` (lines 43-48)
 
-**Fix #2: Removed Unnecessary File Reads in Naive Mode**
+**Fix #2: Removed Unnecessary File Reads for Naive Input Mode**
 - Moved "check existing package.json" workflow from base prompt to template addon
 - Base prompt now only has generic dependency management instructions
 - Template addon now has specific workflow: read files → check existing deps → add new deps
-- Prevents LLM from reading non-existent files in naive/plan-first/compiler-check modes
+- Prevents LLM from reading non-existent files when `inputMode: 'naive'` (regardless of capability toggles)
 - Saves 2-3 unnecessary tool calls per generation
 
 **Root Cause Analysis**:
@@ -280,8 +290,8 @@ Fixed two critical issues in the base system prompt that caused generation failu
 
 **Impact**:
 - ✅ Generated apps now use tsx and work correctly with ES modules
-- ✅ Naive mode no longer wastes tool calls reading non-existent files
-- ✅ Template mode retains intelligent dependency checking
+- ✅ `inputMode: 'naive'` no longer wastes tool calls reading non-existent files
+- ✅ `inputMode: 'template'` retains intelligent dependency checking
 - ✅ All 3 workspaces pass typecheck
 
 **Files Modified**:
@@ -415,12 +425,12 @@ Implemented three critical fixes to prevent sessions from getting stuck in 'gene
 - ✅ Clean shutdown with proper database state
 - ✅ User-reported issue (#21) fully resolved
 
-### Compiler Checks Strategy (October 2025) ✅
-Implemented fourth generation strategy with automatic validation and error fixing:
+### Compiler Checks Capability (October 2025) ✅
+Implemented compiler validation capability with automatic error fixing (can be enabled with any input mode via `compilerChecks: true`):
 
 **Three-Phase Workflow**:
 1. **Phase 1: Initial Generation** (20 tool calls max)
-   - Generate complete full-stack app using naive approach
+   - Generate complete full-stack app
    - Create all files (package.json, Prisma schema, client/server code)
 
 2. **Phase 2: Prisma Schema Validation** (1 fix attempt)
@@ -445,7 +455,7 @@ Implemented fourth generation strategy with automatic validation and error fixin
 - Metrics tracking: Iterations, validation pass/fail, total errors
 
 **Database Updates**:
-- Extended database schema to support 'compiler-check' strategy
+- Extended database schema to support compiler checks capability
 - Added optional compiler metrics to GenerationMetrics interface:
   - `compilerIterations`: Number of TypeScript fix iterations
   - `schemaValidationPassed`: Boolean for Prisma validation
@@ -454,14 +464,14 @@ Implemented fourth generation strategy with automatic validation and error fixin
 
 **Testing**:
 - All 185 tests passing ✅
-- Updated validation test to accept compiler-check as implemented
+- Updated validation test to accept compiler checks capability as implemented
 - Typecheck passing across all workspaces
 
-**Files Changed**:
-- `server/src/strategies/compiler-check.strategy.ts` - New strategy implementation
+**Files Changed** (Note: Original implementation used strategy pattern, later refactored to capability system):
+- `server/src/strategies/compiler-check.strategy.ts` - Original implementation (now part of capability orchestration)
 - `server/src/services/command.service.ts` - Added npx to whitelist
-- `server/src/websocket.ts` - Registered strategy
-- `server/src/db/schema.ts` - Extended strategy type
+- `server/src/websocket.ts` - Registered capability
+- `server/src/db/schema.ts` - Extended schema for compiler checks
 - `shared/src/index.ts` - Updated types and schemas
 - `server/src/__tests__/strategy-validation.test.ts` - Updated test
 
@@ -469,7 +479,7 @@ Implemented fourth generation strategy with automatic validation and error fixin
 Complete upgrade from single-app generator to full-stack application generator:
 
 **Architecture Changes**:
-- Updated all strategy prompts (naive, plan-first) to generate full-stack monorepo apps
+- Updated all prompts to generate full-stack monorepo apps
 - Client: Vite + React 19 + TypeScript
 - Server: Express 5 + TypeScript with automatic async error handling
 - Database: Prisma ORM + SQLite for simplicity
@@ -505,7 +515,7 @@ Complete upgrade from single-app generator to full-stack application generator:
 
 **Documentation**:
 - Updated CLAUDE.md with full-stack architecture details
-- Updated strategy prompts with latest best practices (Express 5, Prisma 6, React 19, Vite 7)
+- Updated generation prompts with latest best practices (Express 5, Prisma 6, React 19, Vite 7)
 
 ### Phase 4: Docker-Based App Execution (Production Ready ✅)
 - **Docker Service**: Production-ready container management with comprehensive security
@@ -741,7 +751,7 @@ gh issue develop <issue-number>
 ✅ **Phase 1-4**: Basic harness, LLM integration, file system, Docker execution
 ✅ **Phase 4.5**: Session persistence with Drizzle ORM
 ✅ **Phase 4.6**: Session recovery with React Router 7
-✅ **Phase 5 (Partial)**: 3/5 strategies implemented (Naive, Plan-First, Template)
+✅ **Phase 5**: Capability system with input modes (naive/template) and toggles (planning/compiler checks)
 ✅ **Zustand Migration**: Complete with stores
 ✅ **File Editing**: CodeMirror editor, tabs, resizable panels
 

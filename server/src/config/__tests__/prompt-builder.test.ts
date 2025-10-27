@@ -13,7 +13,7 @@ import { buildSystemPrompt, buildUserPrompt } from '../prompt-builder.js';
 
 describe('Prompt Builder', () => {
   describe('buildSystemPrompt', () => {
-    it('should include base prompt only for naive mode without addons', () => {
+    it("should include base prompt only for inputMode: 'naive' without addons", () => {
       const prompt = buildSystemPrompt({
         inputMode: 'naive',
         planning: false,
@@ -26,13 +26,13 @@ describe('Prompt Builder', () => {
       expect(prompt.length).toBeGreaterThan(500);
 
       // Should NOT include any addon sections
-      expect(prompt).not.toContain('TEMPLATE MODE:');
+      expect(prompt).not.toContain('TEMPLATE INPUT MODE:');
       expect(prompt).not.toContain('ARCHITECTURAL PLANNING:');
       expect(prompt).not.toContain('BUILDING BLOCKS:');
       expect(prompt).not.toContain('VALIDATION TOOLS:');
     });
 
-    it('should include template addon for template mode', () => {
+    it("should include template addon for inputMode: 'template'", () => {
       const prompt = buildSystemPrompt({
         inputMode: 'template',
         planning: false,
@@ -41,7 +41,7 @@ describe('Prompt Builder', () => {
         maxIterations: 3,
       });
 
-      expect(prompt).toContain('TEMPLATE MODE:');
+      expect(prompt).toContain('TEMPLATE INPUT MODE:');
       expect(prompt).not.toContain('ARCHITECTURAL PLANNING:');
       expect(prompt).not.toContain('BUILDING BLOCKS:');
       expect(prompt).not.toContain('VALIDATION TOOLS:');
@@ -57,7 +57,7 @@ describe('Prompt Builder', () => {
       });
 
       expect(prompt).toContain('ARCHITECTURAL PLANNING:');
-      expect(prompt).not.toContain('TEMPLATE MODE:');
+      expect(prompt).not.toContain('TEMPLATE INPUT MODE:');
       expect(prompt).not.toContain('BUILDING BLOCKS:');
       expect(prompt).not.toContain('VALIDATION TOOLS:');
     });
@@ -72,7 +72,7 @@ describe('Prompt Builder', () => {
       });
 
       expect(prompt).toContain('BUILDING BLOCKS:');
-      expect(prompt).not.toContain('TEMPLATE MODE:');
+      expect(prompt).not.toContain('TEMPLATE INPUT MODE:');
       expect(prompt).not.toContain('ARCHITECTURAL PLANNING:');
       expect(prompt).not.toContain('VALIDATION TOOLS:');
     });
@@ -87,7 +87,7 @@ describe('Prompt Builder', () => {
       });
 
       expect(prompt).toContain('VALIDATION TOOLS:');
-      expect(prompt).not.toContain('TEMPLATE MODE:');
+      expect(prompt).not.toContain('TEMPLATE INPUT MODE:');
       expect(prompt).not.toContain('ARCHITECTURAL PLANNING:');
       expect(prompt).not.toContain('BUILDING BLOCKS:');
     });
@@ -102,7 +102,7 @@ describe('Prompt Builder', () => {
       });
 
       // Should include all addons
-      expect(prompt).toContain('TEMPLATE MODE:');
+      expect(prompt).toContain('TEMPLATE INPUT MODE:');
       expect(prompt).toContain('ARCHITECTURAL PLANNING:');
       expect(prompt).toContain('BUILDING BLOCKS:');
       expect(prompt).toContain('VALIDATION TOOLS:');
@@ -118,7 +118,7 @@ describe('Prompt Builder', () => {
       });
 
       // Get positions of each addon
-      const templatePos = prompt.indexOf('TEMPLATE MODE:');
+      const templatePos = prompt.indexOf('TEMPLATE INPUT MODE:');
       const planningPos = prompt.indexOf('ARCHITECTURAL PLANNING:');
       const blocksPos = prompt.indexOf('BUILDING BLOCKS:');
       const validationPos = prompt.indexOf('VALIDATION TOOLS:');
@@ -183,7 +183,7 @@ describe('Prompt Builder', () => {
         expect(prompt).toContain('"type": "module"');
       });
 
-      it('should NOT include dependency check workflow in naive mode', () => {
+      it("should NOT include dependency check workflow with inputMode: 'naive'", () => {
         const naivePrompt = buildSystemPrompt({
           inputMode: 'naive',
           planning: false,
@@ -192,15 +192,15 @@ describe('Prompt Builder', () => {
           maxIterations: 3,
         });
 
-        // Naive mode should NOT tell LLM to read existing package.json
-        // (files don't exist yet in naive mode)
+        // inputMode: 'naive' should NOT tell LLM to read existing package.json
+        // (files don't exist yet with naive input mode)
         expect(naivePrompt).not.toContain('BEFORE adding ANY dependencies');
         expect(naivePrompt).not.toContain('readFile to check client/package.json');
         expect(naivePrompt).not.toContain('readFile to check server/package.json');
         expect(naivePrompt).not.toContain('Identify which packages are ALREADY installed');
       });
 
-      it('should include dependency check workflow in template mode', () => {
+      it("should include dependency check workflow with inputMode: 'template'", () => {
         const templatePrompt = buildSystemPrompt({
           inputMode: 'template',
           planning: false,
@@ -209,7 +209,7 @@ describe('Prompt Builder', () => {
           maxIterations: 3,
         });
 
-        // Template mode SHOULD tell LLM to read existing package.json
+        // inputMode: 'template' SHOULD tell LLM to read existing package.json
         // (template files already exist)
         expect(templatePrompt).toContain('BEFORE adding ANY dependencies');
         expect(templatePrompt).toContain('readFile to check client/package.json');
@@ -226,16 +226,16 @@ describe('Prompt Builder', () => {
           maxIterations: 3,
         });
 
-        // Naive mode should instruct to write complete package.json files
+        // inputMode: 'naive' should instruct to write complete package.json files
         expect(prompt).toContain('Write complete package.json files');
         expect(prompt).toContain('ALL dependencies included');
         expect(prompt).toContain('Use writeFile to create package.json');
 
-        // Naive mode should NOT mention installNpmDep (not available)
+        // inputMode: 'naive' should NOT mention installNpmDep (not available)
         expect(prompt).not.toContain('installNpmDep');
       });
 
-      it('should include installNpmDep instructions only in template mode', () => {
+      it("should include installNpmDep instructions only with inputMode: 'template'", () => {
         const templatePrompt = buildSystemPrompt({
           inputMode: 'template',
           planning: false,
@@ -244,7 +244,7 @@ describe('Prompt Builder', () => {
           maxIterations: 3,
         });
 
-        // Template mode SHOULD mention installNpmDep
+        // inputMode: 'template' SHOULD mention installNpmDep
         expect(templatePrompt).toContain('installNpmDep');
         expect(templatePrompt).toContain('Use installNpmDep tool to ADD new dependencies');
         expect(templatePrompt).toContain('merges with existing dependencies');

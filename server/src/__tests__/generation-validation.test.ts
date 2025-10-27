@@ -11,7 +11,7 @@ import { ZodError } from 'zod';
 
 describe('Generation Validation', () => {
   describe('StartGenerationSchema', () => {
-    it('should accept valid naive mode configuration', () => {
+    it("should accept valid configuration with inputMode: 'naive'", () => {
       const result = StartGenerationSchema.safeParse({
         prompt: 'Build a todo app',
         config: {
@@ -26,7 +26,7 @@ describe('Generation Validation', () => {
       }
     });
 
-    it('should accept valid planning mode configuration', () => {
+    it('should accept valid configuration with planning capability', () => {
       const result = StartGenerationSchema.safeParse({
         prompt: 'Build a todo app',
         config: {
@@ -44,7 +44,7 @@ describe('Generation Validation', () => {
       }
     });
 
-    it('should accept template mode with template options', () => {
+    it("should accept configuration with inputMode: 'template' and template options", () => {
       const result = StartGenerationSchema.safeParse({
         prompt: 'Customize the template',
         config: {
