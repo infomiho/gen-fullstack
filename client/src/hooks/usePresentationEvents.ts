@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
-import type { LLMMessage, ToolCall } from '@gen-fullstack/shared';
+import type { LLMMessage, ToolCall, ToolResult, CapabilityConfig } from '@gen-fullstack/shared';
 import { usePresentationStore } from '../stores/presentationStore';
 import { useReplayStore } from '../stores/replay.store';
-import { presentationTokens } from '../lib/presentation-tokens';
 
 /**
  * Hook to wire generation events to presentation mode
@@ -18,8 +17,12 @@ import { presentationTokens } from '../lib/presentation-tokens';
  *
  * Handles:
  * - Generation start → "READY... FIGHT!" overlay
+ * - Template mode → Template loading overlay
+ * - Planning → Architecture planning overlay with stats
+ * - Building blocks → Block request overlay
  * - Tool calls → HUD updates, combo tracking
- * - File writes → Achievement toast with confetti (queued)
+ * - File writes → Combo milestone overlays (5x, 10x, 20x+)
+ * - Validation → Compiler check loading and results
  * - Errors → "K.O." screen
  * - Generation complete → Victory screen with stats
  */
@@ -27,18 +30,49 @@ export function usePresentationEvents(
   isGenerating: boolean,
   messages: LLMMessage[],
   toolCalls: ToolCall[],
+  toolResults: ToolResult[],
+  capabilityConfig?: CapabilityConfig,
 ) {
   const { isReplayMode, isPlaying } = useReplayStore();
-  const { isEnabled, setOverlay, incrementCombo, addToolCall, updateStats, resetStats } =
-    usePresentationStore();
+  const {
+    isEnabled,
+    setOverlay,
+    setOverlayData,
+    incrementCombo,
+    addToolCall,
+    updateStats,
+    resetStats,
+  } = usePresentationStore();
 
   const startTimeRef = useRef<number>(0);
   const previousActiveRef = useRef(false);
   const previousToolCallsCountRef = useRef(0);
+  const previousToolResultsCountRef = useRef(0);
   const filesCreatedCountRef = useRef(0);
+  const hasShownTemplateOverlayRef = useRef(false);
+  const pendingPlanToolCallIdRef = useRef<string | null>(null);
+  const pendingValidationToolCallsRef = useRef<Set<string>>(new Set());
 
-  // Queue for file creation overlays
-  const overlayQueueRef = useRef<Array<{ type: 'file-created'; fileName: string }>>([]);
+  // Queue for overlays with presentation-specific pacing
+  const overlayQueueRef = useRef<
+    Array<
+      | { type: 'template-loading'; duration: number }
+      | {
+          type: 'planning';
+          planSummary: { models: number; endpoints: number; components: number };
+          duration: number;
+        }
+      | { type: 'block-request'; blockName: string; duration: number }
+      | { type: 'combo-milestone'; milestone: number; duration: number }
+      | { type: 'validation-prisma'; duration: number }
+      | { type: 'validation-typescript'; duration: number }
+      | {
+          type: 'validation-result';
+          result: { passed: boolean; errorCount?: number; iteration?: number };
+          duration: number;
+        }
+    >
+  >([]);
   const isShowingOverlayRef = useRef(false);
   const overlayTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -58,14 +92,42 @@ export function usePresentationEvents(
       if (!nextOverlay) return;
 
       isShowingOverlayRef.current = true;
-      setOverlay('file-created');
+
+      // Set overlay data and type based on overlay
+      switch (nextOverlay.type) {
+        case 'template-loading':
+          setOverlay('template-loading');
+          break;
+        case 'planning':
+          setOverlayData({ planSummary: nextOverlay.planSummary });
+          setOverlay('planning');
+          break;
+        case 'block-request':
+          setOverlayData({ blockName: nextOverlay.blockName });
+          setOverlay('block-request');
+          break;
+        case 'combo-milestone':
+          setOverlayData({ comboMilestone: nextOverlay.milestone });
+          setOverlay('combo-milestone');
+          break;
+        case 'validation-prisma':
+          setOverlay('validation-prisma');
+          break;
+        case 'validation-typescript':
+          setOverlay('validation-typescript');
+          break;
+        case 'validation-result':
+          setOverlayData({ validationResult: nextOverlay.result });
+          setOverlay('validation-result');
+          break;
+      }
 
       // Schedule next overlay after minimum duration
       overlayTimeoutRef.current = setTimeout(() => {
         processQueueImpl();
-      }, presentationTokens.timing.toastDuration);
+      }, nextOverlay.duration);
     },
-    [setOverlay],
+    [setOverlay, setOverlayData],
   );
 
   // Cleanup overlay timeout on unmount
@@ -85,12 +147,22 @@ export function usePresentationEvents(
       startTimeRef.current = Date.now();
       resetStats();
       filesCreatedCountRef.current = 0;
+      hasShownTemplateOverlayRef.current = false;
       overlayQueueRef.current = []; // Clear queue
       isShowingOverlayRef.current = false;
       if (overlayTimeoutRef.current) {
         clearTimeout(overlayTimeoutRef.current);
       }
       setOverlay('generation-start');
+
+      // Queue template loading overlay if using template mode
+      if (capabilityConfig?.inputMode === 'template') {
+        overlayQueueRef.current.push({
+          type: 'template-loading',
+          duration: 3000, // 3 seconds
+        });
+        hasShownTemplateOverlayRef.current = true;
+      }
     }
 
     // Detect session end (live or replay)
@@ -121,7 +193,7 @@ export function usePresentationEvents(
     }
 
     previousActiveRef.current = isActive;
-  }, [isEnabled, isActive, messages, setOverlay, updateStats, resetStats]);
+  }, [isEnabled, isActive, messages, setOverlay, updateStats, resetStats, capabilityConfig]);
 
   // Track tool calls and update HUD (works for both live and replay)
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Event tracking logic requires multiple conditionals and loops
@@ -144,18 +216,77 @@ export function usePresentationEvents(
         // Update stats
         updateStats({ toolCalls: newToolCallsCount });
 
-        // Queue file created overlay for writeFile calls
-        if (toolCall.name === 'writeFile' && fileName) {
-          filesCreatedCountRef.current++;
-          updateStats({ filesCreated: filesCreatedCountRef.current });
+        // Handle capability-specific tool calls
+        switch (toolCall.name) {
+          case 'planArchitecture':
+            // Track tool call ID to parse result later
+            pendingPlanToolCallIdRef.current = toolCall.id;
+            break;
 
-          // Add to queue for presentation-paced display
-          overlayQueueRef.current.push({ type: 'file-created', fileName });
+          case 'requestBlock':
+            // Extract block name from args
+            try {
+              const args =
+                typeof toolCall.args === 'string' ? JSON.parse(toolCall.args) : toolCall.args;
+              const blockName = args?.blockName || 'Building Block';
+              overlayQueueRef.current.push({
+                type: 'block-request',
+                blockName,
+                duration: 3000, // 3 seconds
+              });
+              if (!isShowingOverlayRef.current) {
+                processQueue();
+              }
+            } catch {
+              // Ignore parse errors
+            }
+            break;
 
-          // Start processing queue if not already showing an overlay
-          if (!isShowingOverlayRef.current) {
-            processQueue();
-          }
+          case 'validatePrismaSchema':
+            // Queue loading overlay immediately
+            overlayQueueRef.current.push({
+              type: 'validation-prisma',
+              duration: 3000, // 3 seconds loading
+            });
+            // Track for result parsing
+            pendingValidationToolCallsRef.current.add(toolCall.id);
+            if (!isShowingOverlayRef.current) {
+              processQueue();
+            }
+            break;
+
+          case 'validateTypeScript':
+            // Queue loading overlay immediately
+            overlayQueueRef.current.push({
+              type: 'validation-typescript',
+              duration: 3000, // 3 seconds loading
+            });
+            // Track for result parsing
+            pendingValidationToolCallsRef.current.add(toolCall.id);
+            if (!isShowingOverlayRef.current) {
+              processQueue();
+            }
+            break;
+
+          case 'writeFile':
+            if (fileName) {
+              filesCreatedCountRef.current++;
+              updateStats({ filesCreated: filesCreatedCountRef.current });
+
+              // Check for combo milestones
+              const count = filesCreatedCountRef.current;
+              if (count === 5 || count === 10 || (count >= 20 && count % 10 === 0)) {
+                overlayQueueRef.current.push({
+                  type: 'combo-milestone',
+                  milestone: count,
+                  duration: 1000, // 1 second
+                });
+                if (!isShowingOverlayRef.current) {
+                  processQueue();
+                }
+              }
+            }
+            break;
         }
       }
 
@@ -168,6 +299,82 @@ export function usePresentationEvents(
 
     previousToolCallsCountRef.current = newToolCallsCount;
   }, [isEnabled, isActive, toolCalls, incrementCombo, addToolCall, updateStats, processQueue]);
+
+  // Track tool results to parse plan summaries and validation results
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Tool result parsing requires multiple conditionals for different overlay types
+  useEffect(() => {
+    if (!isEnabled || !isActive) return;
+
+    const newToolResultsCount = toolResults.length;
+    if (newToolResultsCount > previousToolResultsCountRef.current) {
+      // New tool results detected
+      const newToolResults = toolResults.slice(previousToolResultsCountRef.current);
+
+      for (const toolResult of newToolResults) {
+        // Check if this is a planArchitecture result
+        if (pendingPlanToolCallIdRef.current === toolResult.id) {
+          try {
+            // Parse plan summary from result
+            const plan = JSON.parse(toolResult.result);
+            const models = plan.databaseSchema?.models?.length || 0;
+            const endpoints = plan.apiEndpoints?.length || 0;
+            const components = plan.uiComponents?.length || 0;
+
+            // Queue planning overlay with actual data
+            overlayQueueRef.current.push({
+              type: 'planning',
+              planSummary: { models, endpoints, components },
+              duration: 5000, // 5 seconds (important moment!)
+            });
+
+            if (!isShowingOverlayRef.current) {
+              processQueue();
+            }
+          } catch {
+            // If parsing fails, use placeholder data
+            overlayQueueRef.current.push({
+              type: 'planning',
+              planSummary: { models: 0, endpoints: 0, components: 0 },
+              duration: 5000,
+            });
+            if (!isShowingOverlayRef.current) {
+              processQueue();
+            }
+          }
+
+          pendingPlanToolCallIdRef.current = null;
+        }
+
+        // Check if this is a validation result
+        if (pendingValidationToolCallsRef.current.has(toolResult.id)) {
+          try {
+            // Parse validation result
+            const result = JSON.parse(toolResult.result);
+            const passed = result.passed === true || result.success === true;
+            const errorCount = result.errorCount || result.errors?.length || 0;
+            const iteration = result.iteration;
+
+            // Queue validation result overlay
+            overlayQueueRef.current.push({
+              type: 'validation-result',
+              result: { passed, errorCount, iteration },
+              duration: passed ? 2000 : 3000, // 2s for success, 3s for errors
+            });
+
+            if (!isShowingOverlayRef.current) {
+              processQueue();
+            }
+          } catch {
+            // Ignore parse errors
+          }
+
+          pendingValidationToolCallsRef.current.delete(toolResult.id);
+        }
+      }
+    }
+
+    previousToolResultsCountRef.current = newToolResultsCount;
+  }, [isEnabled, isActive, toolResults, processQueue]);
 
   // Update duration periodically while active (live or replay)
   useEffect(() => {

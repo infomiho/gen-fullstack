@@ -294,8 +294,18 @@ function SessionPage() {
   const toolResults = isReplayMode ? replayData.toolResults : persistedData.toolResults;
   const files = isReplayMode ? replayData.files : persistedData.files;
 
+  // Parse capabilityConfig for presentation mode
+  let capabilityConfig: import('@gen-fullstack/shared').CapabilityConfig | undefined;
+  try {
+    capabilityConfig = sessionData.session.capabilityConfig
+      ? JSON.parse(sessionData.session.capabilityConfig)
+      : undefined;
+  } catch {
+    // Ignore parse errors, capabilityConfig will remain undefined
+  }
+
   // Wire generation events to presentation mode
-  usePresentationEvents(isActiveSession, messages, toolCalls);
+  usePresentationEvents(isActiveSession, messages, toolCalls, toolResults, capabilityConfig);
 
   useSessionSubscription(socket, sessionId, hasSubscribedRef);
   useDisconnectionToast(isConnected, isActiveSession, showToast);
