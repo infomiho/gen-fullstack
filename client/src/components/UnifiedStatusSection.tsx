@@ -214,7 +214,6 @@ export function UnifiedStatusSection({
             status={sessionStatus}
             variant="session"
             showLiveIndicator={showLiveIndicator}
-            uppercase={true}
           />
         </div>
       </div>
@@ -223,7 +222,7 @@ export function UnifiedStatusSection({
       <div className={`${container.light} ${spacing.form}`}>
         <div className="flex items-center justify-between gap-3">
           <span className={typography.caption}>Container</span>
-          <StatusBadge status={status} variant="app" uppercase={true} />
+          <StatusBadge status={status} variant="app" />
         </div>
         {showClientUrl && (
           <a

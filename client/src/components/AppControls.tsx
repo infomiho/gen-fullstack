@@ -120,7 +120,7 @@ export function AppControls({
       <div>
         <div className="flex items-center gap-3">
           <span className={typography.label}>Status:</span>
-          <StatusBadge status={status} variant="app" uppercase={true} />
+          <StatusBadge status={status} variant="app" />
         </div>
         {appStatus?.clientUrl && status === 'running' && (
           <a
