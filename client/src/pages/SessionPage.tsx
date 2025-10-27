@@ -20,7 +20,6 @@ import { SessionSidebar } from '../components/SessionSidebar';
 import { Timeline } from '../components/Timeline';
 import { TimelineScrubber } from '../components/TimelineScrubber';
 import { useToast } from '../components/ToastProvider';
-import { usePresentationMode } from '../hooks/usePresentationMode';
 import { usePresentationEvents } from '../hooks/usePresentationEvents';
 import { useSessionData } from '../hooks/useSessionData';
 import { useSessionRevalidation } from '../hooks/useSessionRevalidation';
@@ -29,6 +28,7 @@ import { focus, padding, spacing, transitions, typography } from '../lib/design-
 import { useAppStore, useGenerationStore } from '../stores';
 import { useReplayStore } from '../stores/replay.store';
 import { useReplayMode } from '../hooks/useReplayMode';
+import { usePresentationStore } from '../stores/presentationStore';
 
 const SERVER_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
@@ -202,8 +202,6 @@ function SessionPage() {
   const sessionData = useLoaderData() as SessionData;
   const { showToast } = useToast();
 
-  // Enable presentation mode keyboard shortcuts
-  usePresentationMode();
   const {
     socket,
     isConnected,
@@ -400,33 +398,44 @@ function SessionPage() {
                 </button>
               </div>
 
-              {/* Replay Mode Toggle */}
-              {activeTab === 'timeline' &&
-                sessionData.session.status !== 'generating' &&
-                !isReplayMode && (
-                  <button
-                    type="button"
-                    onClick={handleEnterReplayMode}
-                    className="rounded border border-border bg-card px-3 py-1 text-sm font-medium text-foreground hover:bg-muted"
-                  >
-                    Replay Mode
-                  </button>
+              {/* Replay Mode & Presentation Mode Toggles */}
+              <div className="flex items-center gap-2">
+                {activeTab === 'timeline' &&
+                  sessionData.session.status !== 'generating' &&
+                  !isReplayMode && (
+                    <button
+                      type="button"
+                      onClick={handleEnterReplayMode}
+                      className="rounded border border-border bg-card px-3 py-1 text-sm font-medium text-foreground hover:bg-muted"
+                    >
+                      Replay Mode
+                    </button>
+                  )}
+
+                {isReplayMode && (
+                  <>
+                    <span className="rounded bg-purple-100 px-2 py-1 text-xs font-medium text-purple-800">
+                      REPLAY MODE
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleExitReplayMode}
+                      className="rounded border border-border bg-card px-3 py-1 text-sm font-medium text-foreground hover:bg-muted"
+                    >
+                      Exit Replay
+                    </button>
+                  </>
                 )}
 
-              {isReplayMode && (
-                <div className="flex items-center gap-2">
-                  <span className="rounded bg-purple-100 px-2 py-1 text-xs font-medium text-purple-800">
-                    REPLAY MODE
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleExitReplayMode}
-                    className="rounded border border-border bg-card px-3 py-1 text-sm font-medium text-foreground hover:bg-muted"
-                  >
-                    Exit Replay
-                  </button>
-                </div>
-              )}
+                {/* Presentation Mode Toggle - Available on all tabs */}
+                <button
+                  type="button"
+                  onClick={() => usePresentationStore.getState().toggleEnabled()}
+                  className="rounded border border-border bg-card px-3 py-1 text-sm font-medium text-foreground hover:bg-muted"
+                >
+                  Presentation Mode
+                </button>
+              </div>
             </div>
           </div>
 
