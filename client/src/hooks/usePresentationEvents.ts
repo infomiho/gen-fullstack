@@ -1,9 +1,14 @@
 import { useEffect, useRef } from 'react';
 import type { LLMMessage, ToolCall } from '@gen-fullstack/shared';
 import { usePresentationStore } from '../stores/presentationStore';
+import { useReplayStore } from '../stores/replay.store';
 
 /**
- * Hook to wire WebSocket generation events to presentation mode
+ * Hook to wire generation events to presentation mode
+ *
+ * Works with both:
+ * - Live generations (via WebSocket, isGenerating flag)
+ * - Replay mode (via replay store, isPlaying flag)
  *
  * Handles:
  * - Generation start → "READY... FIGHT!" overlay
@@ -17,27 +22,31 @@ export function usePresentationEvents(
   messages: LLMMessage[],
   toolCalls: ToolCall[],
 ) {
+  const { isReplayMode, isPlaying } = useReplayStore();
   const { isEnabled, setOverlay, incrementCombo, addToolCall, updateStats, resetStats } =
     usePresentationStore();
 
   const startTimeRef = useRef<number>(0);
-  const previousGeneratingRef = useRef(false);
+  const previousActiveRef = useRef(false);
   const previousToolCallsCountRef = useRef(0);
   const filesCreatedCountRef = useRef(0);
 
-  // Detect generation start
+  // Determine if we're in an active session (live or replay)
+  const isActive = isReplayMode ? isPlaying : isGenerating;
+
+  // Detect session start (live or replay)
   useEffect(() => {
-    if (isEnabled && isGenerating && !previousGeneratingRef.current) {
-      // Generation just started
+    if (isEnabled && isActive && !previousActiveRef.current) {
+      // Session just started (live generation or replay playback)
       startTimeRef.current = Date.now();
       resetStats();
       filesCreatedCountRef.current = 0;
       setOverlay('generation-start');
     }
 
-    // Detect generation end
-    if (isEnabled && !isGenerating && previousGeneratingRef.current) {
-      // Generation just completed
+    // Detect session end (live or replay)
+    if (isEnabled && !isActive && previousActiveRef.current) {
+      // Session just completed/paused
       const duration = (Date.now() - startTimeRef.current) / 1000;
       const lastMessage = messages[messages.length - 1];
       const hasError = lastMessage?.role === 'system' && lastMessage.content.includes('error');
@@ -55,13 +64,13 @@ export function usePresentationEvents(
       }
     }
 
-    previousGeneratingRef.current = isGenerating;
-  }, [isEnabled, isGenerating, messages, setOverlay, updateStats, resetStats]);
+    previousActiveRef.current = isActive;
+  }, [isEnabled, isActive, messages, setOverlay, updateStats, resetStats]);
 
-  // Track tool calls and update HUD
+  // Track tool calls and update HUD (works for both live and replay)
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Event tracking logic requires multiple conditionals and loops
   useEffect(() => {
-    if (!isEnabled || !isGenerating) return;
+    if (!isEnabled || !isActive) return;
 
     const newToolCallsCount = toolCalls.length;
     if (newToolCallsCount > previousToolCallsCountRef.current) {
@@ -97,11 +106,11 @@ export function usePresentationEvents(
     }
 
     previousToolCallsCountRef.current = newToolCallsCount;
-  }, [isEnabled, isGenerating, toolCalls, incrementCombo, addToolCall, updateStats, setOverlay]);
+  }, [isEnabled, isActive, toolCalls, incrementCombo, addToolCall, updateStats, setOverlay]);
 
-  // Update duration periodically while generating
+  // Update duration periodically while active (live or replay)
   useEffect(() => {
-    if (!isEnabled || !isGenerating || startTimeRef.current === 0) return;
+    if (!isEnabled || !isActive || startTimeRef.current === 0) return;
 
     const interval = setInterval(() => {
       const duration = (Date.now() - startTimeRef.current) / 1000;
@@ -109,7 +118,7 @@ export function usePresentationEvents(
     }, 100); // Update every 100ms for smooth counting
 
     return () => clearInterval(interval);
-  }, [isEnabled, isGenerating, updateStats]);
+  }, [isEnabled, isActive, updateStats]);
 }
 
 /**
