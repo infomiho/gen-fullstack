@@ -445,6 +445,66 @@ describe('WebSocket Handler Edge Cases', () => {
       // Should receive validation error
       expect(errors.some((e) => e.includes('Validation error'))).toBe(true);
     });
+
+    it('should isolate events to correct session when switching rooms', async () => {
+      const { randomUUID } = await import('node:crypto');
+      const sessionIdA = randomUUID();
+      const sessionIdB = randomUUID();
+
+      // Create both sessions
+      await databaseService.createSession({
+        id: sessionIdA,
+        prompt: 'Test A',
+        capabilityConfig: JSON.stringify({ inputMode: 'naive' }),
+        status: 'generating',
+      });
+      await databaseService.createSession({
+        id: sessionIdB,
+        prompt: 'Test B',
+        capabilityConfig: JSON.stringify({ inputMode: 'naive' }),
+        status: 'completed',
+      });
+
+      // Track which session's events we receive
+      const receivedEvents: string[] = [];
+      clientSocket.on('llm_message', (message: { id: string; content: string }) => {
+        receivedEvents.push(message.content);
+      });
+
+      // Subscribe to session A
+      clientSocket.emit('subscribe_to_session', { sessionId: sessionIdA });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Subscribe to session B (should leave session A)
+      clientSocket.emit('subscribe_to_session', { sessionId: sessionIdB });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Emit an event to session A from server side
+      io.to(sessionIdA).emit('llm_message', {
+        id: 'msg-test-a',
+        role: 'assistant',
+        content: 'Message for Session A',
+        timestamp: Date.now(),
+      });
+
+      // Emit an event to session B
+      io.to(sessionIdB).emit('llm_message', {
+        id: 'msg-test-b',
+        role: 'assistant',
+        content: 'Message for Session B',
+        timestamp: Date.now(),
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Should only receive the event from session B (the current subscription)
+      expect(receivedEvents).toContain('Message for Session B');
+      expect(receivedEvents).not.toContain('Message for Session A');
+
+      // Cleanup
+      await databaseService.deleteSession(sessionIdA);
+      await databaseService.deleteSession(sessionIdB);
+    });
   });
 
   describe('Concurrent Operations', () => {

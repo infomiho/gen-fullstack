@@ -144,6 +144,18 @@ export function setupWebSocket(httpServer: HTTPServer) {
     socket.on('subscribe_to_session', (payload) => {
       try {
         const { sessionId } = SubscribeSessionSchema.parse(payload);
+
+        // Leave all previous session rooms before joining the new one
+        // Note: socket.rooms is a Set<string> containing all rooms this socket is in
+        // Every socket is automatically in a room matching its socket.id (never leave this!)
+        socket.rooms.forEach((room) => {
+          if (room !== socket.id) {
+            socket.leave(room);
+            websocketLogger.debug({ socketId: socket.id, leftRoom: room }, 'Left previous room');
+          }
+        });
+
+        // Now join the new session room (client only in ONE session)
         socket.join(sessionId);
         websocketLogger.info({ socketId: socket.id, sessionId }, 'Socket subscribed to session');
       } catch (error) {
