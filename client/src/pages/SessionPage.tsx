@@ -432,7 +432,10 @@ function SessionPage() {
                 )}
 
                 {/* Presentation Mode Toggle - Available on all tabs */}
-                <PresentationToggle />
+                <PresentationToggle
+                  onEnterReplayMode={handleEnterReplayMode}
+                  sessionStatus={sessionData.session.status}
+                />
               </div>
             </div>
           </div>

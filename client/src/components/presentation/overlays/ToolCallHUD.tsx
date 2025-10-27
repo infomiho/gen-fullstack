@@ -187,9 +187,10 @@ export function ToolCallHUD() {
         style={{
           backgroundColor: 'rgba(0, 0, 0, 0.9)',
           borderColor: presentationTokens.colors.neonCyan,
-          fontSize: presentationTokens.fonts.monoSize,
+          fontSize: '1.75rem',
           fontFamily: presentationTokens.fonts.monoFamily,
           color: presentationTokens.colors.neonCyan,
+          fontWeight: 'bold',
         }}
       >
         <div>📁 FILES: {stats.filesCreated}</div>
