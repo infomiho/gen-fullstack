@@ -43,7 +43,7 @@ export function VictoryOverlay() {
     return count;
   };
 
-  const durationCount = useCountUp(Math.round(stats.duration * 10) / 10, 1500);
+  const durationCount = useCountUp(Math.round(stats.duration * 10), 1500);
   const toolCallsCount = useCountUp(stats.toolCalls, 1500);
   const filesCount = useCountUp(stats.filesCreated, 1500);
   const successRateCount = useCountUp(stats.successRate, 1500);

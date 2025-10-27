@@ -21,6 +21,7 @@ import { Timeline } from '../components/Timeline';
 import { TimelineScrubber } from '../components/TimelineScrubber';
 import { useToast } from '../components/ToastProvider';
 import { usePresentationEvents } from '../hooks/usePresentationEvents';
+import { PresentationToggle } from '../components/PresentationToggle';
 import { useSessionData } from '../hooks/useSessionData';
 import { useSessionRevalidation } from '../hooks/useSessionRevalidation';
 import { useWebSocket } from '../hooks/useWebSocket';
@@ -28,7 +29,6 @@ import { focus, padding, spacing, transitions, typography } from '../lib/design-
 import { useAppStore, useGenerationStore } from '../stores';
 import { useReplayStore } from '../stores/replay.store';
 import { useReplayMode } from '../hooks/useReplayMode';
-import { usePresentationStore } from '../stores/presentationStore';
 
 const SERVER_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
@@ -428,13 +428,7 @@ function SessionPage() {
                 )}
 
                 {/* Presentation Mode Toggle - Available on all tabs */}
-                <button
-                  type="button"
-                  onClick={() => usePresentationStore.getState().toggleEnabled()}
-                  className="rounded border border-border bg-card px-3 py-1 text-sm font-medium text-foreground hover:bg-muted"
-                >
-                  Presentation Mode
-                </button>
+                <PresentationToggle />
               </div>
             </div>
           </div>
