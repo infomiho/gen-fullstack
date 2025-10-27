@@ -13,12 +13,15 @@ import { AppPreview } from '../components/AppPreview';
 import { ErrorBoundary as ErrorBoundaryComponent } from '../components/ErrorBoundary';
 import { FileWorkspace } from '../components/FileWorkspace';
 import { LogViewer } from '../components/LogViewer';
+import { PresentationMode } from '../components/presentation/PresentationMode';
 import { ReplayControls } from '../components/ReplayControls';
 import { SessionHeader } from '../components/SessionHeader';
 import { SessionSidebar } from '../components/SessionSidebar';
 import { Timeline } from '../components/Timeline';
 import { TimelineScrubber } from '../components/TimelineScrubber';
 import { useToast } from '../components/ToastProvider';
+import { usePresentationMode } from '../hooks/usePresentationMode';
+import { usePresentationEvents } from '../hooks/usePresentationEvents';
 import { useSessionData } from '../hooks/useSessionData';
 import { useSessionRevalidation } from '../hooks/useSessionRevalidation';
 import { useWebSocket } from '../hooks/useWebSocket';
@@ -198,6 +201,9 @@ function SessionPage() {
   const navigate = useNavigate();
   const sessionData = useLoaderData() as SessionData;
   const { showToast } = useToast();
+
+  // Enable presentation mode keyboard shortcuts
+  usePresentationMode();
   const {
     socket,
     isConnected,
@@ -285,6 +291,9 @@ function SessionPage() {
   const toolCalls = isReplayMode ? replayData.toolCalls : persistedData.toolCalls;
   const toolResults = isReplayMode ? replayData.toolResults : persistedData.toolResults;
   const files = isReplayMode ? replayData.files : persistedData.files;
+
+  // Wire generation events to presentation mode
+  usePresentationEvents(isActiveSession, messages, toolCalls);
 
   useSessionSubscription(socket, sessionId, hasSubscribedRef);
   useDisconnectionToast(isConnected, isActiveSession, showToast);
@@ -467,6 +476,9 @@ function SessionPage() {
           </div>
         </div>
       </main>
+
+      {/* Presentation Mode Overlay */}
+      <PresentationMode />
     </div>
   );
 }
