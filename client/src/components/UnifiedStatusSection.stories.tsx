@@ -55,9 +55,9 @@ export const GeneratingOwn: Story = {
     currentSessionId: 'test-session',
     appStatus: null,
     isGenerating: true,
-    onStart: () => console.log('Start clicked'),
-    onStop: () => console.log('Stop clicked'),
-    onStartClick: () => console.log('Start click handler'),
+    onStart: () => {},
+    onStop: () => {},
+    onStartClick: () => {},
   },
 };
 
@@ -68,8 +68,8 @@ export const GeneratingOther: Story = {
     currentSessionId: 'test-session',
     appStatus: null,
     isGenerating: true,
-    onStart: () => console.log('Start clicked'),
-    onStop: () => console.log('Stop clicked'),
+    onStart: () => {},
+    onStop: () => {},
   },
 };
 
@@ -80,9 +80,9 @@ export const CompletedStopped: Story = {
     currentSessionId: 'test-session',
     appStatus: null,
     isGenerating: false,
-    onStart: () => console.log('Start clicked'),
-    onStop: () => console.log('Stop clicked'),
-    onStartClick: () => console.log('Start click handler'),
+    onStart: () => {},
+    onStop: () => {},
+    onStartClick: () => {},
   },
 };
 
@@ -93,8 +93,8 @@ export const CompletedRunning: Story = {
     currentSessionId: 'test-session',
     appStatus: mockAppStatusRunning,
     isGenerating: false,
-    onStart: () => console.log('Start clicked'),
-    onStop: () => console.log('Stop clicked'),
+    onStart: () => {},
+    onStop: () => {},
   },
 };
 
@@ -105,8 +105,8 @@ export const AppStarting: Story = {
     currentSessionId: 'test-session',
     appStatus: mockAppStatusStarting,
     isGenerating: false,
-    onStart: () => console.log('Start clicked'),
-    onStop: () => console.log('Stop clicked'),
+    onStart: () => {},
+    onStop: () => {},
   },
 };
 
@@ -117,9 +117,9 @@ export const AppFailed: Story = {
     currentSessionId: 'test-session',
     appStatus: mockAppStatusFailed,
     isGenerating: false,
-    onStart: () => console.log('Start clicked'),
-    onStop: () => console.log('Stop clicked'),
-    onStartClick: () => console.log('Start click handler'),
+    onStart: () => {},
+    onStop: () => {},
+    onStartClick: () => {},
   },
 };
 
@@ -130,9 +130,9 @@ export const Failed: Story = {
     currentSessionId: 'test-session',
     appStatus: null,
     isGenerating: false,
-    onStart: () => console.log('Start clicked'),
-    onStop: () => console.log('Stop clicked'),
-    onStartClick: () => console.log('Start click handler'),
+    onStart: () => {},
+    onStop: () => {},
+    onStartClick: () => {},
   },
 };
 
@@ -143,8 +143,8 @@ export const NoSession: Story = {
     currentSessionId: null,
     appStatus: null,
     isGenerating: false,
-    onStart: () => console.log('Start clicked'),
-    onStop: () => console.log('Stop clicked'),
+    onStart: () => {},
+    onStop: () => {},
   },
 };
 
@@ -155,7 +155,7 @@ export const StillGenerating: Story = {
     currentSessionId: 'test-session',
     appStatus: null,
     isGenerating: true,
-    onStart: () => console.log('Start clicked'),
-    onStop: () => console.log('Stop clicked'),
+    onStart: () => {},
+    onStop: () => {},
   },
 };
