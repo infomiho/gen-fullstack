@@ -63,7 +63,6 @@ export function usePresentationEvents(
           duration: number;
         }
       | { type: 'block-request'; blockName: string; duration: number }
-      | { type: 'combo-milestone'; milestone: number; duration: number }
       | { type: 'validation-prisma'; duration: number }
       | { type: 'validation-typescript'; duration: number }
       | {
@@ -105,10 +104,6 @@ export function usePresentationEvents(
         case 'block-request':
           setOverlayData({ blockName: nextOverlay.blockName });
           setOverlay('block-request');
-          break;
-        case 'combo-milestone':
-          setOverlayData({ comboMilestone: nextOverlay.milestone });
-          setOverlay('combo-milestone');
           break;
         case 'validation-prisma':
           setOverlay('validation-prisma');
@@ -155,6 +150,9 @@ export function usePresentationEvents(
       }
       setOverlay('generation-start');
 
+      // Mark as showing overlay to prevent queue from starting during generation-start
+      isShowingOverlayRef.current = true;
+
       // Queue template loading overlay if using template mode
       if (capabilityConfig?.inputMode === 'template') {
         overlayQueueRef.current.push({
@@ -163,6 +161,15 @@ export function usePresentationEvents(
         });
         hasShownTemplateOverlayRef.current = true;
       }
+
+      // Start processing queue after generation-start overlay finishes (2 seconds)
+      const startQueueTimer = setTimeout(() => {
+        isShowingOverlayRef.current = false;
+        processQueue();
+      }, 2000);
+
+      // Cleanup timer on unmount
+      return () => clearTimeout(startQueueTimer);
     }
 
     // Detect session end (live or replay)
@@ -193,7 +200,16 @@ export function usePresentationEvents(
     }
 
     previousActiveRef.current = isActive;
-  }, [isEnabled, isActive, messages, setOverlay, updateStats, resetStats, capabilityConfig]);
+  }, [
+    isEnabled,
+    isActive,
+    messages,
+    setOverlay,
+    updateStats,
+    resetStats,
+    capabilityConfig,
+    processQueue,
+  ]);
 
   // Track tool calls and update HUD (works for both live and replay)
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Event tracking logic requires multiple conditionals and loops
@@ -272,19 +288,6 @@ export function usePresentationEvents(
             if (fileName) {
               filesCreatedCountRef.current++;
               updateStats({ filesCreated: filesCreatedCountRef.current });
-
-              // Check for combo milestones
-              const count = filesCreatedCountRef.current;
-              if (count === 5 || count === 10 || (count >= 20 && count % 10 === 0)) {
-                overlayQueueRef.current.push({
-                  type: 'combo-milestone',
-                  milestone: count,
-                  duration: 1000, // 1 second
-                });
-                if (!isShowingOverlayRef.current) {
-                  processQueue();
-                }
-              }
             }
             break;
         }
