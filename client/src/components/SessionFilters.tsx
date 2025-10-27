@@ -1,5 +1,7 @@
-import { Search, X } from 'lucide-react';
+import { Search, X, SlidersHorizontal, ChevronDown } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import * as Collapsible from '@radix-ui/react-collapsible';
 import { focus, transitions, typography } from '../lib/design-tokens';
 import { CAPABILITY_METADATA } from '../lib/capability-metadata';
 
@@ -57,135 +59,181 @@ export function SessionFilters({
     updateFilter('search', '');
   };
 
-  const hasActiveFilters =
-    filters.search ||
-    filters.status !== 'all' ||
-    filters.capabilities.template ||
-    filters.capabilities.planning ||
-    filters.capabilities.compilerChecks ||
-    filters.capabilities.buildingBlocks;
+  // Track collapsible state (collapsed by default to save space)
+  const [isOpen, setIsOpen] = useState(false);
+
+  // Count active filters (excluding search) - memoized for performance
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (filters.status !== 'all') count++;
+    count += Object.values(filters.capabilities).filter(Boolean).length;
+    return count;
+  }, [filters.status, filters.capabilities]);
+
+  // Check if any filters are active - memoized for consistency
+  const hasActiveFilters = useMemo(
+    () => !!filters.search || activeFilterCount > 0,
+    [filters.search, activeFilterCount],
+  );
 
   return (
-    <div className="space-y-4">
-      {/* Search input */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <input
-          type="text"
-          placeholder="Search sessions by prompt..."
-          value={filters.search}
-          onChange={(e) => updateFilter('search', e.target.value)}
-          className={`w-full rounded-md border border-border bg-background pl-10 pr-10 py-2 text-sm text-foreground placeholder:text-muted-foreground ${focus.ring} ${transitions.colors}`}
-        />
-        {filters.search && (
-          <button
-            type="button"
-            onClick={clearSearch}
-            className={`absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground ${transitions.colors}`}
-            aria-label="Clear search"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        )}
-      </div>
-
-      {/* Filters row */}
+    <Collapsible.Root open={isOpen} onOpenChange={setIsOpen}>
       <div className="space-y-4">
-        {/* Status filters */}
-        <div>
-          <div className={`${typography.label} mb-2 block`}>Status</div>
-          <div className="flex flex-wrap gap-2">
-            <StatusChip
-              label="All"
-              active={filters.status === 'all'}
-              onClick={() => updateFilter('status', 'all')}
+        {/* Search input with inline filters button */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search sessions by prompt..."
+              value={filters.search}
+              onChange={(e) => updateFilter('search', e.target.value)}
+              className={`w-full rounded-md border border-border bg-background pl-10 pr-10 py-2 text-sm text-foreground placeholder:text-muted-foreground ${focus.ring} ${transitions.colors}`}
             />
-            <StatusChip
-              label="Completed"
-              active={filters.status === 'completed'}
-              onClick={() => updateFilter('status', 'completed')}
-              variant="completed"
-            />
-            <StatusChip
-              label="Failed"
-              active={filters.status === 'failed'}
-              onClick={() => updateFilter('status', 'failed')}
-              variant="failed"
-            />
-            <StatusChip
-              label="Generating"
-              active={filters.status === 'generating'}
-              onClick={() => updateFilter('status', 'generating')}
-              variant="generating"
-            />
+            {filters.search && (
+              <button
+                type="button"
+                onClick={clearSearch}
+                className={`absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground ${transitions.colors}`}
+                aria-label="Clear search"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
+
+          {/* Filters toggle button */}
+          <Collapsible.Trigger asChild>
+            <button
+              type="button"
+              className={`relative flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium ${transitions.colors} ${focus.ring} ${
+                isOpen
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'border-border bg-background text-foreground hover:bg-muted'
+              }`}
+              aria-label={
+                isOpen
+                  ? 'Hide filters'
+                  : activeFilterCount > 0
+                    ? `Show filters (${activeFilterCount} active)`
+                    : 'Show filters'
+              }
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              <span className="flex items-center gap-1">
+                Filters
+                {/* Blue dot indicator - inline with text */}
+                {activeFilterCount > 0 && (
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#1488FC]" aria-hidden="true" />
+                )}
+              </span>
+              <ChevronDown
+                className={`h-4 w-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
+          </Collapsible.Trigger>
         </div>
 
-        {/* Capability filters - compact chips */}
-        <div>
-          <div className={`${typography.label} mb-2 block`}>Capabilities</div>
-          <div className="flex flex-wrap gap-2">
-            <CapabilityFilterChip
-              icon={CAPABILITY_METADATA.template.icon}
-              iconColor={CAPABILITY_METADATA.template.iconColor}
-              label={CAPABILITY_METADATA.template.label}
-              active={filters.capabilities.template}
-              onClick={() => updateCapability('template')}
-            />
-            <CapabilityFilterChip
-              icon={CAPABILITY_METADATA.planning.icon}
-              iconColor={CAPABILITY_METADATA.planning.iconColor}
-              label={CAPABILITY_METADATA.planning.label}
-              active={filters.capabilities.planning}
-              onClick={() => updateCapability('planning')}
-            />
-            <CapabilityFilterChip
-              icon={CAPABILITY_METADATA.compiler.icon}
-              iconColor={CAPABILITY_METADATA.compiler.iconColor}
-              label={CAPABILITY_METADATA.compiler.label}
-              active={filters.capabilities.compilerChecks}
-              onClick={() => updateCapability('compilerChecks')}
-            />
-            <CapabilityFilterChip
-              icon={CAPABILITY_METADATA.buildingBlocks.icon}
-              iconColor={CAPABILITY_METADATA.buildingBlocks.iconColor}
-              label={CAPABILITY_METADATA.buildingBlocks.label}
-              active={filters.capabilities.buildingBlocks}
-              onClick={() => updateCapability('buildingBlocks')}
-            />
+        {/* Collapsible filters content */}
+        <Collapsible.Content className="collapsible-content">
+          <div className="space-y-4 pt-2">
+            {/* Status filters */}
+            <div>
+              <div className={`${typography.label} mb-2 block`}>Status</div>
+              <div className="flex flex-wrap gap-2">
+                <StatusChip
+                  label="All"
+                  active={filters.status === 'all'}
+                  onClick={() => updateFilter('status', 'all')}
+                />
+                <StatusChip
+                  label="Completed"
+                  active={filters.status === 'completed'}
+                  onClick={() => updateFilter('status', 'completed')}
+                  variant="completed"
+                />
+                <StatusChip
+                  label="Failed"
+                  active={filters.status === 'failed'}
+                  onClick={() => updateFilter('status', 'failed')}
+                  variant="failed"
+                />
+                <StatusChip
+                  label="Generating"
+                  active={filters.status === 'generating'}
+                  onClick={() => updateFilter('status', 'generating')}
+                  variant="generating"
+                />
+              </div>
+            </div>
+
+            {/* Capability filters - compact chips */}
+            <div>
+              <div className={`${typography.label} mb-2 block`}>Capabilities</div>
+              <div className="flex flex-wrap gap-2">
+                <CapabilityFilterChip
+                  icon={CAPABILITY_METADATA.template.icon}
+                  iconColor={CAPABILITY_METADATA.template.iconColor}
+                  label={CAPABILITY_METADATA.template.label}
+                  active={filters.capabilities.template}
+                  onClick={() => updateCapability('template')}
+                />
+                <CapabilityFilterChip
+                  icon={CAPABILITY_METADATA.planning.icon}
+                  iconColor={CAPABILITY_METADATA.planning.iconColor}
+                  label={CAPABILITY_METADATA.planning.label}
+                  active={filters.capabilities.planning}
+                  onClick={() => updateCapability('planning')}
+                />
+                <CapabilityFilterChip
+                  icon={CAPABILITY_METADATA.compiler.icon}
+                  iconColor={CAPABILITY_METADATA.compiler.iconColor}
+                  label={CAPABILITY_METADATA.compiler.label}
+                  active={filters.capabilities.compilerChecks}
+                  onClick={() => updateCapability('compilerChecks')}
+                />
+                <CapabilityFilterChip
+                  icon={CAPABILITY_METADATA.buildingBlocks.icon}
+                  iconColor={CAPABILITY_METADATA.buildingBlocks.iconColor}
+                  label={CAPABILITY_METADATA.buildingBlocks.label}
+                  active={filters.capabilities.buildingBlocks}
+                  onClick={() => updateCapability('buildingBlocks')}
+                />
+              </div>
+            </div>
           </div>
+        </Collapsible.Content>
+
+        {/* Results summary */}
+        <div className="flex items-center justify-between text-sm text-muted-foreground border-t border-border pt-3">
+          <span>
+            {hasActiveFilters
+              ? `Showing ${sessionCount} of ${totalCount} sessions`
+              : `${totalCount} sessions`}
+          </span>
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={() =>
+                onFiltersChange({
+                  search: '',
+                  status: 'all',
+                  capabilities: {
+                    template: false,
+                    planning: false,
+                    compilerChecks: false,
+                    buildingBlocks: false,
+                  },
+                })
+              }
+              className={`text-xs font-medium text-primary hover:underline ${transitions.colors}`}
+            >
+              Clear filters
+            </button>
+          )}
         </div>
       </div>
-
-      {/* Results summary */}
-      <div className="flex items-center justify-between text-sm text-muted-foreground border-t border-border pt-3">
-        <span>
-          {hasActiveFilters
-            ? `Showing ${sessionCount} of ${totalCount} sessions`
-            : `${totalCount} sessions`}
-        </span>
-        {hasActiveFilters && (
-          <button
-            type="button"
-            onClick={() =>
-              onFiltersChange({
-                search: '',
-                status: 'all',
-                capabilities: {
-                  template: false,
-                  planning: false,
-                  compilerChecks: false,
-                  buildingBlocks: false,
-                },
-              })
-            }
-            className={`text-xs font-medium text-primary hover:underline ${transitions.colors}`}
-          >
-            Clear filters
-          </button>
-        )}
-      </div>
-    </div>
+    </Collapsible.Root>
   );
 }
 

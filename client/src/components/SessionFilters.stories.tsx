@@ -162,6 +162,29 @@ export const NoResults: Story = {
 };
 
 /**
+ * Collapsible filters - showcases the blue dot indicator when filters are active
+ * NOTE: The blue dot appears whenever filters are active (both collapsed and expanded states).
+ * Uses the same gradient as the "Fullstack" branding for visual consistency.
+ */
+export const CollapsibleWithActiveDot: Story = {
+  args: {
+    filters: {
+      search: '',
+      status: 'completed',
+      capabilities: {
+        template: true,
+        planning: true,
+        compilerChecks: false,
+        buildingBlocks: true,
+      },
+    },
+    onFiltersChange: () => {},
+    sessionCount: 8,
+    totalCount: 39,
+  },
+};
+
+/**
  * Interactive example with state management
  */
 export const Interactive: Story = {

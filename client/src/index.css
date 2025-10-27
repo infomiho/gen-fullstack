@@ -151,3 +151,37 @@
   --color-capability-compiler: var(--capability-compiler);
   --color-capability-blocks: var(--capability-blocks);
 }
+
+/**
+ * Radix Collapsible Animation
+ * Smooth expand/collapse animation using CSS variables
+ */
+.collapsible-content {
+  overflow: hidden;
+}
+
+.collapsible-content[data-state="open"] {
+  animation: collapsibleSlideDown 200ms cubic-bezier(0.87, 0, 0.13, 1);
+}
+
+.collapsible-content[data-state="closed"] {
+  animation: collapsibleSlideUp 200ms cubic-bezier(0.87, 0, 0.13, 1);
+}
+
+@keyframes collapsibleSlideDown {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--radix-collapsible-content-height);
+  }
+}
+
+@keyframes collapsibleSlideUp {
+  from {
+    height: var(--radix-collapsible-content-height);
+  }
+  to {
+    height: 0;
+  }
+}
