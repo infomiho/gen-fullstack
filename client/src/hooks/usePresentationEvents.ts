@@ -136,6 +136,7 @@ export function usePresentationEvents(
 
   // Detect session start (live or replay)
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Session lifecycle management requires multiple conditionals and state checks
+  // biome-ignore lint/correctness/useExhaustiveDependencies: processQueue is stable and uses refs, should not trigger re-renders
   useEffect(() => {
     if (isEnabled && isActive && !previousActiveRef.current) {
       // Session just started (live generation or replay playback)
@@ -200,19 +201,11 @@ export function usePresentationEvents(
     }
 
     previousActiveRef.current = isActive;
-  }, [
-    isEnabled,
-    isActive,
-    messages,
-    setOverlay,
-    updateStats,
-    resetStats,
-    capabilityConfig,
-    processQueue,
-  ]);
+  }, [isEnabled, isActive, messages, setOverlay, updateStats, resetStats, capabilityConfig]);
 
   // Track tool calls and update HUD (works for both live and replay)
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Event tracking logic requires multiple conditionals and loops
+  // biome-ignore lint/correctness/useExhaustiveDependencies: processQueue is stable and uses refs, should not trigger re-renders
   useEffect(() => {
     if (!isEnabled || !isActive) return;
 
@@ -301,10 +294,11 @@ export function usePresentationEvents(
     }
 
     previousToolCallsCountRef.current = newToolCallsCount;
-  }, [isEnabled, isActive, toolCalls, incrementCombo, addToolCall, updateStats, processQueue]);
+  }, [isEnabled, isActive, toolCalls, incrementCombo, addToolCall, updateStats]);
 
   // Track tool results to parse plan summaries and validation results
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Tool result parsing requires multiple conditionals for different overlay types
+  // biome-ignore lint/correctness/useExhaustiveDependencies: processQueue is stable and uses refs, should not trigger re-renders
   useEffect(() => {
     if (!isEnabled || !isActive) return;
 
@@ -377,7 +371,7 @@ export function usePresentationEvents(
     }
 
     previousToolResultsCountRef.current = newToolResultsCount;
-  }, [isEnabled, isActive, toolResults, processQueue]);
+  }, [isEnabled, isActive, toolResults]);
 
   // Update duration periodically while active (live or replay)
   useEffect(() => {
