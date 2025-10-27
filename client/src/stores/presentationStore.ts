@@ -4,8 +4,15 @@ import type { CapabilityConfig } from '@gen-fullstack/shared';
 export type PresentationOverlay =
   | 'none'
   | 'generation-start' // "READY... FIGHT!"
+  | 'template-loading' // Template mode notification
+  | 'planning' // Architecture planning
+  | 'block-request' // Building block request
   | 'tool-hud' // Live tool call display
-  | 'file-created' // Achievement toast
+  | 'combo-milestone' // Combo achievement (5x, 10x, 20x+)
+  | 'validation-prisma' // Prisma schema validation
+  | 'validation-typescript' // TypeScript validation
+  | 'validation-result' // Validation result (pass/fail)
+  | 'file-created' // Achievement toast (deprecated - use combo-milestone)
   | 'error-ko' // "K.O." screen
   | 'victory'; // Final stats
 
@@ -54,6 +61,15 @@ export interface PresentationState {
     timestamp: number;
   }>;
   addToolCall: (name: string, file?: string) => void;
+
+  // Overlay-specific data
+  overlayData: {
+    planSummary?: { models: number; endpoints: number; components: number };
+    blockName?: string;
+    validationResult?: { passed: boolean; errorCount?: number; iteration?: number };
+    comboMilestone?: number;
+  };
+  setOverlayData: (data: PresentationState['overlayData']) => void;
 
   // Audio control
   isMuted: boolean;
@@ -155,6 +171,10 @@ export const usePresentationStore = create<PresentationState>((set) => ({
 
       return { recentToolCalls: updated };
     }),
+
+  // Overlay-specific data
+  overlayData: {},
+  setOverlayData: (data) => set({ overlayData: data }),
 
   // Audio control
   isMuted: true, // Default to muted

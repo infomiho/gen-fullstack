@@ -1,7 +1,12 @@
 import { AnimatePresence } from 'motion/react';
 import { usePresentationStore } from '../../stores/presentationStore';
 import { GenerationStartOverlay } from './overlays/GenerationStartOverlay';
+import { TemplateLoadingOverlay } from './overlays/TemplateLoadingOverlay';
+import { PlanningOverlay } from './overlays/PlanningOverlay';
+import { BlockRequestOverlay } from './overlays/BlockRequestOverlay';
 import { ToolCallHUD } from './overlays/ToolCallHUD';
+import { ComboMilestoneOverlay } from './overlays/ComboMilestoneOverlay';
+import { ValidationOverlay } from './overlays/ValidationOverlay';
 import { FileCreatedOverlay } from './overlays/FileCreatedOverlay';
 import { ErrorOverlay } from './overlays/ErrorOverlay';
 import { VictoryOverlay } from './overlays/VictoryOverlay';
@@ -35,7 +40,14 @@ export function PresentationMode() {
     <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 10000 }} aria-live="polite">
       <AnimatePresence mode="wait">
         {currentOverlay === 'generation-start' && <GenerationStartOverlay key="start" />}
+        {currentOverlay === 'template-loading' && <TemplateLoadingOverlay key="template" />}
+        {currentOverlay === 'planning' && <PlanningOverlay key="planning" />}
+        {currentOverlay === 'block-request' && <BlockRequestOverlay key="block" />}
         {currentOverlay === 'tool-hud' && <ToolCallHUD key="hud" />}
+        {currentOverlay === 'combo-milestone' && <ComboMilestoneOverlay key="combo" />}
+        {(currentOverlay === 'validation-prisma' ||
+          currentOverlay === 'validation-typescript' ||
+          currentOverlay === 'validation-result') && <ValidationOverlay key="validation" />}
         {currentOverlay === 'file-created' && <FileCreatedOverlay key="file" />}
         {currentOverlay === 'error-ko' && <ErrorOverlay key="error" />}
         {currentOverlay === 'victory' && <VictoryOverlay key="victory" />}
