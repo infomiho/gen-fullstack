@@ -147,6 +147,28 @@ export const hoverCard = {
   arrow: 'fill-card stroke-border',
 } as const;
 
+// Container styles - for visual grouping in sidebars
+export const container = {
+  // Light container with subtle border and background
+  light: `${radius.md} border border-border bg-muted/30 p-3`,
+  // Solid container (like PromptDisplay)
+  solid: `${radius.md} border border-border bg-muted p-3`,
+  // Plain - no background (like MetricsDisplay)
+  plain: '',
+} as const;
+
+// Link styles - for external and internal links
+export const link = {
+  // Primary link with underline
+  primary:
+    'text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 underline transition-colors',
+  // Small link (for compact spaces)
+  small:
+    'text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 underline transition-colors',
+  // Subtle link without underline
+  subtle: 'text-muted-foreground hover:text-foreground transition-colors',
+} as const;
+
 // Capability icon colors - now use CSS variables
 export const capabilityIcons = {
   codeGen: 'text-capability-codegen',

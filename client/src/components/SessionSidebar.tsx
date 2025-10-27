@@ -1,10 +1,10 @@
 import type { AppInfo } from '@gen-fullstack/shared';
 import { typography } from '../lib/design-tokens';
 import { Alert } from './Alert';
-import { AppControls } from './AppControls';
 import { CapabilitiesList } from './CapabilitiesList';
 import { MetricsDisplay } from './MetricsDisplay';
 import { PromptDisplay } from './PromptDisplay';
+import { UnifiedStatusSection } from './UnifiedStatusSection';
 
 interface SessionData {
   session: {
@@ -26,6 +26,7 @@ interface SessionSidebarProps {
   appStatus: AppInfo | null;
   isGenerating: boolean;
   isConnected: boolean;
+  isOwnSession: boolean;
   startApp: () => void;
   stopApp: () => void;
   onStartClick?: () => void;
@@ -48,6 +49,7 @@ export function SessionSidebar({
   appStatus,
   isGenerating,
   isConnected,
+  isOwnSession,
   startApp,
   stopApp,
   onStartClick,
@@ -109,9 +111,11 @@ export function SessionSidebar({
           <Alert variant="error">{sessionData.session.errorMessage}</Alert>
         )}
 
-        {/* App execution controls */}
+        {/* Unified status section */}
         <div className="pt-6 border-t border-border">
-          <AppControls
+          <UnifiedStatusSection
+            sessionStatus={sessionData.session.status}
+            isOwnSession={isOwnSession}
             currentSessionId={sessionId || null}
             appStatus={appStatus}
             isGenerating={isGenerating}

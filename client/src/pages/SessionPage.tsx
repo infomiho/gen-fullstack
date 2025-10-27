@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import {
   data,
   isRouteErrorResponse,
@@ -20,6 +20,7 @@ import { Timeline } from '../components/Timeline';
 import { TimelineScrubber } from '../components/TimelineScrubber';
 import { useToast } from '../components/ToastProvider';
 import { useSessionData } from '../hooks/useSessionData';
+import { useSessionRevalidation } from '../hooks/useSessionRevalidation';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { focus, padding, spacing, transitions, typography } from '../lib/design-tokens';
 import { useAppStore, useGenerationStore } from '../stores';
@@ -288,6 +289,11 @@ function SessionPage() {
   useSessionSubscription(socket, sessionId, hasSubscribedRef);
   useDisconnectionToast(isConnected, isActiveSession, showToast);
 
+  // Revalidate loader data when generation completes
+  // Only for sessions we're actively subscribed to (not just viewing read-only)
+  const isSubscribedSession = socket !== null && hasSubscribedRef.current;
+  useSessionRevalidation(socket, sessionId, isSubscribedSession);
+
   // Cleanup stores when sessionId changes
   useEffect(() => {
     // Exit replay mode if it's active for a different session
@@ -302,13 +308,28 @@ function SessionPage() {
     };
   }, [sessionId, exitReplayMode]);
 
+  // Memoized callbacks for SessionSidebar to prevent unnecessary re-renders
+  const handleStartApp = useCallback(() => {
+    if (sessionId) {
+      startApp(sessionId);
+    }
+  }, [sessionId, startApp]);
+
+  const handleStopApp = useCallback(() => {
+    if (sessionId) {
+      stopApp(sessionId);
+    }
+  }, [sessionId, stopApp]);
+
+  const handleStartClick = useCallback(() => {
+    if (sessionId) {
+      navigate(`/${sessionId}/preview`);
+    }
+  }, [sessionId, navigate]);
+
   return (
     <div className="grid h-screen grid-rows-[auto_1fr] bg-background">
-      <SessionHeader
-        sessionId={sessionId}
-        status={sessionData.session.status}
-        isOwnSession={isOwnSession}
-      />
+      <SessionHeader sessionId={sessionId} />
 
       {/* Main content */}
       <main className="grid grid-cols-[320px_1fr] overflow-hidden">
@@ -318,9 +339,10 @@ function SessionPage() {
           appStatus={appStatus}
           isGenerating={isActiveSession}
           isConnected={isConnected}
-          startApp={() => startApp(sessionId || '')}
-          stopApp={() => stopApp(sessionId || '')}
-          onStartClick={() => navigate(`/${sessionId}/preview`)}
+          isOwnSession={isOwnSession}
+          startApp={handleStartApp}
+          stopApp={handleStopApp}
+          onStartClick={handleStartClick}
         />
 
         {/* Right panel - Timeline & Files */}

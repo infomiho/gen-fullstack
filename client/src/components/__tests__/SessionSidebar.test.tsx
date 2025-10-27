@@ -37,6 +37,7 @@ describe('SessionSidebar', () => {
     appStatus: null,
     isGenerating: false,
     isConnected: true,
+    isOwnSession: false,
     startApp: vi.fn(),
     stopApp: vi.fn(),
   };

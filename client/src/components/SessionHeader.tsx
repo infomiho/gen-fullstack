@@ -1,12 +1,9 @@
 import { Link } from 'react-router';
 import { padding, transitions, typography } from '../lib/design-tokens';
 import { CopyButton } from './CopyButton';
-import { StatusBadge } from './StatusBadge';
 
 interface SessionHeaderProps {
   sessionId: string | undefined;
-  status: 'generating' | 'completed' | 'failed';
-  isOwnSession: boolean;
 }
 
 /**
@@ -14,11 +11,11 @@ interface SessionHeaderProps {
  *
  * Displays the header for a session page with:
  * - App title and home link (left)
- * - Session ID with copy button and status badge (right)
+ * - Session ID with copy button (right)
+ *
+ * Note: Status badge has been moved to UnifiedStatusSection in the sidebar
  */
-export function SessionHeader({ sessionId, status, isOwnSession }: SessionHeaderProps) {
-  const showLiveBadge = status === 'generating' && isOwnSession;
-
+export function SessionHeader({ sessionId }: SessionHeaderProps) {
   return (
     <header className={`border-b ${padding.page}`}>
       <div className="flex items-center justify-between">
@@ -31,12 +28,9 @@ export function SessionHeader({ sessionId, status, isOwnSession }: SessionHeader
             Fullstack
           </span>
         </Link>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5">
-            <span className={typography.caption}>Session: {sessionId}</span>
-            {sessionId && <CopyButton text={sessionId} title="Copy session ID" iconSize={14} />}
-          </div>
-          <StatusBadge status={status} variant="session" showLiveIndicator={showLiveBadge} />
+        <div className="flex items-center gap-1.5">
+          <span className={typography.caption}>Session: {sessionId}</span>
+          {sessionId && <CopyButton text={sessionId} title="Copy session ID" iconSize={14} />}
         </div>
       </div>
     </header>
