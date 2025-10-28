@@ -10,6 +10,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { buildSystemPrompt, buildUserPrompt } from '../prompt-builder.js';
+import type { ArchitecturePlan } from '@gen-fullstack/shared';
 
 describe('Prompt Builder', () => {
   describe('buildSystemPrompt', () => {
@@ -47,7 +48,7 @@ describe('Prompt Builder', () => {
       expect(prompt).not.toContain('VALIDATION TOOLS:');
     });
 
-    it('should include planning addon when enabled', () => {
+    it('should NOT include planning addon when enabled (Phase B - separate stage)', () => {
       const prompt = buildSystemPrompt({
         inputMode: 'naive',
         planning: true,
@@ -56,7 +57,8 @@ describe('Prompt Builder', () => {
         maxIterations: 3,
       });
 
-      expect(prompt).toContain('ARCHITECTURAL PLANNING:');
+      // Planning is now a separate pipeline stage, not an addon
+      expect(prompt).not.toContain('ARCHITECTURAL PLANNING:');
       expect(prompt).not.toContain('TEMPLATE INPUT MODE:');
       expect(prompt).not.toContain('BUILDING BLOCKS:');
       expect(prompt).not.toContain('VALIDATION TOOLS:');
@@ -77,7 +79,7 @@ describe('Prompt Builder', () => {
       expect(prompt).not.toContain('VALIDATION TOOLS:');
     });
 
-    it('should include compiler checks addon when enabled', () => {
+    it('should NOT include compiler checks addon when enabled (Phase B - separate stage)', () => {
       const prompt = buildSystemPrompt({
         inputMode: 'naive',
         planning: false,
@@ -86,13 +88,14 @@ describe('Prompt Builder', () => {
         maxIterations: 3,
       });
 
-      expect(prompt).toContain('VALIDATION TOOLS:');
+      // Validation is now a separate pipeline stage, not an addon
+      expect(prompt).not.toContain('VALIDATION TOOLS:');
       expect(prompt).not.toContain('TEMPLATE INPUT MODE:');
       expect(prompt).not.toContain('ARCHITECTURAL PLANNING:');
       expect(prompt).not.toContain('BUILDING BLOCKS:');
     });
 
-    it('should compose multiple addons correctly', () => {
+    it('should compose multiple addons correctly (Phase B - only active addons)', () => {
       const prompt = buildSystemPrompt({
         inputMode: 'template',
         planning: true,
@@ -101,11 +104,12 @@ describe('Prompt Builder', () => {
         maxIterations: 3,
       });
 
-      // Should include all addons
+      // Should include active addons (template, buildingBlocks)
+      // Planning and compilerChecks are now separate pipeline stages
       expect(prompt).toContain('TEMPLATE INPUT MODE:');
-      expect(prompt).toContain('ARCHITECTURAL PLANNING:');
+      expect(prompt).not.toContain('ARCHITECTURAL PLANNING:'); // Separate stage
       expect(prompt).toContain('BUILDING BLOCKS:');
-      expect(prompt).toContain('VALIDATION TOOLS:');
+      expect(prompt).not.toContain('VALIDATION TOOLS:'); // Separate stage
     });
 
     it('should maintain correct addon order', () => {
@@ -117,17 +121,13 @@ describe('Prompt Builder', () => {
         maxIterations: 3,
       });
 
-      // Get positions of each addon
+      // Get positions of active addons (Phase B)
       const templatePos = prompt.indexOf('TEMPLATE INPUT MODE:');
-      const planningPos = prompt.indexOf('ARCHITECTURAL PLANNING:');
       const blocksPos = prompt.indexOf('BUILDING BLOCKS:');
-      const validationPos = prompt.indexOf('VALIDATION TOOLS:');
 
-      // Verify order: base → template → planning → blocks → validation
+      // Verify order: base → template → blocks (planning/validation are separate stages)
       expect(templatePos).toBeGreaterThan(0);
-      expect(planningPos).toBeGreaterThan(templatePos);
-      expect(blocksPos).toBeGreaterThan(planningPos);
-      expect(validationPos).toBeGreaterThan(blocksPos);
+      expect(blocksPos).toBeGreaterThan(templatePos);
     });
 
     it('should generate longer prompts with more addons', () => {
@@ -262,25 +262,40 @@ describe('Prompt Builder', () => {
     });
 
     it('should include architectural plan when provided', () => {
-      const plan = `Database Models:
-- Todo (title, completed, userId)
-- User (name, email)
-
-API Routes:
-- GET /api/todos
-- POST /api/todos`;
+      const plan: ArchitecturePlan = {
+        databaseModels: [
+          {
+            name: 'Todo',
+            fields: ['title String', 'completed Boolean', 'userId String'],
+          },
+          {
+            name: 'User',
+            fields: ['name String', 'email String'],
+          },
+        ],
+        apiRoutes: [
+          { method: 'GET', path: '/api/todos', description: 'Get all todos' },
+          { method: 'POST', path: '/api/todos', description: 'Create a todo' },
+        ],
+      };
 
       const prompt = buildUserPrompt('Build a todo app', plan);
 
       expect(prompt).toContain('ARCHITECTURAL PLAN:');
       expect(prompt).toContain('Database Models:');
+      expect(prompt).toContain('- Todo:');
+      expect(prompt).toContain('- User:');
       expect(prompt).toContain('API Routes:');
+      expect(prompt).toContain('GET /api/todos');
+      expect(prompt).toContain('POST /api/todos');
       expect(prompt).toContain('USER REQUIREMENTS:');
       expect(prompt).toContain('Build a todo app');
     });
 
     it('should order plan before requirements', () => {
-      const plan = 'Some architectural plan';
+      const plan: ArchitecturePlan = {
+        databaseModels: [{ name: 'Model', fields: ['field String'] }],
+      };
       const prompt = buildUserPrompt('Build a todo app', plan);
 
       const planPos = prompt.indexOf('ARCHITECTURAL PLAN:');

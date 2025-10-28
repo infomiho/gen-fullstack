@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { ArchitecturePlan, ValidationError } from './index.js';
 
 /**
  * Capability system for composable app generation
@@ -101,27 +102,17 @@ export interface CapabilityContext {
   /** Start time of generation (for duration calculation) */
   startTime: number;
 
-  /** Generated plan (if planning capability was used) */
-  plan?: string;
+  /** Generated architectural plan (from PlanningCapability) */
+  plan?: ArchitecturePlan;
 
   /** Template files copied (if template capability was used) */
   templateFiles?: string[];
 
-  /** Validation results */
-  validation?: {
-    schemaValidationPassed?: boolean;
-    typeCheckPassed?: boolean;
-    errors?: Array<{
-      file: string;
-      line: number;
-      column: number;
-      code: string;
-      message: string;
-    }>;
-  };
+  /** Validation errors (from ValidationCapability) */
+  validationErrors?: ValidationError[];
 
-  /** Refinement iterations performed */
-  refinementIterations?: number;
+  /** Error fix iteration count (for ErrorFixingCapability) */
+  errorFixAttempts?: number;
 
   /** Abort signal for cancellation */
   abortSignal: AbortSignal;
@@ -135,7 +126,7 @@ export interface CapabilityContext {
  */
 export type AllowedContextUpdates = Pick<
   CapabilityContext,
-  'plan' | 'templateFiles' | 'validation' | 'refinementIterations'
+  'plan' | 'templateFiles' | 'validationErrors' | 'errorFixAttempts'
 >;
 
 // ============================================================================

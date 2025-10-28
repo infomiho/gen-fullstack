@@ -99,7 +99,17 @@ export class UnifiedCodeGenerationCapability extends BaseCapability {
       // Get tools filtered by capability configuration
       // - installNpmDep: only available in template mode
       // - requestBlock: only available when buildingBlocks is enabled
-      const availableTools = getToolsForCapability(this.config);
+      //
+      // IMPORTANT: Exclude tools that are replaced by machine-controlled capabilities:
+      // - planArchitecture: Planning is handled by PlanningCapability in 'planning' state
+      // - validatePrismaSchema, validateTypeScript: Validation is handled by ValidationCapability in 'validating' state
+      //
+      // The machine controls WHEN these capabilities run, not the LLM.
+      const availableTools = getToolsForCapability({
+        ...this.config,
+        planning: false, // Exclude planArchitecture tool
+        compilerChecks: false, // Exclude validation tools
+      });
 
       // Stream text generation with tools
       const result = streamText({

@@ -31,13 +31,17 @@ describe('PlanningCapability', () => {
     } as any;
 
     // Create capability instance
-    capability = new PlanningCapability('gpt-4o', mockIo);
+    capability = new PlanningCapability('gpt-5-mini', mockIo);
 
     // Mock context
     mockContext = {
       sessionId: 'test-session-123',
       prompt: 'Build a todo list app',
       sandboxPath: '/tmp/sandbox-123',
+      tokens: { input: 0, output: 0, total: 0 },
+      cost: 0,
+      toolCalls: 0,
+      startTime: Date.now(),
       abortSignal: new AbortController().signal,
     };
   });
@@ -131,8 +135,8 @@ describe('PlanningCapability', () => {
 
       expect(result.success).toBe(true);
       expect(result.contextUpdates?.plan).toEqual(mockPlan);
-      expect(result.tokensUsed.input).toBe(100);
-      expect(result.tokensUsed.output).toBe(200);
+      expect(result.tokensUsed?.input).toBe(100);
+      expect(result.tokensUsed?.output).toBe(200);
       expect(result.toolCalls).toBe(1);
     });
 
@@ -165,7 +169,7 @@ describe('PlanningCapability', () => {
       const result = await capability.execute(mockContext);
 
       expect(result.success).toBe(false);
-      expect(result.contextUpdates?.error).toContain(
+      expect(result.error).toContain(
         'LLM did not create a plan (planArchitecture tool was not called)',
       );
     });
@@ -218,7 +222,7 @@ describe('PlanningCapability', () => {
       const result = await capability.execute(mockContext);
 
       expect(result.success).toBe(false);
-      expect(result.contextUpdates?.error).toContain('Plan is empty');
+      expect(result.error).toContain('Plan is empty');
     });
 
     it('handles abort signal', async () => {
@@ -246,7 +250,7 @@ describe('PlanningCapability', () => {
       const result = await capability.execute(abortedContext);
 
       expect(result.success).toBe(false);
-      expect(result.contextUpdates?.error).toContain('Aborted');
+      expect(result.error).toContain('Aborted');
     });
   });
 });

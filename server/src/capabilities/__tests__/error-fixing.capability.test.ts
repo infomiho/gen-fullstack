@@ -43,7 +43,7 @@ describe('ErrorFixingCapability', () => {
     } as any;
 
     // Create capability instance
-    capability = new ErrorFixingCapability('gpt-4o', mockIo);
+    capability = new ErrorFixingCapability('gpt-5-mini', mockIo);
 
     // Mock validation errors
     mockValidationErrors = [
@@ -68,6 +68,10 @@ describe('ErrorFixingCapability', () => {
       sessionId: 'test-session-123',
       prompt: 'Build a todo list app',
       sandboxPath: '/tmp/sandbox-123',
+      tokens: { input: 0, output: 0, total: 0 },
+      cost: 0,
+      toolCalls: 0,
+      startTime: Date.now(),
       validationErrors: mockValidationErrors,
       errorFixAttempts: 0,
       abortSignal: new AbortController().signal,
@@ -177,8 +181,8 @@ describe('ErrorFixingCapability', () => {
 
       expect(result.success).toBe(true);
       expect(result.contextUpdates?.errorFixAttempts).toBe(1); // Incremented from 0
-      expect(result.tokensUsed.input).toBe(500);
-      expect(result.tokensUsed.output).toBe(300);
+      expect(result.tokensUsed?.input).toBe(500);
+      expect(result.tokensUsed?.output).toBe(300);
       expect(result.toolCalls).toBe(2); // readFile + writeFile
     });
 
@@ -250,7 +254,7 @@ describe('ErrorFixingCapability', () => {
       const result = await capability.execute(mockContext);
 
       expect(result.success).toBe(false);
-      expect(result.contextUpdates?.error).toContain('LLM API error');
+      expect(result.error).toContain('LLM API error');
     });
 
     it('handles abort signal', async () => {
@@ -278,7 +282,7 @@ describe('ErrorFixingCapability', () => {
       const result = await capability.execute(abortedContext);
 
       expect(result.success).toBe(false);
-      expect(result.contextUpdates?.error).toContain('Aborted');
+      expect(result.error).toContain('Aborted');
     });
 
     it('groups errors by type in prompt', async () => {

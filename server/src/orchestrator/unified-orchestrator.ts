@@ -2,6 +2,9 @@ import type { Server as SocketIOServer } from 'socket.io';
 import { createActor } from 'xstate';
 import { UnifiedCodeGenerationCapability } from '../capabilities/unified-code-generation.capability.js';
 import { TemplateCapability } from '../capabilities/template.capability.js';
+import { PlanningCapability } from '../capabilities/planning.capability.js';
+import { ValidationCapability } from '../capabilities/validation.capability.js';
+import { ErrorFixingCapability } from '../capabilities/error-fixing.capability.js';
 import { getEnv } from '../config/env.js';
 import { getErrorMessage, isAbortError } from '../lib/error-utils.js';
 import { createLogger } from '../lib/logger.js';
@@ -21,9 +24,15 @@ import {
   type GenerationMachineActor,
   type InitializeOutput,
   type InitializeInput,
+  type PlanningInput,
+  type PlanningOutput,
   type CopyTemplateInput,
   type CodeGenerationInput,
   type CodeGenerationOutput,
+  type ValidationInput,
+  type ValidationOutput,
+  type ErrorFixingInput,
+  type ErrorFixingOutput,
   type FinishInput,
 } from './generation.machine.js';
 
@@ -103,9 +112,9 @@ export class UnifiedOrchestrator {
   }
 
   /**
-   * Create and initialize the generation state machine (Phase 2: Active mode)
+   * Create and initialize the generation state machine
    *
-   * The machine now orchestrates the entire generation pipeline.
+   * The machine orchestrates the entire generation pipeline.
    */
   private createMachine(
     sessionId: string,
@@ -160,6 +169,54 @@ export class UnifiedOrchestrator {
           this.logger.info({ sessionId: input.sessionId }, 'Template copied successfully');
         },
 
+        // Run planning capability (Phase B)
+        planningActor: async (input: PlanningInput): Promise<PlanningOutput> => {
+          this.logger.info({ sessionId: input.sessionId }, 'Starting architectural planning');
+
+          const capability = new PlanningCapability(this.modelName, this.io);
+          const context: CapabilityContext = {
+            sessionId: input.sessionId,
+            prompt: input.prompt,
+            sandboxPath: input.sandboxPath,
+            tokens: { input: 0, output: 0, total: 0 },
+            cost: 0,
+            toolCalls: 0,
+            startTime: Date.now(),
+            abortSignal: this.abortController.signal,
+          };
+
+          const result = await capability.execute(context);
+
+          if (!result.success) {
+            this.logger.error(
+              { sessionId: input.sessionId, error: result.error },
+              'Planning failed',
+            );
+            throw new Error(result.error ?? 'Planning failed');
+          }
+
+          if (!result.contextUpdates?.plan) {
+            throw new Error('Planning capability did not return a plan');
+          }
+
+          this.logger.info(
+            {
+              sessionId: input.sessionId,
+              modelsCount: result.contextUpdates.plan.databaseModels?.length ?? 0,
+              routesCount: result.contextUpdates.plan.apiRoutes?.length ?? 0,
+              componentsCount: result.contextUpdates.plan.clientComponents?.length ?? 0,
+            },
+            'Planning completed',
+          );
+
+          return {
+            plan: result.contextUpdates.plan,
+            tokensUsed: result.tokensUsed ?? { input: 0, output: 0 },
+            cost: result.cost ?? 0,
+            toolCalls: result.toolCalls ?? 0,
+          };
+        },
+
         // Run unified code generation capability
         codeGenerationActor: async (input: CodeGenerationInput): Promise<CodeGenerationOutput> => {
           this.logger.info({ sessionId: input.sessionId }, 'Starting code generation');
@@ -173,6 +230,7 @@ export class UnifiedOrchestrator {
             sessionId: input.sessionId,
             prompt: input.prompt,
             sandboxPath: input.sandboxPath,
+            plan: input.plan, // Pass plan from planning stage
             tokens: { input: 0, output: 0, total: 0 },
             cost: 0,
             toolCalls: 0,
@@ -211,6 +269,100 @@ export class UnifiedOrchestrator {
               toolCalls: result.toolCalls,
             },
             'Code generation completed',
+          );
+
+          return output;
+        },
+
+        // Run validation capability (Phase B)
+        validationActor: async (input: ValidationInput): Promise<ValidationOutput> => {
+          this.logger.info({ sessionId: input.sessionId }, 'Starting validation');
+
+          const capability = new ValidationCapability(this.modelName, this.io);
+          const context: CapabilityContext = {
+            sessionId: input.sessionId,
+            prompt: '', // Not needed for validation
+            sandboxPath: input.sandboxPath,
+            tokens: { input: 0, output: 0, total: 0 },
+            cost: 0,
+            toolCalls: 0,
+            startTime: Date.now(),
+            abortSignal: this.abortController.signal,
+          };
+
+          const result = await capability.execute(context);
+
+          if (!result.success) {
+            this.logger.error(
+              { sessionId: input.sessionId, error: result.error },
+              'Validation failed',
+            );
+            throw new Error(result.error ?? 'Validation failed');
+          }
+
+          const validationErrors = result.contextUpdates?.validationErrors ?? [];
+
+          this.logger.info(
+            {
+              sessionId: input.sessionId,
+              errorCount: validationErrors.length,
+            },
+            'Validation completed',
+          );
+
+          return { validationErrors };
+        },
+
+        // Run error fixing capability (Phase B)
+        errorFixingActor: async (input: ErrorFixingInput): Promise<ErrorFixingOutput> => {
+          this.logger.info(
+            { sessionId: input.sessionId, iteration: input.errorFixAttempts + 1 },
+            'Starting error fixing',
+          );
+
+          const capability = new ErrorFixingCapability(this.modelName, this.io);
+          const context: CapabilityContext = {
+            sessionId: input.sessionId,
+            prompt: '', // Not needed - errors passed via context
+            sandboxPath: input.sandboxPath,
+            validationErrors: input.validationErrors,
+            errorFixAttempts: input.errorFixAttempts,
+            tokens: { input: 0, output: 0, total: 0 },
+            cost: 0,
+            toolCalls: 0,
+            startTime: Date.now(),
+            abortSignal: this.abortController.signal,
+          };
+
+          const result = await capability.execute(context);
+
+          const output: ErrorFixingOutput = {
+            tokensUsed: result.tokensUsed ?? { input: 0, output: 0 },
+            cost: result.cost ?? 0,
+            toolCalls: result.toolCalls ?? 0,
+          };
+
+          if (!result.success) {
+            this.logger.error(
+              {
+                sessionId: input.sessionId,
+                error: result.error,
+                partialMetrics: output,
+              },
+              'Error fixing failed (captured partial metrics)',
+            );
+            throw new Error(result.error ?? 'Error fixing failed');
+          }
+
+          this.logger.info(
+            {
+              sessionId: input.sessionId,
+              iteration: input.errorFixAttempts + 1,
+              tokensUsed: result.tokensUsed,
+              cost: result.cost,
+              toolCalls: result.toolCalls,
+            },
+            'Error fixing completed',
           );
 
           return output;
@@ -298,7 +450,7 @@ export class UnifiedOrchestrator {
   /**
    * Generate an app using the unified capability system
    *
-   * Phase 2: Event-driven orchestration via XState machine
+   * Event-driven orchestration via XState machine
    *
    * @param prompt - User's app description
    * @param config - Capability configuration
@@ -320,43 +472,40 @@ export class UnifiedOrchestrator {
     );
 
     // Create and start the state machine
-    this.actor = this.createMachine(sessionId, prompt, config);
+    const actor = this.createMachine(sessionId, prompt, config);
+    this.actor = actor;
 
     try {
       // Check if already aborted before starting
       if (this.abortController.signal.aborted) {
-        this.actor.send({ type: 'ABORT' });
+        actor.send({ type: 'ABORT' });
         throw new Error('Generation aborted');
       }
 
       // Send START event to begin generation
-      this.actor.send({ type: 'START', sessionId, prompt, config, modelName: this.modelName });
+      actor.send({ type: 'START', sessionId, prompt, config, modelName: this.modelName });
 
       // Wait for machine to reach a final state
-      const snapshot = await new Promise<ReturnType<typeof this.actor.getSnapshot>>(
+      const snapshot = await new Promise<ReturnType<typeof actor.getSnapshot>>(
         (resolve, reject) => {
-          // Actor must exist at this point (created above), but use optional chaining for safety
-          const subscription = this.actor?.subscribe((state) => {
+          // Subscribe to state changes
+          const subscription = actor.subscribe((state) => {
             // Check if we reached a final state
             if (state.status === 'done') {
-              subscription?.unsubscribe();
+              subscription.unsubscribe();
               resolve(state);
             }
           });
 
-          if (!subscription) {
-            reject(new Error('Failed to subscribe to actor'));
-            return;
-          }
-
-          // Set up abort handler immediately after subscription
+          // Set up abort handler with cleanup
           const abortHandler = () => {
             subscription.unsubscribe();
-            this.actor?.send({ type: 'ABORT' });
+            this.abortController.signal.removeEventListener('abort', abortHandler);
+            actor.send({ type: 'ABORT' });
             reject(new Error('Generation aborted'));
           };
 
-          this.abortController.signal.addEventListener('abort', abortHandler);
+          this.abortController.signal.addEventListener('abort', abortHandler, { once: true });
         },
       );
 

@@ -56,7 +56,23 @@ vi.mock('../../config/prompt-builder.js', () => ({
     return parts.join('\n\n');
   }),
   buildUserPrompt: vi.fn((prompt, plan) => {
-    return plan ? `${prompt}\n\nArchitectural Plan:\n${plan}` : prompt;
+    if (!plan) return prompt;
+    // Format plan object into readable text
+    const planText = [
+      'ARCHITECTURAL PLAN:',
+      plan.databaseModels
+        ? `\nDatabase Models:\n${plan.databaseModels.map((m: any) => `- ${m.name}`).join('\n')}`
+        : '',
+      plan.apiRoutes
+        ? `\nAPI Routes:\n${plan.apiRoutes.map((r: any) => `- ${r.method} ${r.path}`).join('\n')}`
+        : '',
+      plan.clientComponents
+        ? `\nClient Components:\n${plan.clientComponents.map((c: any) => `- ${c.name}`).join('\n')}`
+        : '',
+    ]
+      .filter(Boolean)
+      .join('\n');
+    return `${planText}\n\nUSER REQUIREMENTS:\n${prompt}`;
   }),
 }));
 
@@ -131,7 +147,14 @@ describe('UnifiedCodeGenerationCapability - Prompt Storage', () => {
   it('should store full user prompt with architectural plan when present', async () => {
     const contextWithPlan = {
       ...context,
-      plan: 'Database schema:\n- User model\n- Task model',
+      plan: {
+        databaseModels: [
+          { name: 'User', fields: ['id String @id', 'name String'] },
+          { name: 'Task', fields: ['id String @id', 'title String'] },
+        ],
+        apiRoutes: [{ method: 'GET' as const, path: '/api/users', description: 'Get all users' }],
+        clientComponents: [{ name: 'UserList', purpose: 'Display list of users' }],
+      },
     };
 
     await capability.execute(contextWithPlan);
@@ -139,13 +162,13 @@ describe('UnifiedCodeGenerationCapability - Prompt Storage', () => {
     expect(databaseService.updateSession).toHaveBeenCalledWith(
       'test-session-id',
       expect.objectContaining({
-        fullUserPrompt: expect.stringContaining('Database schema:'),
+        fullUserPrompt: expect.stringContaining('Database Models:'),
       }),
     );
 
     const updateCall = vi.mocked(databaseService.updateSession).mock.calls[0];
     expect(updateCall[1].fullUserPrompt).toContain('Build a todo app');
-    expect(updateCall[1].fullUserPrompt).toContain('Architectural Plan:');
+    expect(updateCall[1].fullUserPrompt).toContain('ARCHITECTURAL PLAN:');
   });
 
   it('should include template addon in system prompt when inputMode is template', async () => {

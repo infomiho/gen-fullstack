@@ -5,7 +5,7 @@
  * Each capability adds a small, non-conflicting section to the base prompt.
  */
 
-import type { CapabilityConfig } from '@gen-fullstack/shared';
+import type { ArchitecturePlan, CapabilityConfig } from '@gen-fullstack/shared';
 
 /**
  * Base system prompt - always included
@@ -259,17 +259,6 @@ All tsconfig.json, vite.config.ts files are ready.
 Focus on implementing the specific features requested by the user.`,
 
   /**
-   * Planning addon
-   * Indicates architectural plan is available as a tool or in context
-   */
-  planning: `
-ARCHITECTURAL PLANNING:
-You have access to the planArchitecture tool to create a structured plan before implementation.
-Use it to define database schema, API routes, and components before writing code.
-
-If a plan is provided in the user prompt, follow it carefully.`,
-
-  /**
    * Building blocks addon
    * Minimal description - integration guide shown AFTER tool call
    */
@@ -282,23 +271,14 @@ Available blocks:
 
 To use: Call requestBlock({ blockId: "auth-password", reason: "why you need it" })
 The tool will return files and an integration guide.`,
-
-  /**
-   * Compiler checks addon
-   * Informs LLM that validation tools are available
-   */
-  compilerChecks: `
-VALIDATION TOOLS:
-You have access to validation tools to check your code:
-- validatePrismaSchema: Check Prisma schema for errors
-- validateTypeScript: Run TypeScript compiler on client/server
-
-Use these tools as you work to catch and fix errors early.
-The tools will return detailed error messages if issues are found.`,
 } as const;
 
 /**
  * Build complete system prompt by composing base + enabled addons
+ *
+ * Note: Planning and compiler checks are NOT included here because they are
+ * handled by separate pipeline stages (PlanningCapability, ValidationCapability)
+ * controlled by the state machine, not by the LLM.
  */
 export function buildSystemPrompt(config: CapabilityConfig): string {
   const sections: string[] = [BASE_SYSTEM_PROMPT];
@@ -308,16 +288,8 @@ export function buildSystemPrompt(config: CapabilityConfig): string {
     sections.push(PROMPT_ADDONS.template);
   }
 
-  if (config.planning) {
-    sections.push(PROMPT_ADDONS.planning);
-  }
-
   if (config.buildingBlocks) {
     sections.push(PROMPT_ADDONS.buildingBlocks);
-  }
-
-  if (config.compilerChecks) {
-    sections.push(PROMPT_ADDONS.compilerChecks);
   }
 
   return sections.join('\n');
@@ -325,17 +297,76 @@ export function buildSystemPrompt(config: CapabilityConfig): string {
 
 /**
  * Build user prompt from context
+ * Accepts structured plan from PlanningCapability (Phase B)
  */
-export function buildUserPrompt(userRequirements: string, architecturalPlan?: string): string {
+export function buildUserPrompt(
+  userRequirements: string,
+  architecturalPlan?: ArchitecturePlan,
+): string {
   const sections: string[] = [];
 
   if (architecturalPlan) {
-    sections.push(`ARCHITECTURAL PLAN:\n${architecturalPlan}`);
+    sections.push(formatArchitecturalPlan(architecturalPlan));
+    sections.push(
+      `TASK: Implement the architectural plan above.
+
+Use writeFile, readFile, and other available tools to:
+1. Implement the database models in prisma/schema.prisma
+2. Implement the API routes in server/src/routes/
+3. Implement the client components in client/src/
+
+Work systematically through each part of the plan. Call tools to read existing files and write new implementations.`,
+    );
   }
 
   sections.push(`USER REQUIREMENTS:\n${userRequirements}`);
 
   return sections.join('\n\n');
+}
+
+/**
+ * Format structured architectural plan for prompt
+ * Converts ArchitecturePlan JSON to readable text format
+ */
+function formatArchitecturalPlan(plan: ArchitecturePlan): string {
+  const sections: string[] = ['ARCHITECTURAL PLAN:'];
+
+  // Database models
+  if (plan.databaseModels && plan.databaseModels.length > 0) {
+    sections.push('\nDatabase Models:');
+    for (const model of plan.databaseModels) {
+      sections.push(`\n- ${model.name}:`);
+      if (model.fields && model.fields.length > 0) {
+        sections.push(`  Fields: ${model.fields.join(', ')}`);
+      }
+      if (model.relations && model.relations.length > 0) {
+        sections.push(`  Relations: ${model.relations.join(', ')}`);
+      }
+    }
+  }
+
+  // API routes
+  if (plan.apiRoutes && plan.apiRoutes.length > 0) {
+    sections.push('\nAPI Routes:');
+    for (const route of plan.apiRoutes) {
+      sections.push(`\n- ${route.method} ${route.path}`);
+      sections.push(`  ${route.description}`);
+    }
+  }
+
+  // Client components
+  if (plan.clientComponents && plan.clientComponents.length > 0) {
+    sections.push('\nClient Components:');
+    for (const component of plan.clientComponents) {
+      sections.push(`\n- ${component.name}`);
+      sections.push(`  ${component.purpose}`);
+      if (component.key_features && component.key_features.length > 0) {
+        sections.push(`  Features: ${component.key_features.join(', ')}`);
+      }
+    }
+  }
+
+  return sections.join('\n');
 }
 
 /**

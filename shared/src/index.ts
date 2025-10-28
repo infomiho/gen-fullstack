@@ -191,6 +191,18 @@ export interface ArchitecturePlan {
   clientComponents?: ClientComponent[];
 }
 
+/**
+ * Validation error from compiler checks
+ */
+export interface ValidationError {
+  type: 'prisma' | 'typescript';
+  file: string;
+  message: string;
+  line?: number;
+  column?: number;
+  code?: string; // e.g., "TS2304" for TypeScript errors
+}
+
 // ============================================================================
 // App Execution Types
 // ============================================================================
