@@ -51,7 +51,7 @@ export class LogManager extends EventEmitter {
    *
    * @param sessionId - Session identifier
    * @param level - Log level (command, system, info, warn, error)
-   * @param message - Log message
+   * @param message - Log message (for 'command' level, '$ ' prefix will be added automatically)
    * @param type - Stream type (stdout or stderr), defaults to stdout
    */
   emitLog(
@@ -65,7 +65,7 @@ export class LogManager extends EventEmitter {
       timestamp: Date.now(),
       type,
       level,
-      message,
+      message: level === 'command' ? `$ ${message}` : message,
     };
     this.storeLogEntry(sessionId, log);
   }

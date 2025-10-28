@@ -152,7 +152,8 @@ function HomePage() {
   const handleGenerate = () => {
     if (prompt.trim()) {
       startGeneration(prompt, capabilityConfig, 'gpt-5-mini');
-      setPrompt('');
+      // Keep prompt visible in input after generation starts
+      // (it will be cleared when user manually edits it or navigates away)
     }
   };
 

@@ -7,6 +7,7 @@
 import { EventEmitter } from 'node:events';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DockerService } from '../docker.service';
+import { NPM_COMMANDS } from '../docker/index.js';
 
 // Mock fs for socket path detection
 vi.mock('node:fs', () => ({
@@ -271,7 +272,7 @@ describe('DockerService', () => {
       const mockContainer = (Docker as any).mockContainer;
       expect(mockContainer.exec).toHaveBeenCalledWith(
         expect.objectContaining({
-          Cmd: ['npm', 'install', '--loglevel=info'],
+          Cmd: [...NPM_COMMANDS.install.cmd],
           WorkingDir: '/app',
         }),
       );
@@ -291,7 +292,7 @@ describe('DockerService', () => {
         expect.objectContaining({
           sessionId,
           level: 'command',
-          message: '$ npm install --loglevel=info',
+          message: `$ ${NPM_COMMANDS.install.display}`,
           type: 'stdout',
           timestamp: expect.any(Number),
         }),

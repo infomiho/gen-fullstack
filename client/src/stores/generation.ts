@@ -29,6 +29,8 @@ interface GenerationState {
   files: FileUpdate[];
   isGenerating: boolean;
   metrics: GenerationMetrics | null;
+  // Track current session to enable session-aware cleanup
+  currentSessionId: string | null;
 }
 
 interface GenerationActions {
@@ -54,6 +56,8 @@ interface GenerationActions {
     count: number;
     type: 'messages' | 'toolCalls' | 'toolResults';
   };
+  // Session-aware cleanup: only resets if switching to a different session
+  prepareForSession: (sessionId: string) => void;
 }
 
 type GenerationStore = GenerationState & GenerationActions;
@@ -65,6 +69,7 @@ const initialState: GenerationState = {
   files: [],
   isGenerating: false,
   metrics: null,
+  currentSessionId: null,
 };
 
 export const useGenerationStore = create<GenerationStore>()(
@@ -154,6 +159,20 @@ export const useGenerationStore = create<GenerationStore>()(
 
         return { truncated, count, type };
       },
+
+      prepareForSession: (sessionId) =>
+        set((state) => {
+          // Only reset if switching between two DIFFERENT non-null sessions
+          // This prevents memory leaks while avoiding React Strict Mode cleanup issues
+          // null -> sessionId (first session): Just set ID, don't reset (preserves messages)
+          // sessionId1 -> sessionId2 (different sessions): Reset and set new ID
+          // sessionId -> sessionId (same session): No-op
+          if (state.currentSessionId !== null && state.currentSessionId !== sessionId) {
+            return { ...initialState, currentSessionId: sessionId };
+          }
+          // First session OR same session, just update the ID
+          return { ...state, currentSessionId: sessionId };
+        }),
     })),
     { name: 'GenerationStore' },
   ),

@@ -147,6 +147,12 @@ export function useWebSocket(navigate?: NavigateFunction): UseWebSocketReturn {
     };
 
     const handleSessionStarted = ({ sessionId }: { sessionId: string }) => {
+      // Set currentSessionId in stores BEFORE navigation to prevent reset
+      // This ensures that when SessionPage calls prepareForSession, it sees the same session ID
+      // and won't reset the stores (which would lose all the messages added so far)
+      useGenerationStore.getState().prepareForSession(sessionId);
+      useAppStore.getState().prepareForSession(sessionId);
+
       // If navigate function provided (from HomePage), navigate directly to session page
       if (navigateRef.current) {
         navigateRef.current(`/${sessionId}`);

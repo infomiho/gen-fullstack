@@ -79,3 +79,13 @@ export const LOG_RETENTION = {
   maxLogs: 1000, // Maximum logs to keep in memory
   pruneThreshold: 1200, // Prune when logs exceed this count
 } as const;
+
+/**
+ * NPM commands
+ */
+export const NPM_COMMANDS = {
+  install: {
+    cmd: ['npm', 'install', '--loglevel=warn'] as const,
+    display: 'npm install --loglevel=warn',
+  },
+} as const;

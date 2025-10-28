@@ -145,6 +145,15 @@ export function setupWebSocket(httpServer: HTTPServer) {
       try {
         const { sessionId } = SubscribeSessionSchema.parse(payload);
 
+        // If already in this room, no need to leave/rejoin (avoids race condition)
+        if (socket.rooms.has(sessionId)) {
+          websocketLogger.debug(
+            { socketId: socket.id, sessionId },
+            'Already subscribed to session',
+          );
+          return;
+        }
+
         // Leave all previous session rooms before joining the new one
         // Note: socket.rooms is a Set<string> containing all rooms this socket is in
         // Every socket is automatically in a room matching its socket.id (never leave this!)
@@ -175,6 +184,8 @@ export function setupWebSocket(httpServer: HTTPServer) {
         socket.join(sessionId);
         websocketLogger.info({ socketId: socket.id, sessionId }, 'Socket joined session room');
 
+        // Create session in database before emitting session_started
+        // This ensures the data is ready when clientLoader fetches it
         await databaseService.createSession({
           id: sessionId,
           prompt: validated.prompt,

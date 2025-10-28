@@ -217,42 +217,10 @@ export const planArchitecture = tool({
       .max(200)
       .describe('Why you are creating this plan and what problem it solves (10-200 characters)'),
   }),
-  execute: async (
-    { databaseModels, apiRoutes, clientComponents },
-    { experimental_context: context },
-  ) => {
-    const { sessionId, io } = extractToolContext(context);
-
-    // Format plan as structured text
-    const plan = `ARCHITECTURAL PLAN:
-
-DATABASE MODELS:
-${databaseModels
-  .map(
-    (m) =>
-      `- ${m.name}\n  Fields: ${m.fields.join(', ')}\n  Relations: ${
-        m.relations?.join(', ') || 'None'
-      }`,
-  )
-  .join('\n')}
-
-API ROUTES:
-${apiRoutes.map((r) => `- ${r.method} ${r.path}: ${r.description}`).join('\n')}
-
-CLIENT COMPONENTS:
-${clientComponents
-  .map(
-    (c) =>
-      `- ${c.name}: ${c.purpose}${
-        c.key_features ? `\n  Features: ${c.key_features.join(', ')}` : ''
-      }`,
-  )
-  .join('\n')}`;
-
-    // Emit plan as system message
-    emitPersistedMessage(sessionId, io, 'system', `✓ Architectural plan created:\n${plan}`);
-
-    return `Plan created successfully. Proceed with implementation following this structure.`;
+  execute: async ({ databaseModels, apiRoutes, clientComponents }) => {
+    // Tool validates that the LLM provided structured plan data
+    // No longer emits verbose plan to timeline - LLM has the plan context already
+    return `Plan created successfully with ${databaseModels.length} database models, ${apiRoutes.length} API routes, and ${clientComponents.length} client components. Proceed with implementation following this structure.`;
   },
 });
 

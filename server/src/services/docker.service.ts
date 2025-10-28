@@ -26,6 +26,7 @@ import {
   getDockerSocketPath,
   hasDestroyMethod,
   LogManager,
+  NPM_COMMANDS,
   PORT_RANGE,
   PortManager,
   RESOURCE_LIMITS,
@@ -228,10 +229,10 @@ export class DockerService extends EventEmitter {
           try {
             // Step 1: npm install
             this.logManager.emitLog(input.sessionId, 'system', 'Installing dependencies...');
-            this.logManager.emitLog(input.sessionId, 'command', '$ npm install --loglevel=info');
+            this.logManager.emitLog(input.sessionId, 'command', NPM_COMMANDS.install.display);
 
             const installExec = await input.container.exec({
-              Cmd: ['npm', 'install', '--loglevel=info'],
+              Cmd: [...NPM_COMMANDS.install.cmd],
               AttachStdout: true,
               AttachStderr: true,
               WorkingDir: '/app',
@@ -255,7 +256,7 @@ export class DockerService extends EventEmitter {
 
             // Step 2: Prisma generate
             this.logManager.emitLog(input.sessionId, 'system', 'Generating Prisma client...');
-            this.logManager.emitLog(input.sessionId, 'command', '$ npx prisma generate');
+            this.logManager.emitLog(input.sessionId, 'command', 'npx prisma generate');
 
             const generateExec = await input.container.exec({
               Cmd: ['npx', 'prisma', 'generate'],
@@ -289,7 +290,7 @@ export class DockerService extends EventEmitter {
             this.logManager.emitLog(
               input.sessionId,
               'command',
-              '$ npx prisma migrate dev --name init',
+              'npx prisma migrate dev --name init',
             );
 
             const migrateExec = await input.container.exec({
@@ -338,7 +339,7 @@ export class DockerService extends EventEmitter {
             'system',
             'Starting development servers (client + server)...',
           );
-          this.logManager.emitLog(input.sessionId, 'command', '$ npm run dev');
+          this.logManager.emitLog(input.sessionId, 'command', 'npm run dev');
 
           const exec = await input.container.exec({
             Cmd: ['npm', 'run', 'dev'],

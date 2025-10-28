@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   data,
   isRouteErrorResponse,
@@ -135,21 +135,24 @@ function getActiveTab(tab: string | undefined) {
 
 /**
  * Helper: Subscribe to session WebSocket events
+ * Returns whether the subscription is active (as state to trigger re-renders)
  */
 function useSessionSubscription(
   socket: ReturnType<typeof useWebSocket>['socket'],
   sessionId: string | undefined,
-  hasSubscribedRef: React.MutableRefObject<boolean>,
-) {
+): boolean {
+  const [isSubscribed, setIsSubscribed] = useState(false);
+
   useEffect(() => {
-    if (!socket || !sessionId) return;
+    if (!socket || !sessionId) {
+      setIsSubscribed(false);
+      return;
+    }
 
     const subscribeToSession = () => {
-      if (!hasSubscribedRef.current) {
-        hasSubscribedRef.current = true;
-        socket.emit('subscribe_to_session', { sessionId });
-        socket.emit('get_app_status', { sessionId });
-      }
+      setIsSubscribed(true);
+      socket.emit('subscribe_to_session', { sessionId });
+      socket.emit('get_app_status', { sessionId });
     };
 
     if (socket.connected) {
@@ -157,12 +160,11 @@ function useSessionSubscription(
     }
 
     const handleReconnect = () => {
-      hasSubscribedRef.current = false;
       subscribeToSession();
     };
 
     const handleDisconnect = () => {
-      hasSubscribedRef.current = false;
+      setIsSubscribed(false);
     };
 
     socket.on('connect', handleReconnect);
@@ -171,9 +173,11 @@ function useSessionSubscription(
     return () => {
       socket.off('connect', handleReconnect);
       socket.off('disconnect', handleDisconnect);
-      hasSubscribedRef.current = false;
+      setIsSubscribed(false);
     };
-  }, [socket, sessionId, hasSubscribedRef]);
+  }, [socket, sessionId]);
+
+  return isSubscribed;
 }
 
 /**
@@ -229,7 +233,6 @@ function SessionPage() {
   const { exitReplayMode, enterReplayMode: enterReplay } = useReplayStore();
 
   const previewContainerRef = useRef<HTMLDivElement>(null);
-  const hasSubscribedRef = useRef(false);
 
   const activeTab = getActiveTab(tab);
 
@@ -273,12 +276,15 @@ function SessionPage() {
     }
   }, [activeTab]);
 
+  // Subscribe to session WebSocket events and get subscription status
+  const isSubscribed = useSessionSubscription(socket, sessionId);
+
   // Determine if session is actively generating
   const isActiveSession = socket
     ? isGeneratingWebSocket
     : sessionData.session.status === 'generating';
 
-  const isConnectedToRoom = Boolean(socket?.connected && hasSubscribedRef.current);
+  const isConnectedToRoom = Boolean(socket?.connected && isSubscribed);
   const isOwnSession = socket !== null && isActiveSession;
 
   // Use custom hook to handle data merging (unless in replay mode)
@@ -337,26 +343,29 @@ function SessionPage() {
   // Handle presentation playback (auto-advance through overlays)
   usePresentationPlayback();
 
-  useSessionSubscription(socket, sessionId, hasSubscribedRef);
   useDisconnectionToast(isConnected, isActiveSession, showToast);
 
   // Revalidate loader data when generation completes
   // Only for sessions we're actively subscribed to (not just viewing read-only)
-  const isSubscribedSession = socket !== null && hasSubscribedRef.current;
+  const isSubscribedSession = socket !== null && isSubscribed;
   useSessionRevalidation(socket, sessionId, isSubscribedSession);
 
-  // Cleanup stores when sessionId changes
+  // Prepare stores for this session (cleanup if switching sessions)
+  // This prevents memory leaks by resetting stores when navigating between different sessions
+  // while avoiding React Strict Mode issues by only resetting on actual session changes
   useEffect(() => {
-    // Exit replay mode if it's active for a different session
+    if (sessionId) {
+      useGenerationStore.getState().prepareForSession(sessionId);
+      useAppStore.getState().prepareForSession(sessionId);
+    }
+  }, [sessionId]);
+
+  // Exit replay mode if viewing a different session
+  useEffect(() => {
     const replayState = useReplayStore.getState();
     if (replayState.isReplayMode && replayState.sessionId !== sessionId) {
       exitReplayMode();
     }
-
-    return () => {
-      useGenerationStore.getState().reset();
-      useAppStore.getState().reset();
-    };
   }, [sessionId, exitReplayMode]);
 
   // Memoized callbacks for SessionSidebar to prevent unnecessary re-renders

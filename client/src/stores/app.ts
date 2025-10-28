@@ -18,6 +18,8 @@ interface AppState {
   appStatus: AppInfo | null;
   appLogs: AppLog[];
   buildEvents: BuildEvent[];
+  // Track current session to enable session-aware cleanup
+  currentSessionId: string | null;
 }
 
 interface AppActions {
@@ -28,6 +30,8 @@ interface AppActions {
   clearBuildEvents: () => void;
   reset: () => void;
   checkAndTruncateLogs: () => { truncated: boolean; count: number };
+  // Session-aware cleanup: only resets if switching to a different session
+  prepareForSession: (sessionId: string) => void;
 }
 
 type AppStore = AppState & AppActions;
@@ -36,6 +40,7 @@ const initialState: AppState = {
   appStatus: null,
   appLogs: [],
   buildEvents: [],
+  currentSessionId: null,
 };
 
 export const useAppStore = create<AppStore>()(
@@ -71,6 +76,20 @@ export const useAppStore = create<AppStore>()(
 
         return result;
       },
+
+      prepareForSession: (sessionId) =>
+        set((state) => {
+          // Only reset if switching between two DIFFERENT non-null sessions
+          // This prevents memory leaks while avoiding React Strict Mode cleanup issues
+          // null -> sessionId (first session): Just set ID, don't reset (preserves state)
+          // sessionId1 -> sessionId2 (different sessions): Reset and set new ID
+          // sessionId -> sessionId (same session): No-op
+          if (state.currentSessionId !== null && state.currentSessionId !== sessionId) {
+            return { ...initialState, currentSessionId: sessionId };
+          }
+          // First session OR same session, just update the ID
+          return { ...state, currentSessionId: sessionId };
+        }),
     })),
     { name: 'AppStore' },
   ),
