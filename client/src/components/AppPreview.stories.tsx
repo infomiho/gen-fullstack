@@ -6,7 +6,7 @@ import { AppPreview } from './AppPreview';
  * Shows different states based on app status (idle, running, failed, etc.).
  */
 const meta: Meta<typeof AppPreview> = {
-  title: 'UI/App Execution/AppPreview',
+  title: 'App/AppPreview',
   component: AppPreview,
   parameters: {
     layout: 'fullscreen',

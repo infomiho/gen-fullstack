@@ -6,7 +6,7 @@ import { FileTree } from './FileTree';
  * Files are organized by directory structure with expandable folders.
  */
 const meta: Meta<typeof FileTree> = {
-  title: 'UI/Editor/FileTree',
+  title: 'Editor/FileTree',
   component: FileTree,
   parameters: {
     layout: 'padded',

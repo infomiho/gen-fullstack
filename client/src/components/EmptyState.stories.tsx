@@ -3,7 +3,7 @@ import { Bot, FileText, FolderOpen, PackageOpen } from 'lucide-react';
 import { EmptyState } from './EmptyState';
 
 const meta = {
-  title: 'UI/Primitives/EmptyState',
+  title: 'Primitives/EmptyState',
   component: EmptyState,
   parameters: {
     layout: 'centered',

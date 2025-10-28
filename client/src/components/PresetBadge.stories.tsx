@@ -5,7 +5,7 @@ import { fn } from 'storybook/test';
 import { PresetBadge } from './PresetBadge';
 
 const meta = {
-  title: 'UI/Badges/PresetBadge',
+  title: 'Badges/PresetBadge',
   component: PresetBadge,
   parameters: {
     layout: 'centered',

@@ -8,7 +8,7 @@ import { ErrorBoundary } from './ErrorBoundary';
  * and displays a fallback UI instead of crashing the app.
  */
 const meta: Meta<typeof ErrorBoundary> = {
-  title: 'UI/Error Handling/ErrorBoundary',
+  title: 'System/ErrorBoundary',
   component: ErrorBoundary,
   parameters: {
     layout: 'padded',

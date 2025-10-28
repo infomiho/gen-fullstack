@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { SessionFilters, type SessionFiltersState } from './SessionFilters';
 
 const meta = {
-  title: 'Components/SessionFilters',
+  title: 'Session/SessionFilters',
   component: SessionFilters,
   tags: ['autodocs'],
   parameters: {

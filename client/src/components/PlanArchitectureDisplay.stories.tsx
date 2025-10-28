@@ -3,7 +3,7 @@ import type { ApiRoute, ClientComponent, DatabaseModel } from '@gen-fullstack/sh
 import { PlanArchitectureDisplay } from './PlanArchitectureDisplay';
 
 const meta = {
-  title: 'UI/Components/PlanArchitectureDisplay',
+  title: 'Session/PlanArchitectureDisplay',
   component: PlanArchitectureDisplay,
   parameters: {
     layout: 'padded',

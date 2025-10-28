@@ -3,7 +3,7 @@ import { UnifiedStatusSection } from './UnifiedStatusSection';
 import type { AppInfo } from '@gen-fullstack/shared';
 
 const meta = {
-  title: 'UI/Session/UnifiedStatusSection',
+  title: 'Session/UnifiedStatusSection',
   component: UnifiedStatusSection,
   parameters: {
     layout: 'centered',

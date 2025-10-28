@@ -3,7 +3,7 @@ import { useId, useState } from 'react';
 import { Checkbox } from './Checkbox';
 
 const meta = {
-  title: 'UI/Primitives/Checkbox',
+  title: 'Primitives/Checkbox',
   component: Checkbox,
   parameters: {
     layout: 'centered',

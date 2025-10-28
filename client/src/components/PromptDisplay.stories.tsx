@@ -6,7 +6,7 @@ import { PromptDisplay } from './PromptDisplay';
  * Used consistently in session cards and session sidebar.
  */
 const meta = {
-  title: 'UI/Session/PromptDisplay',
+  title: 'Session/PromptDisplay',
   component: PromptDisplay,
   parameters: {
     layout: 'centered',

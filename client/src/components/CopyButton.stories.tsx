@@ -5,7 +5,7 @@ import { CopyButton } from './CopyButton';
  * CopyButton component for copying text to clipboard with visual feedback.
  */
 const meta = {
-  title: 'UI/Primitives/CopyButton',
+  title: 'Primitives/CopyButton',
   component: CopyButton,
   parameters: {
     layout: 'centered',

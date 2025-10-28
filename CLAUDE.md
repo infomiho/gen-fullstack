@@ -219,7 +219,7 @@ Storybook 9.1+ for isolated component development and testing:
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 const meta = {
-  title: 'Components/MyComponent',
+  title: 'Primitives/MyComponent',  // Use flat categories (see organization below)
   component: MyComponent,
 } satisfies Meta<typeof MyComponent>;
 
@@ -232,6 +232,25 @@ export const Default: Story = {
   },
 };
 ```
+
+**Story Organization**:
+Use **flat top-level categories** for better visual organization in Storybook sidebar:
+
+- `Primitives/` - Basic UI building blocks (Alert, Checkbox, Button, EmptyState, etc.)
+- `Badges/` - Badge components (StatusBadge, CapabilityBadge, PresetBadge)
+- `Timeline/` - Timeline-related components (Timeline, ToolItem, MarkdownMessage)
+- `Replay/` - Replay mode components (ReplayControls, TimelineScrubber)
+- `App/` - App execution components (AppControls, AppPreview, LogViewer)
+- `Session/` - Session management components (SessionSidebar, SessionFilters, MetricsDisplay)
+- `Editor/` - Code editor components (CodeEditor, FileTree, FileViewer)
+- `Capabilities/` - Capability configuration components
+- `System/` - System-level components (ErrorBoundary, ToastProvider)
+- `Layout/` - Layout components (CollapsibleSection, ResizableLayout)
+
+**Key rules:**
+- Use single-level categories (e.g., `Primitives/Button`, not `UI/Primitives/Button`)
+- Each top-level folder shows as a different color in Storybook
+- Group related components by feature/domain, not by implementation details
 
 **Key Components with Stories**:
 - `EmptyState` - Reusable empty state with icon, title, description

@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { MetricsDisplay } from './MetricsDisplay';
 
 const meta = {
-  title: 'UI/Session/MetricsDisplay',
+  title: 'Session/MetricsDisplay',
   component: MetricsDisplay,
   parameters: {
     layout: 'padded',

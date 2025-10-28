@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { SkeletonLoader } from './SkeletonLoader';
 
 const meta = {
-  title: 'UI/Timeline/SkeletonLoader',
+  title: 'Timeline/SkeletonLoader',
   component: SkeletonLoader,
   tags: ['autodocs'],
   parameters: {

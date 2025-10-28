@@ -8,7 +8,7 @@ import { PromptInput } from './PromptInput';
  * It's a controlled textarea component that manages the prompt text.
  */
 const meta: Meta<typeof PromptInput> = {
-  title: 'UI/Session/PromptInput',
+  title: 'Session/PromptInput',
   component: PromptInput,
   parameters: {
     layout: 'padded',

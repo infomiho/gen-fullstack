@@ -10,7 +10,7 @@ import type { AppInfo } from '@gen-fullstack/shared';
  * is persisted to localStorage via the UI store.
  */
 const meta = {
-  title: 'UI/Session/SessionSidebar',
+  title: 'Session/SessionSidebar',
   component: SessionSidebar,
   parameters: {
     layout: 'fullscreen',

@@ -7,7 +7,7 @@ import { CollapsibleSection } from './CollapsibleSection';
  * CollapsibleSection stories demonstrating different states and use cases.
  */
 const meta = {
-  title: 'UI/Layout/CollapsibleSection',
+  title: 'Layout/CollapsibleSection',
   component: CollapsibleSection,
   parameters: {
     layout: 'padded',

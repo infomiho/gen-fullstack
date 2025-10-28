@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Alert } from './Alert';
 
 const meta = {
-  title: 'UI/Primitives/Alert',
+  title: 'Primitives/Alert',
   component: Alert,
   parameters: {
     layout: 'padded',

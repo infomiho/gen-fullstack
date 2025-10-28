@@ -6,7 +6,7 @@ import { ResizableLayout } from './ResizableLayout';
  * Users can drag the handles to resize panels. Used throughout the app for flexible layouts.
  */
 const meta: Meta<typeof ResizableLayout> = {
-  title: 'UI/Editor/ResizableLayout',
+  title: 'Editor/ResizableLayout',
   component: ResizableLayout,
   parameters: {
     layout: 'fullscreen',

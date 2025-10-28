@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { SessionMetadata } from './SessionMetadata';
 
 const meta = {
-  title: 'Components/SessionMetadata',
+  title: 'Session/SessionMetadata',
   component: SessionMetadata,
   tags: ['autodocs'],
   parameters: {
