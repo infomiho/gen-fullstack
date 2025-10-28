@@ -318,6 +318,9 @@ gh issue list
 gh issue list --label "bug"
 gh issue list --label "enhancement"
 
+# View specific issue (use --json to avoid API errors)
+gh issue view <number> --json body --jq '.body'
+
 # Create issue
 gh issue create --title "Issue title" --body "Description..."
 

@@ -441,4 +441,225 @@ describe('LogViewer', () => {
       expect(screen.getByText('Emoji test 🚀 ✅ ⚠️')).toBeInTheDocument();
     });
   });
+
+  describe('Command Progress Indicators', () => {
+    it('should show progress indicator for command logs', async () => {
+      const now = Date.now();
+      const commandLogs: AppLog[] = [
+        {
+          sessionId: 'test',
+          timestamp: now - 2500, // Started 2.5 seconds ago
+          type: 'stdout',
+          level: 'command',
+          message: '$ npm install --loglevel=warn',
+        },
+      ];
+
+      render(<LogViewer logs={commandLogs} />);
+
+      // Should show command message
+      expect(screen.getByText('$ npm install --loglevel=warn')).toBeInTheDocument();
+
+      // Should show elapsed time (will be ~2.5s since it started 2.5s ago)
+      await waitFor(() => {
+        expect(screen.getByText(/\d+\.\ds/)).toBeInTheDocument();
+      });
+    });
+
+    it('should show correct duration for instant commands', async () => {
+      const now = Date.now();
+
+      // Command and completion happen very close together (100ms apart)
+      const instantLogs: AppLog[] = [
+        {
+          sessionId: 'test',
+          timestamp: now - 1000,
+          type: 'stdout',
+          level: 'command',
+          message: '$ npx prisma generate',
+        },
+        {
+          sessionId: 'test',
+          timestamp: now - 900, // Completed 100ms after start
+          type: 'stdout',
+          level: 'system',
+          message: 'Generated Prisma client',
+        },
+      ];
+
+      render(<LogViewer logs={instantLogs} />);
+
+      // Should show 0.1s (frozen at completion time), not a large duration
+      await waitFor(() => {
+        const text = screen.getByText('0.1s');
+        expect(text).toBeInTheDocument();
+      });
+    });
+
+    it('should track multiple commands independently', async () => {
+      const now = Date.now();
+
+      const multipleLogs: AppLog[] = [
+        {
+          sessionId: 'test',
+          timestamp: now - 5000,
+          type: 'stdout',
+          level: 'command',
+          message: '$ npm install',
+        },
+        {
+          sessionId: 'test',
+          timestamp: now - 3000,
+          type: 'stdout',
+          level: 'system',
+          message: 'Install complete',
+        },
+        {
+          sessionId: 'test',
+          timestamp: now - 2500,
+          type: 'stdout',
+          level: 'command',
+          message: '$ npx prisma generate',
+        },
+      ];
+
+      render(<LogViewer logs={multipleLogs} />);
+
+      // First command should show 2.0s (completed)
+      await waitFor(() => {
+        expect(screen.getByText('2.0s')).toBeInTheDocument();
+      });
+
+      // Second command should show elapsed time
+      await waitFor(() => {
+        const durations = screen.getAllByText(/\d+\.\ds/);
+        expect(durations.length).toBeGreaterThanOrEqual(2);
+      });
+    });
+
+    it('should format longer durations correctly', async () => {
+      const now = Date.now();
+
+      const commandLogs: AppLog[] = [
+        {
+          sessionId: 'test',
+          timestamp: now - 65000, // 65 seconds ago
+          type: 'stdout',
+          level: 'command',
+          message: '$ npm install',
+        },
+        {
+          sessionId: 'test',
+          timestamp: now - 1, // Just completed
+          type: 'stdout',
+          level: 'system',
+          message: 'Done',
+        },
+      ];
+
+      render(<LogViewer logs={commandLogs} />);
+
+      // 65 seconds ≈ "1m 4s" or "1m 5s" (depending on exact timing)
+      await waitFor(() => {
+        const text = screen.getByText(/1m \ds/);
+        expect(text).toBeInTheDocument();
+        // Should be in the range of 1m 4s to 1m 5s
+        expect(text.textContent).toMatch(/1m [4-5]s/);
+      });
+    });
+
+    it('should show spinner icon for running commands', async () => {
+      const now = Date.now();
+      const commandLogs: AppLog[] = [
+        {
+          sessionId: 'test',
+          timestamp: now - 1000,
+          type: 'stdout',
+          level: 'command',
+          message: '$ npm install',
+        },
+      ];
+
+      const { container } = render(<LogViewer logs={commandLogs} />);
+
+      // Should have a spinning loader icon (Loader2 from lucide-react)
+      await waitFor(() => {
+        const spinner = container.querySelector('.animate-spin');
+        expect(spinner).toBeInTheDocument();
+      });
+    });
+
+    it('should show checkmark icon for completed commands', async () => {
+      const now = Date.now();
+
+      const commandLogs: AppLog[] = [
+        {
+          sessionId: 'test',
+          timestamp: now - 2000,
+          type: 'stdout',
+          level: 'command',
+          message: '$ npm install',
+        },
+        {
+          sessionId: 'test',
+          timestamp: now - 1000,
+          type: 'stdout',
+          level: 'system',
+          message: 'Install complete',
+        },
+      ];
+
+      const { container } = render(<LogViewer logs={commandLogs} />);
+
+      await waitFor(() => {
+        // Should NOT have a spinning loader (command is complete)
+        const spinner = container.querySelector('.animate-spin');
+        expect(spinner).not.toBeInTheDocument();
+      });
+
+      // Should show frozen time of 1.0s
+      await waitFor(() => {
+        expect(screen.getByText('1.0s')).toBeInTheDocument();
+      });
+    });
+
+    it('should clear command state when logs are reset', async () => {
+      const now = Date.now();
+      const oldLogs: AppLog[] = [
+        {
+          sessionId: 'test',
+          timestamp: now - 300000, // 5 minutes ago (old container)
+          type: 'stdout',
+          level: 'command',
+          message: '$ npm install',
+        },
+      ];
+
+      const { rerender } = render(<LogViewer logs={oldLogs} />);
+
+      // Should show command from old logs
+      await waitFor(() => {
+        expect(screen.getByText('$ npm install')).toBeInTheDocument();
+      });
+
+      // Simulate container restart with new logs
+      const newLogs: AppLog[] = [
+        {
+          sessionId: 'test',
+          timestamp: now,
+          type: 'stdout',
+          level: 'command',
+          message: '$ npx prisma generate',
+        },
+      ];
+
+      rerender(<LogViewer logs={newLogs} />);
+
+      // Old command should be gone, new command should be visible
+      await waitFor(() => {
+        expect(screen.queryByText('$ npm install')).not.toBeInTheDocument();
+        expect(screen.getByText('$ npx prisma generate')).toBeInTheDocument();
+      });
+    });
+  });
 });
