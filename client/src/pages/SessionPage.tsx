@@ -330,14 +330,13 @@ function SessionPage() {
   useEffect(() => {
     // Only build queue when first entering presentation mode
     if (isEnabled && !previouslyEnabledRef.current) {
-      // IMPORTANT: Use persistedData directly, not the derived messages/toolCalls/toolResults
+      // IMPORTANT: Use persistedData directly, not the derived messages/toolCalls/pipelineStages
       // The derived variables use replayData when in replay mode, but presentation mode
       // needs the FULL session data regardless of replay state
       const queue = buildPresentationQueue(
         persistedData.messages,
         persistedData.toolCalls,
-        persistedData.toolResults,
-        capabilityConfig,
+        persistedData.pipelineStages,
         sessionData.session.durationMs,
       );
 

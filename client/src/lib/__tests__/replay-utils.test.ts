@@ -287,19 +287,19 @@ describe('replay-utils', () => {
           id: 'stage-1',
           type: 'pipeline_stage' as const,
           timestamp: 2000,
-          data: { type: 'planning', status: 'started', data: {} },
+          data: { type: 'planning' as const, status: 'started' as const, data: {} },
         },
         {
           id: 'stage-2',
           type: 'pipeline_stage' as const,
           timestamp: 3000,
-          data: { type: 'validation', status: 'completed', data: {} },
+          data: { type: 'validation' as const, status: 'completed' as const, data: {} },
         },
         {
           id: 'stage-3',
           type: 'pipeline_stage' as const,
           timestamp: 8000,
-          data: { type: 'completing', status: 'started', data: {} },
+          data: { type: 'completing' as const, status: 'started' as const, data: {} },
         },
       ];
 
@@ -316,19 +316,19 @@ describe('replay-utils', () => {
           id: 'stage-1',
           type: 'pipeline_stage' as const,
           timestamp: 2000,
-          data: { type: 'planning', status: 'started', data: {} },
+          data: { type: 'planning' as const, status: 'started' as const, data: {} },
         },
         {
           id: 'stage-2',
           type: 'pipeline_stage' as const,
           timestamp: 3000,
-          data: { type: 'validation' },
+          data: { type: 'validation' as const },
         },
         {
           id: 'stage-3',
           type: 'pipeline_stage' as const,
           timestamp: 4000,
-          data: { status: 'completed' },
+          data: { status: 'completed' as const },
         },
       ];
 
@@ -345,8 +345,8 @@ describe('replay-utils', () => {
           type: 'pipeline_stage' as const,
           timestamp: 2000,
           data: {
-            type: 'planning',
-            status: 'completed',
+            type: 'planning' as const,
+            status: 'completed' as const,
             data: {
               dbSchema: 'CREATE TABLE...',
               apiEndpoints: ['GET /users'],
@@ -371,8 +371,8 @@ describe('replay-utils', () => {
           type: 'pipeline_stage' as const,
           timestamp: 2000,
           data: {
-            type: 'planning',
-            status: 'started',
+            type: 'planning' as const,
+            status: 'started' as const,
           },
         },
       ];
@@ -389,19 +389,19 @@ describe('replay-utils', () => {
           id: 'stage-1',
           type: 'pipeline_stage' as const,
           timestamp: 2000,
-          data: { type: 'planning', status: 'started', data: {} },
+          data: { type: 'planning' as const, status: 'started' as const, data: {} },
         },
         {
           id: 'stage-2',
           type: 'pipeline_stage' as const,
           timestamp: 3000,
-          data: { type: 'validation', status: 'completed', data: {} },
+          data: { type: 'validation' as const, status: 'completed' as const, data: {} },
         },
         {
           id: 'stage-3',
           type: 'pipeline_stage' as const,
           timestamp: 4000,
-          data: { type: 'template_loading', status: 'failed', data: {} },
+          data: { type: 'template_loading' as const, status: 'failed' as const, data: {} },
         },
       ];
 

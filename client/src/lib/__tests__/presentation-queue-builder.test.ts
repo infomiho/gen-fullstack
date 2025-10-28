@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildPresentationQueue } from '../presentation-queue-builder';
-import type { LLMMessage, ToolCall, ToolResult } from '@gen-fullstack/shared';
-import type { CapabilityConfigInput } from '@gen-fullstack/shared';
+import type { LLMMessage, ToolCall, PipelineStageEvent } from '@gen-fullstack/shared';
 
 describe('buildPresentationQueue', () => {
   describe('basic structure', () => {
@@ -39,16 +38,21 @@ describe('buildPresentationQueue', () => {
     });
   });
 
-  describe('template mode', () => {
-    it('should add template-loading event when inputMode is template', () => {
-      const config: CapabilityConfigInput = {
-        inputMode: 'template',
-        planning: false,
-        compilerChecks: false,
-        templateOptions: { templateName: 'vite-fullstack-base' },
-      };
+  describe('template loading pipeline stage', () => {
+    it('should add template-loading event when pipeline stage is present', () => {
+      const pipelineStages: PipelineStageEvent[] = [
+        {
+          id: 'stage-1',
+          type: 'template_loading' as const,
+          status: 'started' as const,
+          timestamp: 1000,
+          data: {
+            templateName: 'vite-fullstack-base',
+          },
+        },
+      ];
 
-      const queue = buildPresentationQueue([], [], [], config);
+      const queue = buildPresentationQueue([], [], pipelineStages);
 
       expect(queue[1]).toEqual({
         type: 'template-loading',
@@ -56,34 +60,34 @@ describe('buildPresentationQueue', () => {
       });
     });
 
-    it('should not add template-loading event when inputMode is naive', () => {
-      const config: CapabilityConfigInput = {
-        inputMode: 'naive',
-        planning: false,
-        compilerChecks: false,
-      };
-
-      const queue = buildPresentationQueue([], [], [], config);
+    it('should not add template-loading event when no template stage present', () => {
+      const queue = buildPresentationQueue([], [], []);
 
       const hasTemplateLoading = queue.some((e) => e.type === 'template-loading');
       expect(hasTemplateLoading).toBe(false);
     });
   });
 
-  describe('planArchitecture tool call', () => {
+  describe('planning pipeline stage', () => {
     it('should create planning events for database models', () => {
-      const toolCalls: ToolCall[] = [
+      const pipelineStages: PipelineStageEvent[] = [
         {
-          id: '1',
-          name: 'planArchitecture',
-          args: {
-            databaseModels: ['User', { name: 'Post' }],
-          },
+          id: 'stage-1',
+          type: 'planning' as const,
+          status: 'completed' as const,
           timestamp: 1000,
+          data: {
+            plan: {
+              databaseModels: [
+                { name: 'User', fields: [], relations: [] },
+                { name: 'Post', fields: [], relations: [] },
+              ],
+            },
+          },
         },
       ];
 
-      const queue = buildPresentationQueue([], toolCalls, []);
+      const queue = buildPresentationQueue([], [], pipelineStages);
 
       const planningEvents = queue.filter((e) => e.type === 'planning');
       expect(planningEvents).toHaveLength(2);
@@ -92,18 +96,25 @@ describe('buildPresentationQueue', () => {
     });
 
     it('should create planning events for API endpoints', () => {
-      const toolCalls: ToolCall[] = [
+      const pipelineStages: PipelineStageEvent[] = [
         {
-          id: '1',
-          name: 'planArchitecture',
-          args: {
-            apiEndpoints: [{ method: 'GET', path: '/users' }, { path: '/posts' }, '/comments'],
-          },
+          id: 'stage-1',
+          type: 'planning' as const,
+          status: 'completed' as const,
           timestamp: 1000,
+          data: {
+            plan: {
+              apiRoutes: [
+                { method: 'GET' as const, path: '/users', description: 'Get users' },
+                { method: 'POST' as const, path: '/posts', description: 'Create post' },
+                { method: 'GET' as const, path: '/comments', description: 'Get comments' },
+              ],
+            },
+          },
         },
       ];
 
-      const queue = buildPresentationQueue([], toolCalls, []);
+      const queue = buildPresentationQueue([], [], pipelineStages);
 
       const planningEvents = queue.filter((e) => e.type === 'planning');
       expect(planningEvents).toHaveLength(3);
@@ -111,23 +122,29 @@ describe('buildPresentationQueue', () => {
         type: 'endpoint',
         name: 'GET /users',
       });
-      expect(planningEvents[1].data?.planItem).toEqual({ type: 'endpoint', name: '/posts' });
-      expect(planningEvents[2].data?.planItem).toEqual({ type: 'endpoint', name: '/comments' });
+      expect(planningEvents[1].data?.planItem).toEqual({ type: 'endpoint', name: 'POST /posts' });
+      expect(planningEvents[2].data?.planItem).toEqual({ type: 'endpoint', name: 'GET /comments' });
     });
 
     it('should create planning events for UI components', () => {
-      const toolCalls: ToolCall[] = [
+      const pipelineStages: PipelineStageEvent[] = [
         {
-          id: '1',
-          name: 'planArchitecture',
-          args: {
-            uiComponents: ['Header', { name: 'Footer' }],
-          },
+          id: 'stage-1',
+          type: 'planning' as const,
+          status: 'completed' as const,
           timestamp: 1000,
+          data: {
+            plan: {
+              clientComponents: [
+                { name: 'Header', purpose: 'Site header' },
+                { name: 'Footer', purpose: 'Site footer' },
+              ],
+            },
+          },
         },
       ];
 
-      const queue = buildPresentationQueue([], toolCalls, []);
+      const queue = buildPresentationQueue([], [], pipelineStages);
 
       const planningEvents = queue.filter((e) => e.type === 'planning');
       expect(planningEvents).toHaveLength(2);
@@ -135,17 +152,18 @@ describe('buildPresentationQueue', () => {
       expect(planningEvents[1].data?.planItem).toEqual({ type: 'component', name: 'Footer' });
     });
 
-    it('should handle malformed planArchitecture args gracefully', () => {
-      const toolCalls: ToolCall[] = [
+    it('should handle planning stage without plan data gracefully', () => {
+      const pipelineStages: PipelineStageEvent[] = [
         {
-          id: '1',
-          name: 'planArchitecture',
-          args: undefined,
+          id: 'stage-1',
+          type: 'planning' as const,
+          status: 'completed' as const,
           timestamp: 1000,
+          data: {},
         },
       ];
 
-      const queue = buildPresentationQueue([], toolCalls, []);
+      const queue = buildPresentationQueue([], [], pipelineStages);
 
       // Should not crash, just skip the event
       const planningEvents = queue.filter((e) => e.type === 'planning');
@@ -189,27 +207,32 @@ describe('buildPresentationQueue', () => {
     });
   });
 
-  describe('validation tool calls', () => {
+  describe('validation pipeline stage', () => {
     it('should create validation events for Prisma schema', () => {
-      const toolCalls: ToolCall[] = [
+      const pipelineStages: PipelineStageEvent[] = [
         {
-          id: '1',
-          name: 'validatePrismaSchema',
-          args: {},
+          id: 'stage-1',
+          type: 'validation' as const,
+          status: 'started' as const,
           timestamp: 1000,
+          data: {
+            validationErrors: [
+              { type: 'prisma' as const, file: 'schema.prisma', message: 'Error' },
+            ],
+          },
         },
-      ];
-
-      const toolResults: ToolResult[] = [
         {
-          id: '1',
-          toolName: 'validatePrismaSchema',
-          result: JSON.stringify({ passed: true, errorCount: 0 }),
+          id: 'stage-2',
+          type: 'validation' as const,
+          status: 'completed' as const,
           timestamp: 1500,
+          data: {
+            validationErrors: [],
+          },
         },
       ];
 
-      const queue = buildPresentationQueue([], toolCalls, toolResults);
+      const queue = buildPresentationQueue([], [], pipelineStages);
 
       const validationEvents = queue.filter((e) => e.type.startsWith('validation'));
       expect(validationEvents).toHaveLength(2);
@@ -223,25 +246,28 @@ describe('buildPresentationQueue', () => {
     });
 
     it('should create validation events for TypeScript', () => {
-      const toolCalls: ToolCall[] = [
+      const pipelineStages: PipelineStageEvent[] = [
         {
-          id: '1',
-          name: 'validateTypeScript',
-          args: {},
+          id: 'stage-1',
+          type: 'validation' as const,
+          status: 'started' as const,
           timestamp: 1000,
+          data: {
+            validationErrors: [{ type: 'typescript' as const, file: 'test.ts', message: 'Error' }],
+          },
         },
-      ];
-
-      const toolResults: ToolResult[] = [
         {
-          id: '1',
-          toolName: 'validateTypeScript',
-          result: JSON.stringify({ success: true, errors: [] }),
+          id: 'stage-2',
+          type: 'validation' as const,
+          status: 'completed' as const,
           timestamp: 1500,
+          data: {
+            validationErrors: [],
+          },
         },
       ];
 
-      const queue = buildPresentationQueue([], toolCalls, toolResults);
+      const queue = buildPresentationQueue([], [], pipelineStages);
 
       const validationEvents = queue.filter((e) => e.type.startsWith('validation'));
       expect(validationEvents).toHaveLength(2);
@@ -250,25 +276,35 @@ describe('buildPresentationQueue', () => {
     });
 
     it('should handle validation failure', () => {
-      const toolCalls: ToolCall[] = [
+      const pipelineStages: PipelineStageEvent[] = [
         {
-          id: '1',
-          name: 'validateTypeScript',
-          args: {},
+          id: 'stage-1',
+          type: 'validation' as const,
+          status: 'started' as const,
           timestamp: 1000,
+          data: {
+            validationErrors: [{ type: 'typescript' as const, file: 'test.ts', message: 'Error' }],
+          },
         },
-      ];
-
-      const toolResults: ToolResult[] = [
         {
-          id: '1',
-          toolName: 'validateTypeScript',
-          result: JSON.stringify({ passed: false, errorCount: 5, iteration: 2 }),
+          id: 'stage-2',
+          type: 'validation' as const,
+          status: 'failed' as const,
           timestamp: 1500,
+          data: {
+            validationErrors: [
+              { type: 'typescript' as const, file: 'test.ts', message: 'Error 1' },
+              { type: 'typescript' as const, file: 'test.ts', message: 'Error 2' },
+              { type: 'typescript' as const, file: 'test.ts', message: 'Error 3' },
+              { type: 'typescript' as const, file: 'test.ts', message: 'Error 4' },
+              { type: 'typescript' as const, file: 'test.ts', message: 'Error 5' },
+            ],
+            iteration: 2,
+          },
         },
       ];
 
-      const queue = buildPresentationQueue([], toolCalls, toolResults);
+      const queue = buildPresentationQueue([], [], pipelineStages);
 
       const resultEvent = queue.find((e) => e.type === 'validation-result');
       expect(resultEvent?.data?.validationResult).toEqual({
@@ -408,7 +444,7 @@ describe('buildPresentationQueue', () => {
         { id: '1', role: 'assistant', content: 'Done', timestamp: 1000 },
       ];
 
-      const queue = buildPresentationQueue(messages, [], [], undefined, 12345);
+      const queue = buildPresentationQueue(messages, [], [], 12345);
 
       const victoryEvent = queue.find((e) => e.type === 'victory');
       expect(victoryEvent?.data?.stats?.duration).toBe(12.345); // 12345ms / 1000
