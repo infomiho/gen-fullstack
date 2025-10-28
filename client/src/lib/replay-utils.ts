@@ -1,4 +1,10 @@
-import type { LLMMessage, ToolCall, ToolResult, FileUpdate } from '@gen-fullstack/shared';
+import type {
+  LLMMessage,
+  ToolCall,
+  ToolResult,
+  FileUpdate,
+  PipelineStageEvent,
+} from '@gen-fullstack/shared';
 
 /**
  * Replay utility functions
@@ -8,7 +14,7 @@ import type { LLMMessage, ToolCall, ToolResult, FileUpdate } from '@gen-fullstac
 
 interface ReplayTimelineItem {
   id: string;
-  type: 'message' | 'tool_call' | 'tool_result';
+  type: 'message' | 'tool_call' | 'tool_result' | 'pipeline_stage';
   timestamp: number;
   data: {
     role?: string;
@@ -18,6 +24,9 @@ interface ReplayTimelineItem {
     toolCallId?: string;
     toolName?: string;
     result?: string;
+    type?: 'planning' | 'validation' | 'template_loading' | 'completing';
+    status?: 'started' | 'completed' | 'failed';
+    data?: Record<string, unknown>;
   };
 }
 
@@ -103,6 +112,33 @@ export function getReplayToolResults(
       toolName: item.data.toolName || '',
       result: item.data.result as string,
       timestamp: item.timestamp,
+    }));
+}
+
+/**
+ * Filter and convert timeline items to pipeline stages up to currentTime
+ */
+export function getReplayPipelineStages(
+  timelineItems: ReplayTimelineItem[],
+  sessionStartTime: number,
+  currentTime: number,
+): PipelineStageEvent[] {
+  const absoluteCurrentTime = sessionStartTime + currentTime;
+
+  return timelineItems
+    .filter(
+      (item) =>
+        item.type === 'pipeline_stage' &&
+        item.timestamp <= absoluteCurrentTime &&
+        item.data.type &&
+        item.data.status,
+    )
+    .map((item) => ({
+      id: item.id,
+      type: item.data.type as 'planning' | 'validation' | 'template_loading' | 'completing',
+      status: item.data.status as 'started' | 'completed' | 'failed',
+      timestamp: item.timestamp,
+      data: item.data.data || {},
     }));
 }
 

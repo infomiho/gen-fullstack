@@ -3,6 +3,7 @@ import {
   formatTime,
   getReplayFiles,
   getReplayMessages,
+  getReplayPipelineStages,
   getReplayToolCalls,
   getReplayToolResults,
 } from '../replay-utils';
@@ -269,6 +270,147 @@ describe('replay-utils', () => {
 
       expect(result).toHaveLength(1);
       expect(result[0].id).toBe('db-row-456');
+    });
+  });
+
+  describe('getReplayPipelineStages', () => {
+    const sessionStartTime = 1000;
+
+    it('should return empty array when no pipeline stages', () => {
+      const result = getReplayPipelineStages([], sessionStartTime, 5000);
+      expect(result).toEqual([]);
+    });
+
+    it('should filter pipeline stages by currentTime', () => {
+      const items = [
+        {
+          id: 'stage-1',
+          type: 'pipeline_stage' as const,
+          timestamp: 2000,
+          data: { type: 'planning', status: 'started', data: {} },
+        },
+        {
+          id: 'stage-2',
+          type: 'pipeline_stage' as const,
+          timestamp: 3000,
+          data: { type: 'validation', status: 'completed', data: {} },
+        },
+        {
+          id: 'stage-3',
+          type: 'pipeline_stage' as const,
+          timestamp: 8000,
+          data: { type: 'completing', status: 'started', data: {} },
+        },
+      ];
+
+      const result = getReplayPipelineStages(items, sessionStartTime, 5000);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].type).toBe('planning');
+      expect(result[1].type).toBe('validation');
+    });
+
+    it('should filter out pipeline stages with missing data', () => {
+      const items = [
+        {
+          id: 'stage-1',
+          type: 'pipeline_stage' as const,
+          timestamp: 2000,
+          data: { type: 'planning', status: 'started', data: {} },
+        },
+        {
+          id: 'stage-2',
+          type: 'pipeline_stage' as const,
+          timestamp: 3000,
+          data: { type: 'validation' },
+        },
+        {
+          id: 'stage-3',
+          type: 'pipeline_stage' as const,
+          timestamp: 4000,
+          data: { status: 'completed' },
+        },
+      ];
+
+      const result = getReplayPipelineStages(items, sessionStartTime, 5000);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].type).toBe('planning');
+    });
+
+    it('should include stage data when present', () => {
+      const items = [
+        {
+          id: 'stage-1',
+          type: 'pipeline_stage' as const,
+          timestamp: 2000,
+          data: {
+            type: 'planning',
+            status: 'completed',
+            data: {
+              dbSchema: 'CREATE TABLE...',
+              apiEndpoints: ['GET /users'],
+            },
+          },
+        },
+      ];
+
+      const result = getReplayPipelineStages(items, sessionStartTime, 5000);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].data).toEqual({
+        dbSchema: 'CREATE TABLE...',
+        apiEndpoints: ['GET /users'],
+      });
+    });
+
+    it('should default to empty object when data is missing', () => {
+      const items = [
+        {
+          id: 'stage-1',
+          type: 'pipeline_stage' as const,
+          timestamp: 2000,
+          data: {
+            type: 'planning',
+            status: 'started',
+          },
+        },
+      ];
+
+      const result = getReplayPipelineStages(items, sessionStartTime, 5000);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].data).toEqual({});
+    });
+
+    it('should preserve all stage statuses', () => {
+      const items = [
+        {
+          id: 'stage-1',
+          type: 'pipeline_stage' as const,
+          timestamp: 2000,
+          data: { type: 'planning', status: 'started', data: {} },
+        },
+        {
+          id: 'stage-2',
+          type: 'pipeline_stage' as const,
+          timestamp: 3000,
+          data: { type: 'validation', status: 'completed', data: {} },
+        },
+        {
+          id: 'stage-3',
+          type: 'pipeline_stage' as const,
+          timestamp: 4000,
+          data: { type: 'template_loading', status: 'failed', data: {} },
+        },
+      ];
+
+      const result = getReplayPipelineStages(items, sessionStartTime, 5000);
+
+      expect(result).toHaveLength(3);
+      expect(result[0].status).toBe('started');
+      expect(result[1].status).toBe('completed');
+      expect(result[2].status).toBe('failed');
     });
   });
 

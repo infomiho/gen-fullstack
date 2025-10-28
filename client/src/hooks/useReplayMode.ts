@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react';
 import {
   getReplayFiles,
   getReplayMessages,
+  getReplayPipelineStages,
   getReplayToolCalls,
   getReplayToolResults,
 } from '../lib/replay-utils';
@@ -77,8 +78,11 @@ export function useReplayMode() {
         state.sessionStartTime,
         state.currentTime,
       ),
-      // TODO: Add getReplayPipelineStages function for proper replay support
-      pipelineStages: [],
+      pipelineStages: getReplayPipelineStages(
+        state.timelineItems,
+        state.sessionStartTime,
+        state.currentTime,
+      ),
       files: getReplayFiles(state.files, state.sessionStartTime, state.currentTime),
     };
   }, [isReplayModeActive, replayCurrentTime]);
