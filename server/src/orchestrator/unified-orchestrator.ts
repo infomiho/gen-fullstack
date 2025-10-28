@@ -4,6 +4,7 @@ import { TemplateCapability } from '../capabilities/template.capability.js';
 import type { BaseCapability } from '../capabilities/base.capability.js';
 import { getErrorMessage, isAbortError } from '../lib/error-utils.js';
 import { createLogger } from '../lib/logger.js';
+import { cleanupSession } from '../lib/message-utils.js';
 import { databaseService } from '../services/database.service.js';
 import { initializeSandbox } from '../services/filesystem.service.js';
 import type { ModelName } from '../services/llm.service.js';
@@ -179,9 +180,15 @@ export class UnifiedOrchestrator {
       // 8. Emit completion event
       this.emitComplete(sessionId, metrics, status);
 
+      // 9. Cleanup message trackers to prevent memory leaks
+      cleanupSession(sessionId);
+
       return metrics;
     } catch (error) {
       this.clearGenerationTimeout();
+
+      // Cleanup message trackers on error/abort
+      cleanupSession(sessionId);
 
       if (isAbortError(error)) {
         return this.handleAbort(sessionId);

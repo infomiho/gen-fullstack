@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { CapabilityConfig } from '@gen-fullstack/shared';
 import { checkFileSafety } from '../lib/file-safety.js';
 import { databaseLogger, commandLogger } from '../lib/logger.js';
+import { emitPersistedMessage } from '../lib/message-utils.js';
 import * as commandService from '../services/command.service.js';
 import * as filesystemService from '../services/filesystem.service.js';
 import { requestBlock } from './request-block.tool.js';
@@ -49,13 +50,7 @@ export const writeFile = tool({
       const safetyCheck = checkFileSafety(existingContent, content, path);
 
       if (!safetyCheck.isSafe && safetyCheck.warning) {
-        if (io) {
-          io.to(sessionId).emit('message', {
-            role: 'system',
-            content: safetyCheck.warning,
-            timestamp: Date.now(),
-          });
-        }
+        emitPersistedMessage(sessionId, io, 'system', safetyCheck.warning);
         databaseLogger.warn(
           {
             sessionId,
@@ -255,13 +250,7 @@ ${clientComponents
   .join('\n')}`;
 
     // Emit plan as system message
-    if (io) {
-      io.to(sessionId).emit('message', {
-        role: 'system',
-        content: `✓ Architectural plan created:\n${plan}`,
-        timestamp: Date.now(),
-      });
-    }
+    emitPersistedMessage(sessionId, io, 'system', `✓ Architectural plan created:\n${plan}`);
 
     return `Plan created successfully. Proceed with implementation following this structure.`;
   },
@@ -341,14 +330,7 @@ export const validatePrismaSchema = tool({
       const validateResult = await commandService.executeCommand(sessionId, 'npx prisma validate');
 
       if (validateResult.exitCode === 0) {
-        if (io) {
-          io.to(sessionId).emit('llm_message', {
-            id: `${Date.now()}-system`,
-            role: 'system',
-            content: '✓ Prisma schema validation passed',
-            timestamp: Date.now(),
-          });
-        }
+        emitPersistedMessage(sessionId, io, 'system', '✓ Prisma schema validation passed');
         return 'Schema is valid. You can now run "npx prisma generate" to create the Prisma client.';
       } else {
         // Extract and parse error details
@@ -360,14 +342,12 @@ export const validatePrismaSchema = tool({
           .map((e) => (e.line ? `Line ${e.line}: ${e.message}` : e.message))
           .join('\n\n');
 
-        if (io) {
-          io.to(sessionId).emit('llm_message', {
-            id: `${Date.now()}-system`,
-            role: 'system',
-            content: `✗ Prisma schema validation failed (${errorCount} errors)`,
-            timestamp: Date.now(),
-          });
-        }
+        emitPersistedMessage(
+          sessionId,
+          io,
+          'system',
+          `✗ Prisma schema validation failed (${errorCount} errors)`,
+        );
 
         return `Schema validation failed (${errorCount} errors). Fix these:\n\n${formattedErrors}`;
       }
@@ -557,14 +537,12 @@ function formatValidationSummary(
       .map((r) => `${r.target.toUpperCase()}: ${r.executionError}`)
       .join('\n');
 
-    if (io) {
-      io.to(sessionId).emit('llm_message', {
-        id: `${Date.now()}-system`,
-        role: 'system',
-        content: `✗ TypeScript validation execution failed for ${target}`,
-        timestamp: Date.now(),
-      });
-    }
+    emitPersistedMessage(
+      sessionId,
+      io,
+      'system',
+      `✗ TypeScript validation execution failed for ${target}`,
+    );
 
     return `TypeScript validation could not complete due to execution errors:\n\n${errorDetails}`;
   }
@@ -573,14 +551,7 @@ function formatValidationSummary(
   const totalErrors = results.reduce((sum, r) => sum + r.errorCount, 0);
 
   if (allPassed) {
-    if (io) {
-      io.to(sessionId).emit('llm_message', {
-        id: `${Date.now()}-system`,
-        role: 'system',
-        content: `✓ TypeScript validation passed for ${target}`,
-        timestamp: Date.now(),
-      });
-    }
+    emitPersistedMessage(sessionId, io, 'system', `✓ TypeScript validation passed for ${target}`);
     return `All TypeScript checks passed for ${target}. No type errors found.`;
   }
 
@@ -589,14 +560,12 @@ function formatValidationSummary(
     .map((r) => `${r.target.toUpperCase()} (${r.errorCount} errors):\n${r.errors}`)
     .join('\n\n');
 
-  if (io) {
-    io.to(sessionId).emit('llm_message', {
-      id: `${Date.now()}-system`,
-      role: 'system',
-      content: `✗ TypeScript validation failed for ${target} (${totalErrors} errors)`,
-      timestamp: Date.now(),
-    });
-  }
+  emitPersistedMessage(
+    sessionId,
+    io,
+    'system',
+    `✗ TypeScript validation failed for ${target} (${totalErrors} errors)`,
+  );
 
   return `TypeScript validation failed (${totalErrors} errors). Fix these:\n\n${errorSummary}`;
 }

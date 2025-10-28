@@ -1,7 +1,7 @@
-import { randomUUID } from 'node:crypto';
 import type { LanguageModel } from 'ai';
 import type { Server as SocketIOServer } from 'socket.io';
 import { createLogger } from '../lib/logger.js';
+import { emitPersistedMessage, resetMessageTracking } from '../lib/message-utils.js';
 import { formatToolError, toToolInput, toToolResult } from '../lib/tool-utils.js';
 import { databaseService } from '../services/database.service.js';
 import { getModel, type ModelName } from '../services/llm.service.js';
@@ -90,20 +90,6 @@ export abstract class BaseCapability {
   }
 
   // ============================================================================
-  // Message Tracking (for database persistence)
-  // ============================================================================
-
-  private currentMessageId: string | null = null;
-  private currentMessageRole: 'user' | 'assistant' | 'system' | null = null;
-
-  /**
-   * Generate a unique message ID using crypto-safe UUID
-   */
-  private generateMessageId(): string {
-    return `msg-${randomUUID()}`;
-  }
-
-  // ============================================================================
   // Shared Helper Methods
   // ============================================================================
 
@@ -119,31 +105,14 @@ export abstract class BaseCapability {
     content: string,
     sessionId: string,
   ): void {
-    const timestamp = Date.now();
-
-    // System messages are discrete events (each should be a separate Timeline card)
-    // Assistant/user messages are grouped by role (for streaming and deduplication)
-    if (role === 'system' || this.currentMessageRole !== role) {
-      this.currentMessageId = this.generateMessageId();
-      this.currentMessageRole = role;
-    }
-
-    if (!this.currentMessageId) return;
-
-    this.io.to(sessionId).emit('llm_message', {
-      id: this.currentMessageId,
-      role,
-      content,
-      timestamp,
-    });
-
-    databaseService
-      .upsertMessage(sessionId, this.currentMessageId, role, content, new Date(timestamp))
-      .catch((err) => this.logger.error({ err, sessionId }, 'Failed to upsert message'));
+    emitPersistedMessage(sessionId, this.io, role, content);
   }
 
   /**
    * Emit a tool call event and persist to database
+   *
+   * Note: This method does NOT reset message tracking. Message tracking is reset
+   * after the entire step completes in onStepFinish, not per tool call.
    *
    * @param toolCallId - Unique tool call ID
    * @param toolName - Name of the tool being called
@@ -159,9 +128,6 @@ export abstract class BaseCapability {
     reason?: string,
   ): void {
     const timestamp = Date.now();
-
-    this.currentMessageId = null;
-    this.currentMessageRole = null;
 
     this.io.to(sessionId).emit('tool_call', {
       id: toolCallId,
@@ -249,7 +215,14 @@ export abstract class BaseCapability {
 
   /**
    * Create an onStepFinish handler for streamText calls
-   * Handles tool call and result emission with proper type conversion
+   *
+   * This handler is called by AI SDK after each generation step completes. A step
+   * includes: text generation + tool calls (if any) + tool results (if any).
+   *
+   * The handler:
+   * 1. Emits all tool calls that occurred in this step
+   * 2. Emits all tool results from executed tools
+   * 3. Resets message tracking so the next step gets a new message ID
    *
    * @param sessionId - Session identifier
    * @returns Handler function for AI SDK onStepFinish callback
@@ -289,6 +262,15 @@ export abstract class BaseCapability {
 
         this.emitToolResult(toolResult.toolCallId, toolResult.toolName, result, sessionId, isError);
       }
+
+      // Reset message tracking after step completes, before next step begins.
+      // This ensures text generated in the next step gets a new message ID,
+      // maintaining proper separation between pre-tool and post-tool text.
+      //
+      // Example flow:
+      // Step 1: "I'll check the weather" (msg-abc123) → [tool calls] → reset
+      // Step 2: "The weather is sunny" (msg-def456) ← NEW ID
+      resetMessageTracking(sessionId);
     };
   }
 }
