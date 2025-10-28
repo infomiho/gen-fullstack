@@ -189,7 +189,7 @@ export function PipelineStageItem({
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <span
+              <output
                 className={`${typography.caption} ${
                   stage.status === 'completed'
                     ? 'text-green-600'
@@ -206,7 +206,7 @@ export function PipelineStageItem({
                 }
               >
                 {stage.status === 'completed' ? '●' : stage.status === 'failed' ? '✕' : '○'}
-              </span>
+              </output>
               <span className={`${typography.label} text-foreground`}>SYSTEM</span>
               <span className={`${typography.mono} text-foreground font-medium`}>
                 {getStageName(stage.type)}

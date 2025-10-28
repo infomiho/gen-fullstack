@@ -6,7 +6,7 @@
  */
 
 import { sql } from 'drizzle-orm';
-import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 /**
  * Sessions table - stores generation session metadata
@@ -47,33 +47,43 @@ export const sessions = sqliteTable('sessions', {
 /**
  * Timeline items table - stores all LLM messages, tool calls, tool results, and pipeline stages
  */
-export const timelineItems = sqliteTable('timeline_items', {
-  id: integer('id', { mode: 'number' }).primaryKey({ autoIncrement: true }),
-  sessionId: text('session_id')
-    .notNull()
-    .references(() => sessions.id, { onDelete: 'cascade' }),
-  timestamp: integer('timestamp', { mode: 'timestamp_ms' }).notNull(),
-  type: text('type').notNull(), // 'message' | 'tool_call' | 'tool_result' | 'pipeline_stage'
-  // Message fields (when type = 'message')
-  messageId: text('message_id'), // Unique ID for LLM messages (for upserting streaming chunks)
-  role: text('role'), // 'user' | 'assistant' | 'system'
-  content: text('content'),
-  // Tool call fields (when type = 'tool_call')
-  toolCallId: text('tool_call_id'),
-  toolName: text('tool_name'),
-  toolArgs: text('tool_args'), // JSON string
-  toolReason: text('tool_reason'), // Brief explanation of why this tool was called
-  // Tool result fields (when type = 'tool_result')
-  toolResultId: text('tool_result_id'),
-  toolResultFor: text('tool_result_for'), // References toolCallId
-  result: text('result'),
-  isError: integer('is_error', { mode: 'boolean' }).default(false),
-  // Pipeline stage fields (when type = 'pipeline_stage')
-  stageId: text('stage_id'), // Unique ID for this stage (stable across status updates)
-  stageType: text('stage_type'), // 'planning' | 'validation' | 'template_loading' | 'completing'
-  stageStatus: text('stage_status'), // 'started' | 'completed' | 'failed'
-  stageData: text('stage_data'), // JSON string with plan/errors/iteration/etc
-});
+export const timelineItems = sqliteTable(
+  'timeline_items',
+  {
+    id: integer('id', { mode: 'number' }).primaryKey({ autoIncrement: true }),
+    sessionId: text('session_id')
+      .notNull()
+      .references(() => sessions.id, { onDelete: 'cascade' }),
+    timestamp: integer('timestamp', { mode: 'timestamp_ms' }).notNull(),
+    type: text('type').notNull(), // 'message' | 'tool_call' | 'tool_result' | 'pipeline_stage'
+    // Message fields (when type = 'message')
+    messageId: text('message_id'), // Unique ID for LLM messages (for upserting streaming chunks)
+    role: text('role'), // 'user' | 'assistant' | 'system'
+    content: text('content'),
+    // Tool call fields (when type = 'tool_call')
+    toolCallId: text('tool_call_id'),
+    toolName: text('tool_name'),
+    toolArgs: text('tool_args'), // JSON string
+    toolReason: text('tool_reason'), // Brief explanation of why this tool was called
+    // Tool result fields (when type = 'tool_result')
+    toolResultId: text('tool_result_id'),
+    toolResultFor: text('tool_result_for'), // References toolCallId
+    result: text('result'),
+    isError: integer('is_error', { mode: 'boolean' }).default(false),
+    // Pipeline stage fields (when type = 'pipeline_stage')
+    stageId: text('stage_id'), // Unique ID for this stage (stable across status updates)
+    stageType: text('stage_type'), // 'planning' | 'validation' | 'template_loading' | 'completing'
+    stageStatus: text('stage_status'), // 'started' | 'completed' | 'failed'
+    stageData: text('stage_data'), // JSON string with plan/errors/iteration/etc
+  },
+  (table) => [
+    // Partial unique index for pipeline stage UPSERT operations
+    // Allows updating stage status in-place while preserving timeline position
+    uniqueIndex('timeline_items_session_stage_idx')
+      .on(table.sessionId, table.stageId)
+      .where(sql`${table.stageId} IS NOT NULL`),
+  ],
+);
 
 /**
  * Files table - stores generated file metadata and content

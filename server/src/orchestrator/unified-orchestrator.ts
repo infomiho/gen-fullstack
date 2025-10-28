@@ -172,6 +172,7 @@ export class UnifiedOrchestrator {
           { sessionId, stageId: stageInfo.id, error },
           'Failed to persist pipeline stage',
         );
+        this.io.to(sessionId).emit('warning', 'Pipeline stage data may not be persisted');
       });
 
     this.logger.debug({ sessionId, stage: type, status }, 'Emitting pipeline stage event');

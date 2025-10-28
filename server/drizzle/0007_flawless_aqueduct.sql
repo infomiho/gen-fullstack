@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `timeline_items_session_stage_idx` ON `timeline_items` (`session_id`,`stage_id`) WHERE "timeline_items"."stage_id" IS NOT NULL;
