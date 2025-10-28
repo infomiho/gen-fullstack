@@ -1,6 +1,7 @@
 import type { AppLog } from '@gen-fullstack/shared';
 import { Check, Loader2, PackageOpen } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { updateCommandState, type ActiveCommand } from '../lib/command-tracking';
 import { radius, spacing, typography } from '../lib/design-tokens';
 import { getLevelColor, getLevelLabel } from '../lib/log-utils';
 import { EmptyState } from './EmptyState';
@@ -12,13 +13,6 @@ interface LogViewerProps {
 
 interface LogWithIndex extends AppLog {
   originalIndex: number;
-}
-
-interface ActiveCommand {
-  index: number;
-  startTime: number;
-  running: boolean;
-  endTime?: number; // Captured when command completes
 }
 
 interface CommandProgressProps {
@@ -109,76 +103,7 @@ export function LogViewer({ logs }: LogViewerProps) {
 
   // Track active commands and detect completion
   useEffect(() => {
-    setActiveCommands((prev) => {
-      // Reset state if logs array is empty
-      if (logs.length === 0) {
-        return new Map();
-      }
-
-      // Check if this is a completely new log set (e.g., container restarted)
-      const firstLogTimestamp = logs[0]?.timestamp;
-      const hasOldData = Array.from(prev.values()).some(
-        (cmd) => cmd.startTime < (firstLogTimestamp || 0),
-      );
-
-      // If we have commands from before the current log set, reset
-      const updated = hasOldData ? new Map() : new Map(prev);
-
-      // Helper: Find the running command closest in time to a completion signal
-      const findClosestRunningCommand = (
-        completionTimestamp: number,
-        beforeIndex: number,
-      ): number => {
-        let closestCmdIndex = -1;
-        let closestTimeDiff = Infinity;
-
-        for (let i = beforeIndex - 1; i >= 0; i--) {
-          const cmd = updated.get(i);
-          if (cmd?.running && logs[i].level === 'command') {
-            const timeDiff = completionTimestamp - cmd.startTime;
-            if (timeDiff > 0 && timeDiff < closestTimeDiff) {
-              closestCmdIndex = i;
-              closestTimeDiff = timeDiff;
-            }
-          }
-        }
-
-        return closestCmdIndex;
-      };
-
-      // Process each log entry for command tracking
-      for (let index = 0; index < logs.length; index++) {
-        const log = logs[index];
-
-        // Start tracking new command logs
-        if (log.level === 'command' && !updated.has(index)) {
-          updated.set(index, {
-            index,
-            startTime: log.timestamp,
-            running: true,
-          });
-          continue;
-        }
-
-        // Mark previous running command as complete when we see a new system/command log
-        if ((log.level === 'system' || log.level === 'command') && index > 0) {
-          const closestCmdIndex = findClosestRunningCommand(log.timestamp, index);
-
-          if (closestCmdIndex >= 0) {
-            const cmd = updated.get(closestCmdIndex);
-            if (cmd) {
-              updated.set(closestCmdIndex, {
-                ...cmd,
-                running: false,
-                endTime: log.timestamp,
-              });
-            }
-          }
-        }
-      }
-
-      return updated;
-    });
+    setActiveCommands((prev) => updateCommandState(logs, prev));
   }, [logs]);
 
   // Auto-scroll to bottom when new logs arrive
