@@ -320,11 +320,11 @@ describe('DockerService', () => {
         start: vi.fn().mockResolvedValueOnce(neverResolving),
       });
 
-      // Start the install (which will timeout after waitForMachineState times out at 180s)
+      // Start the install (which will timeout after waitForMachineState times out at TIMEOUTS.install)
       const installPromise = dockerService.installDependencies(sessionId).catch((err) => err);
 
-      // Fast-forward time by 3 minutes to trigger waitForMachineState timeout
-      await vi.advanceTimersByTimeAsync(181000); // 3 minutes + 1 second
+      // Fast-forward time by TIMEOUTS.install + 1 second to trigger waitForMachineState timeout
+      await vi.advanceTimersByTimeAsync(301000); // TIMEOUTS.install (5 minutes) + 1 second
 
       const result = await installPromise;
       expect(result).toBeInstanceOf(Error);

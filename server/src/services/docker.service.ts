@@ -888,7 +888,7 @@ export class DockerService extends EventEmitter {
       await this.waitForMachineState(
         containerInfo.actor,
         ['starting', 'waitingForVite', 'running'], // Accept any state past installation
-        180000, // 3 minutes for npm install + Prisma
+        TIMEOUTS.install, // Use configured timeout for npm install + Prisma
       );
 
       dockerLogger.info({ sessionId }, 'Dependencies installed successfully via state machine');
