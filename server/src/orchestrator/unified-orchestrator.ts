@@ -1,7 +1,8 @@
 import type { Server as SocketIOServer } from 'socket.io';
+import { createActor } from 'xstate';
 import { UnifiedCodeGenerationCapability } from '../capabilities/unified-code-generation.capability.js';
 import { TemplateCapability } from '../capabilities/template.capability.js';
-import type { BaseCapability } from '../capabilities/base.capability.js';
+import { getEnv } from '../config/env.js';
 import { getErrorMessage, isAbortError } from '../lib/error-utils.js';
 import { createLogger } from '../lib/logger.js';
 import { cleanupSession } from '../lib/message-utils.js';
@@ -13,18 +14,29 @@ import type {
   CapabilityContext,
   ClientToServerEvents,
   GenerationMetrics,
-  GenerationStatus,
   ServerToClientEvents,
 } from '../types/index.js';
+import {
+  createGenerationMachine,
+  type GenerationMachineActor,
+  type InitializeOutput,
+  type InitializeInput,
+  type CopyTemplateInput,
+  type CodeGenerationInput,
+  type CodeGenerationOutput,
+  type FinishInput,
+} from './generation.machine.js';
 
 /**
- * Unified Capability Orchestrator
+ * Unified Capability Orchestrator (XState-driven)
  *
- * Simplified orchestrator that uses the new unified capability system.
- * All optional behaviors (planning, validation, building blocks) are handled
- * by tools within the UnifiedCodeGenerationCapability.
+ * Uses an XState state machine to orchestrate the generation pipeline with
+ * explicit state management and automatic cleanup.
  *
- * This orchestrator only decides:
+ * State Machine Flow:
+ * idle → initializing → [loadingTemplate]? → codeGenerating → completing → completed/failed/cancelled
+ *
+ * The orchestrator decides:
  * 1. Whether to copy a template first (inputMode: 'template' vs 'naive')
  * 2. Then runs UnifiedCodeGenerationCapability with all tools available
  *
@@ -35,19 +47,19 @@ import type {
  * - requestBlock (if buildingBlocks is enabled)
  *
  * Design Philosophy:
- * - Minimal orchestration logic
+ * - Explicit state management via XState
+ * - Automatic cleanup and timeout handling
  * - LLM decides when to use optional features
- * - No mode explosion (no plan-based, template-plan-based, etc.)
  * - Single composable prompt system
  */
 export class UnifiedOrchestrator {
-  private static readonly DEFAULT_TEMPLATE_NAME = 'vite-fullstack-base';
-
   private modelName: ModelName;
   private io: SocketIOServer<ClientToServerEvents, ServerToClientEvents>;
   private logger: ReturnType<typeof createLogger>;
   private abortController: AbortController;
   private generationTimeout?: NodeJS.Timeout;
+  // XState machine actor that orchestrates generation
+  private actor?: GenerationMachineActor;
 
   constructor(
     modelName: ModelName,
@@ -91,7 +103,202 @@ export class UnifiedOrchestrator {
   }
 
   /**
+   * Create and initialize the generation state machine (Phase 2: Active mode)
+   *
+   * The machine now orchestrates the entire generation pipeline.
+   */
+  private createMachine(
+    sessionId: string,
+    prompt: string,
+    config: CapabilityConfig,
+  ): GenerationMachineActor {
+    const machine = createGenerationMachine({
+      actors: {
+        // Initialize sandbox and Docker container
+        initializeActor: async (input: InitializeInput): Promise<InitializeOutput> => {
+          this.logger.info({ sessionId: input.sessionId }, 'Initializing sandbox and Docker');
+
+          // 1. Initialize sandbox on host filesystem
+          const sandboxPath = await initializeSandbox(input.sessionId);
+
+          // 2. Create Docker container immediately (execution sandbox)
+          this.logger.info({ sessionId: input.sessionId }, 'Creating Docker container');
+          const { dockerService } = await import('../services/docker.service.js');
+          await dockerService.createContainer(input.sessionId, sandboxPath);
+          this.logger.info(
+            { sessionId: input.sessionId },
+            'Docker container created with status: ready',
+          );
+
+          return { sandboxPath };
+        },
+
+        // Copy template files to sandbox
+        copyTemplateActor: async (input: CopyTemplateInput): Promise<void> => {
+          this.logger.info(
+            { sessionId: input.sessionId, templateName: input.templateName },
+            'Copying template',
+          );
+
+          const capability = new TemplateCapability(this.modelName, this.io, input.templateName);
+          const context: CapabilityContext = {
+            sessionId: input.sessionId,
+            prompt: '', // Not needed for template copy
+            sandboxPath: input.sandboxPath,
+            tokens: { input: 0, output: 0, total: 0 },
+            cost: 0,
+            toolCalls: 0,
+            startTime: Date.now(),
+            abortSignal: this.abortController.signal,
+          };
+
+          const result = await capability.execute(context);
+          if (!result.success) {
+            throw new Error(result.error ?? 'Template copy failed');
+          }
+
+          this.logger.info({ sessionId: input.sessionId }, 'Template copied successfully');
+        },
+
+        // Run unified code generation capability
+        codeGenerationActor: async (input: CodeGenerationInput): Promise<CodeGenerationOutput> => {
+          this.logger.info({ sessionId: input.sessionId }, 'Starting code generation');
+
+          const capability = new UnifiedCodeGenerationCapability(
+            this.modelName,
+            this.io,
+            input.config,
+          );
+          const context: CapabilityContext = {
+            sessionId: input.sessionId,
+            prompt: input.prompt,
+            sandboxPath: input.sandboxPath,
+            tokens: { input: 0, output: 0, total: 0 },
+            cost: 0,
+            toolCalls: 0,
+            startTime: Date.now(),
+            abortSignal: this.abortController.signal,
+          };
+
+          const result = await capability.execute(context);
+
+          // IMPORTANT: Extract metrics even if generation failed
+          // This ensures we track partial progress before the error
+          const output: CodeGenerationOutput = {
+            tokensUsed: result.tokensUsed ?? { input: 0, output: 0 },
+            cost: result.cost ?? 0,
+            toolCalls: result.toolCalls ?? 0,
+          };
+
+          if (!result.success) {
+            this.logger.error(
+              {
+                sessionId: input.sessionId,
+                error: result.error,
+                partialMetrics: output,
+              },
+              'Code generation failed (captured partial metrics)',
+            );
+            // Throw error to transition to failed state, but metrics are preserved in output
+            throw new Error(result.error ?? 'Code generation failed');
+          }
+
+          this.logger.info(
+            {
+              sessionId: input.sessionId,
+              tokensUsed: result.tokensUsed,
+              cost: result.cost,
+              toolCalls: result.toolCalls,
+            },
+            'Code generation completed',
+          );
+
+          return output;
+        },
+
+        // Persist metrics and emit completion event
+        finishActor: async (input: FinishInput): Promise<void> => {
+          this.logger.info({ sessionId: input.sessionId }, 'Finishing generation');
+
+          // Update database with final metrics
+          try {
+            await databaseService.updateSession(input.sessionId, {
+              status: input.status,
+              totalTokens: input.metrics.totalTokens,
+              inputTokens: input.metrics.inputTokens,
+              outputTokens: input.metrics.outputTokens,
+              cost: input.metrics.cost.toString(),
+              durationMs: input.metrics.duration,
+              stepCount: input.metrics.steps,
+              errorMessage: input.error,
+            });
+          } catch (error) {
+            this.logger.error(
+              { error, sessionId: input.sessionId, metrics: input.metrics },
+              'Failed to update database with metrics',
+            );
+            this.io.to(input.sessionId).emit('warning', 'Metrics may not be persisted');
+          }
+
+          // Emit completion event
+          this.io.to(input.sessionId).emit('generation_complete', {
+            ...input.metrics,
+            status: input.status,
+          });
+
+          // Cleanup message trackers
+          cleanupSession(input.sessionId);
+
+          this.logger.info({ sessionId: input.sessionId }, 'Generation finished');
+        },
+      },
+      actions: {
+        setupTimeout: () => {
+          // Set up generation timeout (synchronous action)
+          const env = getEnv();
+          this.generationTimeout = setTimeout(() => {
+            this.logger.warn(
+              { sessionId, timeoutMs: env.GENERATION_TIMEOUT_MS },
+              'Generation timeout reached, aborting',
+            );
+            this.abort();
+          }, env.GENERATION_TIMEOUT_MS);
+        },
+        clearTimeout: () => {
+          this.clearGenerationTimeout();
+        },
+      },
+    });
+
+    // Create actor and subscribe to state changes for logging
+    const actor = createActor(machine, {
+      input: { sessionId, prompt, config, modelName: this.modelName },
+    });
+
+    actor.subscribe((state) => {
+      this.logger.info(
+        {
+          sessionId,
+          state: state.value,
+          context: {
+            tokens: state.context.tokens,
+            cost: state.context.cost,
+            toolCalls: state.context.toolCalls,
+            error: state.context.error,
+          },
+        },
+        `[XState Machine] State changed: ${String(state.value)}`,
+      );
+    });
+
+    actor.start();
+    return actor;
+  }
+
+  /**
    * Generate an app using the unified capability system
+   *
+   * Phase 2: Event-driven orchestration via XState machine
    *
    * @param prompt - User's app description
    * @param config - Capability configuration
@@ -109,222 +316,101 @@ export class UnifiedOrchestrator {
         config,
         modelName: this.modelName,
       },
-      'Starting unified capability-based generation',
+      'Starting unified capability-based generation (XState-driven)',
     );
 
-    // Set up generation timeout
-    const { getEnv } = await import('../config/env.js');
-    const env = getEnv();
-    this.generationTimeout = setTimeout(() => {
-      this.logger.warn(
-        { sessionId, timeoutMs: env.GENERATION_TIMEOUT_MS },
-        'Generation timeout reached, aborting',
-      );
-      this.abort();
-    }, env.GENERATION_TIMEOUT_MS);
+    // Create and start the state machine
+    this.actor = this.createMachine(sessionId, prompt, config);
 
     try {
-      // 1. Initialize sandbox on host filesystem
-      const sandboxPath = await initializeSandbox(sessionId);
-
-      // 2. Create Docker container immediately (execution sandbox)
-      this.logger.info({ sessionId }, 'Creating Docker container');
-      const { dockerService } = await import('../services/docker.service.js');
-      await dockerService.createContainer(sessionId, sandboxPath);
-      this.logger.info({ sessionId }, 'Docker container created with status: ready');
-
-      // 3. Build simple pipeline (template copy + unified code generation)
-      const capabilities = this.buildPipeline(config);
-
-      this.logger.info(
-        {
-          sessionId,
-          capabilityCount: capabilities.length,
-          capabilityNames: capabilities.map((c) => c.getName()),
-        },
-        'Built unified capability pipeline',
-      );
-
-      // 4. Initialize context and execute pipeline
-      const context = this.initializeContext(sessionId, prompt, sandboxPath);
-      const executionResult = await this.executePipeline(capabilities, context);
-
-      // 5. Clear timeout on success
-      this.clearGenerationTimeout();
-
-      // 6. Build and emit metrics
-      const status = executionResult.success ? 'completed' : 'failed';
-      const metrics = this.buildMetrics(context, status);
-
-      this.logger.info(
-        {
-          sessionId,
-          success: executionResult.success,
-          metrics,
-        },
-        'Generation complete',
-      );
-
-      // 7. Update database with final metrics
-      const dbSuccess = await this.updateDatabase(
-        sessionId,
-        metrics,
-        status,
-        executionResult.error,
-      );
-
-      if (!dbSuccess) {
-        this.io.to(sessionId).emit('warning', 'Metrics may not be persisted');
+      // Check if already aborted before starting
+      if (this.abortController.signal.aborted) {
+        this.actor.send({ type: 'ABORT' });
+        throw new Error('Generation aborted');
       }
 
-      // 8. Emit completion event
-      this.emitComplete(sessionId, metrics, status);
+      // Send START event to begin generation
+      this.actor.send({ type: 'START', sessionId, prompt, config, modelName: this.modelName });
 
-      // 9. Cleanup message trackers to prevent memory leaks
-      cleanupSession(sessionId);
+      // Wait for machine to reach a final state
+      const snapshot = await new Promise<ReturnType<typeof this.actor.getSnapshot>>(
+        (resolve, reject) => {
+          const subscription = this.actor!.subscribe((state) => {
+            // Check if we reached a final state
+            if (state.status === 'done') {
+              subscription.unsubscribe();
+              resolve(state);
+            }
+          });
+
+          // Set up abort handler immediately after subscription
+          const abortHandler = () => {
+            subscription.unsubscribe();
+            this.actor!.send({ type: 'ABORT' });
+            reject(new Error('Generation aborted'));
+          };
+
+          this.abortController.signal.addEventListener('abort', abortHandler);
+        },
+      );
+
+      // Extract final metrics from machine context
+      const finalState = snapshot.value as string;
+      const context = snapshot.context;
+      const duration = Date.now() - context.startTime;
+
+      // Build metrics from final machine context
+      const metrics: GenerationMetrics = {
+        sessionId,
+        model: this.modelName,
+        status:
+          finalState === 'completed'
+            ? 'completed'
+            : finalState === 'cancelled'
+              ? 'cancelled'
+              : 'failed',
+        totalTokens: context.tokens.total,
+        inputTokens: context.tokens.input,
+        outputTokens: context.tokens.output,
+        cost: context.cost,
+        duration,
+        steps: context.toolCalls,
+      };
+
+      if (finalState === 'completed') {
+        this.logger.info({ sessionId, metrics }, 'Generation completed successfully');
+      } else if (finalState === 'cancelled') {
+        this.logger.info({ sessionId, metrics }, 'Generation cancelled');
+      } else {
+        // failed
+        this.logger.error({ sessionId, error: context.error, metrics }, 'Generation failed');
+      }
 
       return metrics;
     } catch (error) {
-      this.clearGenerationTimeout();
+      this.logger.error({ error, sessionId }, 'Generation error');
 
-      // Cleanup message trackers on error/abort
-      cleanupSession(sessionId);
+      // Extract partial metrics from machine context if available
+      const partialMetrics = this.actor
+        ? {
+            totalTokens: this.actor.getSnapshot().context.tokens.total,
+            inputTokens: this.actor.getSnapshot().context.tokens.input,
+            outputTokens: this.actor.getSnapshot().context.tokens.output,
+            cost: this.actor.getSnapshot().context.cost,
+            toolCalls: this.actor.getSnapshot().context.toolCalls,
+            duration: Date.now() - this.actor.getSnapshot().context.startTime,
+          }
+        : null;
 
       if (isAbortError(error)) {
-        return this.handleAbort(sessionId);
+        return this.handleAbort(sessionId, partialMetrics);
       }
 
-      return this.handleGenerationError(sessionId, error);
+      return this.handleGenerationError(sessionId, error, partialMetrics);
+    } finally {
+      // Always stop the actor
+      this.actor?.stop();
     }
-  }
-
-  /**
-   * Build simple pipeline
-   * Only decision: Template copy or not
-   * All other behaviors handled via tools in UnifiedCodeGenerationCapability
-   */
-  private buildPipeline(config: CapabilityConfig): BaseCapability[] {
-    const capabilities: BaseCapability[] = [];
-
-    // Step 1: Template copy (if inputMode: 'template')
-    if (config.inputMode === 'template') {
-      capabilities.push(
-        new TemplateCapability(
-          this.modelName,
-          this.io,
-          config.templateOptions?.templateName ?? UnifiedOrchestrator.DEFAULT_TEMPLATE_NAME,
-        ),
-      );
-    }
-
-    // Step 2: Unified code generation with all tools
-    // Tool call budget is derived from config.maxIterations
-    capabilities.push(new UnifiedCodeGenerationCapability(this.modelName, this.io, config));
-
-    return capabilities;
-  }
-
-  /**
-   * Execute capability pipeline sequentially
-   */
-  private async executePipeline(
-    capabilities: BaseCapability[],
-    context: CapabilityContext,
-  ): Promise<{ success: boolean; error?: string }> {
-    for (const capability of capabilities) {
-      const capabilityName = capability.getName();
-
-      this.logger.info(
-        {
-          sessionId: context.sessionId,
-          capability: capabilityName,
-        },
-        'Starting capability',
-      );
-
-      const result = await capability.execute(context);
-
-      this.logger.info(
-        {
-          sessionId: context.sessionId,
-          capability: capabilityName,
-          success: result.success,
-          tokensUsed: result.tokensUsed,
-          cost: result.cost,
-          toolCalls: result.toolCalls,
-        },
-        'Capability complete',
-      );
-
-      // Update context with metrics from this capability
-      context.tokens.input += result.tokensUsed?.input ?? 0;
-      context.tokens.output += result.tokensUsed?.output ?? 0;
-      context.tokens.total = context.tokens.input + context.tokens.output;
-      context.cost += result.cost ?? 0;
-      context.toolCalls += result.toolCalls ?? 0;
-
-      // If capability failed, stop pipeline
-      if (!result.success) {
-        return {
-          success: false,
-          error: result.error ?? 'Unknown error',
-        };
-      }
-
-      // Check if aborted between capabilities
-      if (this.isAborted()) {
-        this.logger.info(
-          { sessionId: context.sessionId },
-          'Generation aborted between capabilities',
-        );
-        throw new Error('Generation aborted');
-      }
-    }
-
-    return { success: true };
-  }
-
-  /**
-   * Initialize execution context
-   */
-  private initializeContext(
-    sessionId: string,
-    prompt: string,
-    sandboxPath: string,
-  ): CapabilityContext {
-    return {
-      sessionId,
-      prompt,
-      sandboxPath,
-      tokens: {
-        input: 0,
-        output: 0,
-        total: 0,
-      },
-      cost: 0,
-      toolCalls: 0,
-      startTime: Date.now(),
-      abortSignal: this.abortController.signal,
-    };
-  }
-
-  /**
-   * Build final generation metrics from context
-   */
-  private buildMetrics(context: CapabilityContext, status: GenerationStatus): GenerationMetrics {
-    const duration = Date.now() - context.startTime;
-
-    return {
-      sessionId: context.sessionId,
-      model: this.modelName,
-      status,
-      totalTokens: context.tokens.total,
-      inputTokens: context.tokens.input,
-      outputTokens: context.tokens.output,
-      cost: context.cost,
-      duration,
-      steps: context.toolCalls,
-    };
   }
 
   /**
@@ -333,7 +419,7 @@ export class UnifiedOrchestrator {
   private async updateDatabase(
     sessionId: string,
     metrics: GenerationMetrics,
-    status: GenerationStatus,
+    status: 'completed' | 'cancelled' | 'failed',
     errorMessage?: string,
   ): Promise<boolean> {
     try {
@@ -367,7 +453,7 @@ export class UnifiedOrchestrator {
   private emitComplete(
     sessionId: string,
     metrics: GenerationMetrics,
-    status: GenerationStatus,
+    status: 'completed' | 'cancelled' | 'failed',
   ): void {
     this.io.to(sessionId).emit('generation_complete', {
       ...metrics,
@@ -378,11 +464,20 @@ export class UnifiedOrchestrator {
   /**
    * Handle abort case
    */
-  private async handleAbort(sessionId: string): Promise<GenerationMetrics> {
-    const duration = 0;
+  private async handleAbort(
+    sessionId: string,
+    partialMetrics: {
+      totalTokens: number;
+      inputTokens: number;
+      outputTokens: number;
+      cost: number;
+      toolCalls: number;
+      duration: number;
+    } | null,
+  ): Promise<GenerationMetrics> {
     const errorMsg = 'Generation aborted by user';
 
-    this.logger.info({ sessionId }, errorMsg);
+    this.logger.info({ sessionId, partialMetrics }, errorMsg);
     this.io.to(sessionId).emit('llm_message', {
       id: `${Date.now()}-system`,
       role: 'system',
@@ -390,7 +485,17 @@ export class UnifiedOrchestrator {
       timestamp: Date.now(),
     });
 
-    const metrics = this.createEmptyMetrics(sessionId, duration);
+    // Use partial metrics if available, otherwise create empty metrics
+    const metrics: GenerationMetrics = partialMetrics
+      ? {
+          sessionId,
+          model: this.modelName,
+          status: 'cancelled',
+          ...partialMetrics,
+          steps: partialMetrics.toolCalls,
+        }
+      : this.createEmptyMetrics(sessionId, 0);
+
     const dbSuccess = await this.updateDatabase(sessionId, metrics, 'cancelled', errorMsg);
 
     if (!dbSuccess) {
@@ -398,6 +503,7 @@ export class UnifiedOrchestrator {
     }
 
     this.emitComplete(sessionId, metrics, 'cancelled');
+    cleanupSession(sessionId);
     return metrics;
   }
 
@@ -407,14 +513,31 @@ export class UnifiedOrchestrator {
   private async handleGenerationError(
     sessionId: string,
     error: unknown,
+    partialMetrics: {
+      totalTokens: number;
+      inputTokens: number;
+      outputTokens: number;
+      cost: number;
+      toolCalls: number;
+      duration: number;
+    } | null,
   ): Promise<GenerationMetrics> {
-    const duration = 0;
     const errorMsg = getErrorMessage(error);
-    this.logger.error({ error, sessionId }, 'Generation failed with error');
+    this.logger.error({ error, sessionId, partialMetrics }, 'Generation failed with error');
 
     this.io.to(sessionId).emit('error', errorMsg);
 
-    const metrics = this.createEmptyMetrics(sessionId, duration);
+    // Use partial metrics if available, otherwise create empty metrics
+    const metrics: GenerationMetrics = partialMetrics
+      ? {
+          sessionId,
+          model: this.modelName,
+          status: 'failed',
+          ...partialMetrics,
+          steps: partialMetrics.toolCalls,
+        }
+      : this.createEmptyMetrics(sessionId, 0);
+
     const dbSuccess = await this.updateDatabase(sessionId, metrics, 'failed', errorMsg);
 
     if (!dbSuccess) {
@@ -422,6 +545,7 @@ export class UnifiedOrchestrator {
     }
 
     this.emitComplete(sessionId, metrics, 'failed');
+    cleanupSession(sessionId);
     return metrics;
   }
 
