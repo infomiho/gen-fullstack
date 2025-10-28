@@ -76,10 +76,12 @@ class MessageTracker {
 const sessionTrackers = new Map<string, MessageTracker>();
 
 function getTracker(sessionId: string): MessageTracker {
-  if (!sessionTrackers.has(sessionId)) {
-    sessionTrackers.set(sessionId, new MessageTracker());
+  let tracker = sessionTrackers.get(sessionId);
+  if (!tracker) {
+    tracker = new MessageTracker();
+    sessionTrackers.set(sessionId, tracker);
   }
-  return sessionTrackers.get(sessionId)!;
+  return tracker;
 }
 
 /**

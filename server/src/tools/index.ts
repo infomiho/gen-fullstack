@@ -374,6 +374,85 @@ function formatTypeScriptErrors(parsedErrors: TypeScriptError[]) {
 }
 
 /**
+ * Helper: Build error message from command result
+ */
+function buildExecutionErrorMessage(result: {
+  stdout: string;
+  stderr: string;
+  exitCode?: number;
+}): string {
+  const errorParts: string[] = [];
+
+  if (result.stderr) {
+    errorParts.push(result.stderr);
+  }
+
+  if (result.exitCode !== undefined && result.exitCode !== 0) {
+    errorParts.push(`Exit code: ${result.exitCode}`);
+  }
+
+  if (result.stdout && !result.stderr) {
+    // If stderr is empty but stdout has content, include it
+    errorParts.push(`Output: ${result.stdout.substring(0, 200)}`);
+  }
+
+  return errorParts.length > 0 ? errorParts.join('\n') : 'Command execution failed with no output';
+}
+
+/**
+ * Helper: Handle execution failures (not TypeScript compilation errors)
+ */
+function handleExecutionFailure(
+  sessionId: string,
+  target: 'client' | 'server',
+  result: { success: boolean; stdout: string; stderr: string; exitCode?: number },
+) {
+  // Check if this looks like TypeScript compilation errors
+  const combinedOutput = result.stdout + result.stderr;
+  const hasTypeScriptErrors = combinedOutput.includes('error TS');
+
+  // Log diagnostic information for debugging
+  commandLogger.debug(
+    {
+      sessionId,
+      target,
+      exitCode: result.exitCode,
+      hasTypeScriptErrors,
+      stdoutLength: result.stdout.length,
+      stderrLength: result.stderr.length,
+      stdoutPreview: result.stdout.substring(0, 200),
+      stderrPreview: result.stderr.substring(0, 200),
+    },
+    'TypeScript validation command result',
+  );
+
+  if (hasTypeScriptErrors) {
+    return null; // Not an execution failure, fall through to parsing
+  }
+
+  // This is a real execution error (timeout, missing file, permission denied, etc.)
+  const errorMessage = buildExecutionErrorMessage(result);
+
+  commandLogger.error(
+    {
+      sessionId,
+      target,
+      exitCode: result.exitCode,
+      errorMessage,
+    },
+    'TypeScript validation execution error',
+  );
+
+  return {
+    target,
+    passed: false,
+    errorCount: 0,
+    errors: '',
+    executionError: errorMessage,
+  };
+}
+
+/**
  * Helper: Run TypeScript validation for a target
  */
 async function validateTarget(sessionId: string, target: 'client' | 'server') {
@@ -385,63 +464,9 @@ async function validateTarget(sessionId: string, target: 'client' | 'server') {
   // Check if command execution itself failed (timeout, missing files, etc.)
   // BUT: TypeScript compilation errors (exit code 1) are NOT execution failures
   if (!result.success) {
-    // Check if this looks like TypeScript compilation errors
-    const combinedOutput = result.stdout + result.stderr;
-    const hasTypeScriptErrors = combinedOutput.includes('error TS');
-
-    // Log diagnostic information for debugging
-    commandLogger.debug(
-      {
-        sessionId,
-        target,
-        exitCode: result.exitCode,
-        hasTypeScriptErrors,
-        stdoutLength: result.stdout.length,
-        stderrLength: result.stderr.length,
-        stdoutPreview: result.stdout.substring(0, 200),
-        stderrPreview: result.stderr.substring(0, 200),
-      },
-      'TypeScript validation command result',
-    );
-
-    if (!hasTypeScriptErrors) {
-      // This is a real execution error (timeout, missing file, permission denied, etc.)
-      // Build a helpful error message with context
-      const errorParts: string[] = [];
-
-      if (result.stderr) {
-        errorParts.push(result.stderr);
-      }
-
-      if (result.exitCode !== undefined && result.exitCode !== 0) {
-        errorParts.push(`Exit code: ${result.exitCode}`);
-      }
-
-      if (result.stdout && !result.stderr) {
-        // If stderr is empty but stdout has content, include it
-        errorParts.push(`Output: ${result.stdout.substring(0, 200)}`);
-      }
-
-      const errorMessage =
-        errorParts.length > 0 ? errorParts.join('\n') : 'Command execution failed with no output';
-
-      commandLogger.error(
-        {
-          sessionId,
-          target,
-          exitCode: result.exitCode,
-          errorMessage,
-        },
-        'TypeScript validation execution error',
-      );
-
-      return {
-        target,
-        passed: false,
-        errorCount: 0,
-        errors: '',
-        executionError: errorMessage,
-      };
+    const executionError = handleExecutionFailure(sessionId, target, result);
+    if (executionError) {
+      return executionError;
     }
     // Fall through to parsing if it looks like TypeScript compilation errors
   }
