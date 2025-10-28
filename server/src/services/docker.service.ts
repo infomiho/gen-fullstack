@@ -248,11 +248,7 @@ export class DockerService extends EventEmitter {
               cleanupStream = undefined;
             }
 
-            this.logManager.emitLog(
-              input.sessionId,
-              'system',
-              'Dependencies installed successfully',
-            );
+            this.logManager.emitLog(input.sessionId, 'system', 'Dependencies installed');
 
             // Step 2: Prisma generate
             this.logManager.emitLog(input.sessionId, 'system', 'Generating Prisma client...');
@@ -279,14 +275,10 @@ export class DockerService extends EventEmitter {
               cleanupStream = undefined;
             }
 
-            this.logManager.emitLog(
-              input.sessionId,
-              'system',
-              'Prisma client generated successfully',
-            );
+            this.logManager.emitLog(input.sessionId, 'system', 'Prisma client generated');
 
             // Step 3: Database migrations
-            this.logManager.emitLog(input.sessionId, 'system', 'Running database migration...');
+            this.logManager.emitLog(input.sessionId, 'system', 'Running database migrations...');
             this.logManager.emitLog(
               input.sessionId,
               'command',
@@ -315,11 +307,7 @@ export class DockerService extends EventEmitter {
               cleanupStream = undefined;
             }
 
-            this.logManager.emitLog(
-              input.sessionId,
-              'system',
-              'Database migration completed successfully',
-            );
+            this.logManager.emitLog(input.sessionId, 'system', 'Database migrations complete');
           } catch (error) {
             if (cleanupStream) {
               cleanupStream();
@@ -334,11 +322,7 @@ export class DockerService extends EventEmitter {
             throw new Error(`Container not found: ${input.sessionId}`);
           }
 
-          this.logManager.emitLog(
-            input.sessionId,
-            'system',
-            'Starting development servers (client + server)...',
-          );
+          this.logManager.emitLog(input.sessionId, 'system', 'Starting dev servers...');
           this.logManager.emitLog(input.sessionId, 'command', 'npm run dev');
 
           const exec = await input.container.exec({
@@ -364,9 +348,18 @@ export class DockerService extends EventEmitter {
           );
         },
         httpReadyCheck: async (input) => {
-          // Use extracted checkHttpReady function
-          const ready = await checkHttpReady(input.port, input.signal);
-          return ready;
+          const serviceName = input.serviceName === 'client' ? 'client' : 'server';
+          const containerPort = input.serviceName === 'client' ? 5173 : 3000;
+
+          // Use extracted checkHttpReady function with service name (checks host port)
+          const ready = await checkHttpReady(input.port, input.serviceName, input.signal);
+          if (!ready) {
+            const errorMsg = `${serviceName.charAt(0).toUpperCase() + serviceName.slice(1)} failed to start on port ${containerPort}. Please check the logs above.`;
+            this.logManager.emitLog(input.sessionId, 'system', errorMsg);
+            throw new Error(errorMsg);
+          }
+
+          return true;
         },
       },
       actions: {
@@ -434,6 +427,13 @@ export class DockerService extends EventEmitter {
 
           // Cleanup machine context (timers, abort controllers)
           this.cleanupMachineContext(context);
+
+          // Kill dev server process if it's running (important for failed states)
+          if (containerInfo.container && containerInfo.devServerExec) {
+            this.killDevServerProcess(containerInfo.container, sessionId).catch((err) =>
+              dockerLogger.error({ error: err, sessionId }, 'Failed to kill dev server process'),
+            );
+          }
 
           // Cleanup container streams
           this.cleanupContainerStreams(containerInfo);

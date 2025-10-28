@@ -3,19 +3,21 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { dockerLogger } from '../../../lib/logger.js';
 import { checkHttpReady } from '../http-ready-check.js';
 
 describe('checkHttpReady', () => {
   beforeEach(() => {
     // Reset fetch mock before each test
     vi.unstubAllGlobals();
+    vi.clearAllMocks();
   });
 
   it('should return true when server responds immediately', async () => {
     // Mock global fetch to succeed
     global.fetch = vi.fn().mockResolvedValueOnce(new Response());
 
-    const ready = await checkHttpReady(5173);
+    const ready = await checkHttpReady(5173, 'client');
 
     expect(ready).toBe(true);
     expect(global.fetch).toHaveBeenCalledTimes(1);
@@ -35,7 +37,7 @@ describe('checkHttpReady', () => {
       .mockRejectedValueOnce(new Error('ECONNREFUSED'))
       .mockResolvedValueOnce(new Response());
 
-    const ready = await checkHttpReady(5173);
+    const ready = await checkHttpReady(5173, 'client');
 
     expect(ready).toBe(true);
     expect(global.fetch).toHaveBeenCalledTimes(3);
@@ -45,7 +47,7 @@ describe('checkHttpReady', () => {
     // Mock fetch to always fail
     global.fetch = vi.fn().mockRejectedValue(new Error('ECONNREFUSED'));
 
-    const ready = await checkHttpReady(5173);
+    const ready = await checkHttpReady(5173, 'server');
 
     expect(ready).toBe(false);
     expect(global.fetch).toHaveBeenCalledTimes(10); // maxAttempts from HTTP_READY_CHECK
@@ -55,7 +57,7 @@ describe('checkHttpReady', () => {
     // Mock fetch to return 404 (which means server is listening)
     global.fetch = vi.fn().mockResolvedValueOnce(new Response(null, { status: 404 }));
 
-    const ready = await checkHttpReady(5173);
+    const ready = await checkHttpReady(5173, 'client');
 
     expect(ready).toBe(true);
     expect(global.fetch).toHaveBeenCalledTimes(1);
@@ -65,7 +67,7 @@ describe('checkHttpReady', () => {
     // Mock fetch to return 500 (server error, but server is listening)
     global.fetch = vi.fn().mockResolvedValueOnce(new Response(null, { status: 500 }));
 
-    const ready = await checkHttpReady(5173);
+    const ready = await checkHttpReady(5173, 'client');
 
     expect(ready).toBe(true);
   });
@@ -80,7 +82,7 @@ describe('checkHttpReady', () => {
       .mockRejectedValueOnce(new Error('ECONNREFUSED'))
       .mockResolvedValueOnce(new Response());
 
-    const readyPromise = checkHttpReady(5173);
+    const readyPromise = checkHttpReady(5173, 'client');
 
     // Advance timers by 500ms between each retry
     await vi.advanceTimersByTimeAsync(500);
@@ -100,7 +102,7 @@ describe('checkHttpReady', () => {
       .fn()
       .mockRejectedValue(new DOMException('The operation was aborted', 'AbortError'));
 
-    const ready = await checkHttpReady(5173);
+    const ready = await checkHttpReady(5173, 'server');
 
     expect(ready).toBe(false);
     expect(global.fetch).toHaveBeenCalledTimes(10);
@@ -113,10 +115,58 @@ describe('checkHttpReady', () => {
     const abortController = new AbortController();
     abortController.abort(); // Abort before calling
 
-    const ready = await checkHttpReady(5173, abortController.signal);
+    const ready = await checkHttpReady(5173, 'client', abortController.signal);
 
     expect(ready).toBe(false);
     // Should not make any fetch calls since signal was already aborted
     expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('should log service name on success', async () => {
+    // Mock global fetch to succeed
+    global.fetch = vi.fn().mockResolvedValueOnce(new Response());
+    const logSpy = vi.spyOn(dockerLogger, 'info');
+
+    await checkHttpReady(5173, 'client');
+
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ serviceName: 'client' }),
+      expect.stringContaining('client'),
+    );
+  });
+
+  it('should log service name on failure', async () => {
+    // Mock fetch to always fail
+    global.fetch = vi.fn().mockRejectedValue(new Error('ECONNREFUSED'));
+    const errorSpy = vi.spyOn(dockerLogger, 'error');
+
+    await checkHttpReady(3000, 'server');
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ serviceName: 'server' }),
+      expect.stringContaining('server'),
+    );
+  });
+
+  it('should distinguish between client and server in logs', async () => {
+    // Mock global fetch to succeed
+    global.fetch = vi.fn().mockResolvedValue(new Response());
+    const logSpy = vi.spyOn(dockerLogger, 'info');
+
+    // Check client
+    await checkHttpReady(5173, 'client');
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ serviceName: 'client', port: 5173 }),
+      expect.stringContaining('client'),
+    );
+
+    logSpy.mockClear();
+
+    // Check server
+    await checkHttpReady(3000, 'server');
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ serviceName: 'server', port: 3000 }),
+      expect.stringContaining('server'),
+    );
   });
 });

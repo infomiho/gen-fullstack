@@ -12,12 +12,14 @@ import { HTTP_READY_CHECK } from './config.js';
  * Attempt a single HTTP readiness check
  *
  * @param port - Host port to check
+ * @param serviceName - Service name (client or server) for logging
  * @param attempt - Attempt number (0-based)
  * @param signal - Optional AbortSignal to cancel the check
  * @returns True if server responds, false otherwise
  */
 async function attemptHttpCheck(
   port: number,
+  serviceName: string,
   attempt: number,
   signal?: AbortSignal,
 ): Promise<boolean> {
@@ -34,11 +36,12 @@ async function attemptHttpCheck(
       dockerLogger.info(
         {
           port,
+          serviceName,
           attempt: attempt + 1,
           maxAttempts: HTTP_READY_CHECK.maxAttempts,
           error: error instanceof Error ? error.message : error,
         },
-        'HTTP ready check attempt failed',
+        `HTTP ready check attempt failed for ${serviceName}`,
       );
     }
     return false;
@@ -53,6 +56,7 @@ async function attemptHttpCheck(
  * handle requests, avoiding "Unable to connect" errors.
  *
  * @param port - The host port to check
+ * @param serviceName - Service name (client or server) for logging
  * @param signal - Optional AbortSignal to cancel the check
  * @returns Promise<boolean> - true if server responds within timeout, false otherwise
  *
@@ -64,14 +68,19 @@ async function attemptHttpCheck(
  * - Logs first and last failures for debugging
  * - Can be canceled via AbortSignal
  */
-export async function checkHttpReady(port: number, signal?: AbortSignal): Promise<boolean> {
+export async function checkHttpReady(
+  port: number,
+  serviceName: string,
+  signal?: AbortSignal,
+): Promise<boolean> {
   for (let i = 0; i < HTTP_READY_CHECK.maxAttempts; i++) {
     if (signal?.aborted) {
       return false;
     }
 
-    const isReady = await attemptHttpCheck(port, i, signal);
+    const isReady = await attemptHttpCheck(port, serviceName, i, signal);
     if (isReady) {
+      dockerLogger.info({ port, serviceName }, `${serviceName} is ready and responding`);
       return true;
     }
 
@@ -85,5 +94,10 @@ export async function checkHttpReady(port: number, signal?: AbortSignal): Promis
       await new Promise((resolve) => setTimeout(resolve, HTTP_READY_CHECK.delayMs));
     }
   }
+
+  dockerLogger.error(
+    { port, serviceName },
+    `${serviceName} failed to become ready after ${HTTP_READY_CHECK.maxAttempts} attempts`,
+  );
   return false;
 }

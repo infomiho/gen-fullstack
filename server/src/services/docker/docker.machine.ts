@@ -5,9 +5,9 @@
  * Uses XState for explicit state management and automatic cleanup.
  *
  * State Transitions:
- * idle → creating → ready → installing → starting → running → stopped
- *                                                  ↓
- *                                               failed
+ * idle → creating → ready → installing → starting → waitingForVite → checkingClientReady → checkingServerReady → running → stopped
+ *                                                  ↓                         ↓                       ↓
+ *                                               failed                    failed                  failed
  */
 
 import type { AppLog, AppStatus } from '@gen-fullstack/shared';
@@ -82,6 +82,7 @@ export interface StartDevServerInput {
 export interface HttpReadyCheckInput {
   sessionId: string;
   port: number;
+  serviceName: 'client' | 'server';
   signal: AbortSignal;
 }
 
@@ -212,7 +213,7 @@ export const dockerContainerMachine = createMachine(
       },
       waitingForVite: {
         on: {
-          VITE_READY: 'checkingHttpReady',
+          VITE_READY: 'checkingClientReady',
           DESTROY: 'stopped',
         },
         after: {
@@ -224,7 +225,7 @@ export const dockerContainerMachine = createMachine(
           },
         },
       },
-      checkingHttpReady: {
+      checkingClientReady: {
         invoke: {
           id: 'httpReadyCheck',
           src: 'httpReadyCheck',
@@ -232,11 +233,48 @@ export const dockerContainerMachine = createMachine(
             const abortController = new AbortController();
             // Store abort controller for cleanup (will be cleaned up on exit)
             if (!context.clientPort) {
-              throw new Error('Client port is null in checkingHttpReady state');
+              throw new Error('Client port is null in checkingClientReady state');
             }
             return {
               sessionId: context.sessionId,
               port: context.clientPort,
+              serviceName: 'client' as const,
+              signal: abortController.signal,
+            };
+          },
+          onDone: {
+            target: 'checkingServerReady',
+          },
+          onError: {
+            target: 'failed',
+            actions: assign({
+              error: ({ event }) =>
+                `Client (Vite) failed to start: ${event.error instanceof Error ? event.error.message : String(event.error)}`,
+            }),
+          },
+        },
+        after: {
+          60000: {
+            target: 'failed',
+            actions: assign({
+              error: 'Timeout waiting for client (Vite) to be ready',
+            }),
+          },
+        },
+      },
+      checkingServerReady: {
+        invoke: {
+          id: 'httpReadyCheck',
+          src: 'httpReadyCheck',
+          input: ({ context }) => {
+            const abortController = new AbortController();
+            if (!context.serverPort) {
+              throw new Error('Server port is null in checkingServerReady state');
+            }
+            return {
+              sessionId: context.sessionId,
+              port: context.serverPort,
+              serviceName: 'server' as const,
               signal: abortController.signal,
             };
           },
@@ -246,7 +284,16 @@ export const dockerContainerMachine = createMachine(
           onError: {
             target: 'failed',
             actions: assign({
-              error: 'HTTP readiness check failed',
+              error: ({ event }) =>
+                `Server (Express) failed to start: ${event.error instanceof Error ? event.error.message : String(event.error)}`,
+            }),
+          },
+        },
+        after: {
+          60000: {
+            target: 'failed',
+            actions: assign({
+              error: 'Timeout waiting for server (Express) to be ready',
             }),
           },
         },
@@ -319,7 +366,7 @@ export const dockerContainerMachine = createMachine(
  * - creating → creating (container being created)
  * - ready → ready (container created, ready for commands)
  * - installing → installing (npm install + Prisma)
- * - starting, waitingForVite, checkingHttpReady → starting (dev servers starting)
+ * - starting, waitingForVite, checkingClientReady, checkingServerReady → starting (dev servers starting)
  * - running → running (dev servers active)
  * - stopped → stopped (container destroyed)
  * - failed → failed (error occurred)
@@ -338,7 +385,8 @@ export function stateToAppStatus(state: string): AppStatus {
       return 'installing';
     case 'starting':
     case 'waitingForVite':
-    case 'checkingHttpReady':
+    case 'checkingClientReady':
+    case 'checkingServerReady':
       return 'starting';
     case 'idle':
     case 'ready':
