@@ -15,7 +15,7 @@ const BASE_SYSTEM_PROMPT = `You are an expert full-stack TypeScript developer. Y
 
 ARCHITECTURE:
 You are building a monorepo with npm workspaces:
-- Root package.json with workspaces: ["client", "server", "prisma"]
+- Root package.json with workspaces: ["client", "server"]
 - client/ - Vite + React 19 + TypeScript + Tailwind 4 + React Router 7
 - server/ - Express 5 + TypeScript with RESTful API
 - prisma/ - Prisma ORM + SQLite database
@@ -23,7 +23,7 @@ You are building a monorepo with npm workspaces:
 REQUIRED FILES:
 1. Root level:
    - package.json (with workspaces, concurrently for dev scripts)
-   - .env (DATABASE_URL="file:./prisma/dev.db")
+   - .env (DATABASE_URL="file:./dev.db")
 
 2. client/:
    - package.json (name: "client", type: "module", with react-router & tailwindcss deps)
