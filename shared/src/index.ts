@@ -204,6 +204,44 @@ export interface ValidationError {
 }
 
 // ============================================================================
+// Pipeline Stage Types (Phase B - Explicit Orchestration)
+// ============================================================================
+
+/**
+ * Pipeline stage event emitted by the state machine to show
+ * explicit orchestration stages in the UI timeline.
+ *
+ * These are distinguished from LLM tool calls - they represent
+ * machine-controlled stages (planning, validation, template loading).
+ */
+export interface PipelineStageEvent {
+  /** Unique ID for this stage event */
+  id: string;
+  /** Stage type - maps to state machine states */
+  type: 'planning' | 'validation' | 'template_loading' | 'completing';
+  /** Stage status */
+  status: 'started' | 'completed' | 'failed';
+  /** Unix timestamp in milliseconds */
+  timestamp: number;
+  /** Stage-specific data payload */
+  data?: {
+    // Planning stage
+    plan?: ArchitecturePlan;
+
+    // Validation stage
+    validationErrors?: ValidationError[];
+    iteration?: number; // Retry count (1, 2, 3...) for error-fixing loops
+    maxIterations?: number; // Max allowed iterations
+
+    // Template loading stage
+    templateName?: string;
+
+    // Completing stage
+    summary?: string;
+  };
+}
+
+// ============================================================================
 // App Execution Types
 // ============================================================================
 
@@ -283,6 +321,9 @@ export interface ServerToClientEvents {
   file_updated: (data: FileUpdate) => void;
   generation_complete: (metrics: GenerationMetrics) => void;
   workspace_cleared: () => void;
+
+  // Pipeline stage events (Phase B - explicit orchestration)
+  pipeline_stage: (stage: PipelineStageEvent) => void;
 
   // App execution events
   app_status: (data: AppInfo) => void;

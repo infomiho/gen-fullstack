@@ -112,6 +112,35 @@ export class UnifiedOrchestrator {
   }
 
   /**
+   * Emit a pipeline stage event to the client
+   * (Phase B - explicit orchestration UI)
+   */
+  private emitPipelineStage(
+    sessionId: string,
+    type: 'planning' | 'validation' | 'template_loading' | 'completing',
+    status: 'started' | 'completed' | 'failed',
+    data?: {
+      plan?: any;
+      validationErrors?: any[];
+      iteration?: number;
+      maxIterations?: number;
+      templateName?: string;
+      summary?: string;
+    },
+  ): void {
+    const event = {
+      id: `stage-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      type,
+      status,
+      timestamp: Date.now(),
+      data,
+    };
+
+    this.logger.debug({ sessionId, stage: type, status }, 'Emitting pipeline stage event');
+    this.io.emit('pipeline_stage', event);
+  }
+
+  /**
    * Create and initialize the generation state machine
    *
    * The machine orchestrates the entire generation pipeline.
@@ -149,6 +178,11 @@ export class UnifiedOrchestrator {
             'Copying template',
           );
 
+          // Emit template loading started
+          this.emitPipelineStage(input.sessionId, 'template_loading', 'started', {
+            templateName: input.templateName,
+          });
+
           const capability = new TemplateCapability(this.modelName, this.io, input.templateName);
           const context: CapabilityContext = {
             sessionId: input.sessionId,
@@ -163,15 +197,27 @@ export class UnifiedOrchestrator {
 
           const result = await capability.execute(context);
           if (!result.success) {
+            // Emit template loading failed
+            this.emitPipelineStage(input.sessionId, 'template_loading', 'failed', {
+              templateName: input.templateName,
+            });
             throw new Error(result.error ?? 'Template copy failed');
           }
 
           this.logger.info({ sessionId: input.sessionId }, 'Template copied successfully');
+
+          // Emit template loading completed
+          this.emitPipelineStage(input.sessionId, 'template_loading', 'completed', {
+            templateName: input.templateName,
+          });
         },
 
         // Run planning capability (Phase B)
         planningActor: async (input: PlanningInput): Promise<PlanningOutput> => {
           this.logger.info({ sessionId: input.sessionId }, 'Starting architectural planning');
+
+          // Emit planning started
+          this.emitPipelineStage(input.sessionId, 'planning', 'started');
 
           const capability = new PlanningCapability(this.modelName, this.io);
           const context: CapabilityContext = {
@@ -192,10 +238,14 @@ export class UnifiedOrchestrator {
               { sessionId: input.sessionId, error: result.error },
               'Planning failed',
             );
+            // Emit planning failed
+            this.emitPipelineStage(input.sessionId, 'planning', 'failed');
             throw new Error(result.error ?? 'Planning failed');
           }
 
           if (!result.contextUpdates?.plan) {
+            // Emit planning failed
+            this.emitPipelineStage(input.sessionId, 'planning', 'failed');
             throw new Error('Planning capability did not return a plan');
           }
 
@@ -208,6 +258,11 @@ export class UnifiedOrchestrator {
             },
             'Planning completed',
           );
+
+          // Emit planning completed with plan data
+          this.emitPipelineStage(input.sessionId, 'planning', 'completed', {
+            plan: result.contextUpdates.plan,
+          });
 
           return {
             plan: result.contextUpdates.plan,
@@ -278,6 +333,9 @@ export class UnifiedOrchestrator {
         validationActor: async (input: ValidationInput): Promise<ValidationOutput> => {
           this.logger.info({ sessionId: input.sessionId }, 'Starting validation');
 
+          // Emit validation started
+          this.emitPipelineStage(input.sessionId, 'validation', 'started');
+
           const capability = new ValidationCapability(this.modelName, this.io);
           const context: CapabilityContext = {
             sessionId: input.sessionId,
@@ -297,6 +355,8 @@ export class UnifiedOrchestrator {
               { sessionId: input.sessionId, error: result.error },
               'Validation failed',
             );
+            // Emit validation failed
+            this.emitPipelineStage(input.sessionId, 'validation', 'failed');
             throw new Error(result.error ?? 'Validation failed');
           }
 
@@ -309,6 +369,11 @@ export class UnifiedOrchestrator {
             },
             'Validation completed',
           );
+
+          // Emit validation completed with errors (if any)
+          this.emitPipelineStage(input.sessionId, 'validation', 'completed', {
+            validationErrors,
+          });
 
           return { validationErrors };
         },
@@ -372,6 +437,9 @@ export class UnifiedOrchestrator {
         finishActor: async (input: FinishInput): Promise<void> => {
           this.logger.info({ sessionId: input.sessionId }, 'Finishing generation');
 
+          // Emit completing stage
+          this.emitPipelineStage(input.sessionId, 'completing', 'started');
+
           // Update database with final metrics
           try {
             await databaseService.updateSession(input.sessionId, {
@@ -400,6 +468,10 @@ export class UnifiedOrchestrator {
 
           // Cleanup message trackers
           cleanupSession(input.sessionId);
+
+          // Emit completing stage completed
+          const summary = `Generation ${input.status}. Tokens: ${input.metrics.totalTokens}, Cost: $${input.metrics.cost.toFixed(4)}, Duration: ${(input.metrics.duration / 1000).toFixed(1)}s`;
+          this.emitPipelineStage(input.sessionId, 'completing', 'completed', { summary });
 
           this.logger.info({ sessionId: input.sessionId }, 'Generation finished');
         },
