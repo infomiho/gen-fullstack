@@ -127,7 +127,16 @@ export const useGenerationStore = create<GenerationStore>()(
 
       addPipelineStage: (stage) =>
         set((state) => {
-          state.pipelineStages.push(stage);
+          // Find existing stage with same ID (allows updating same stage, e.g., "started" -> "completed")
+          const existingIndex = state.pipelineStages.findIndex((s) => s.id === stage.id);
+
+          if (existingIndex >= 0) {
+            // Update existing stage
+            state.pipelineStages[existingIndex] = stage;
+          } else {
+            // New stage - add to list
+            state.pipelineStages.push(stage);
+          }
         }),
 
       setGenerating: (value) => set({ isGenerating: value }),

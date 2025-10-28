@@ -69,6 +69,8 @@ export class UnifiedOrchestrator {
   private generationTimeout?: NodeJS.Timeout;
   // XState machine actor that orchestrates generation
   private actor?: GenerationMachineActor;
+  // Track pipeline stage IDs for updates (prevents duplicate cards in UI)
+  private stageIds: Map<string, string> = new Map();
 
   constructor(
     modelName: ModelName,
@@ -128,8 +130,18 @@ export class UnifiedOrchestrator {
       summary?: string;
     },
   ): void {
+    // For validation stages with multiple iterations, use unique keys
+    const stageKey = type === 'validation' && data?.iteration ? `${type}-${data.iteration}` : type;
+
+    // Get or create stable ID for this stage
+    let stageId = this.stageIds.get(stageKey);
+    if (!stageId) {
+      stageId = `stage-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+      this.stageIds.set(stageKey, stageId);
+    }
+
     const event = {
-      id: `stage-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      id: stageId,
       type,
       status,
       timestamp: Date.now(),

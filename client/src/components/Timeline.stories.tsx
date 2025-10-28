@@ -101,6 +101,7 @@ export const Empty: Story = {
     messages: [],
     toolCalls: [],
     toolResults: [],
+    pipelineStages: [],
   },
 };
 
@@ -112,6 +113,7 @@ export const MessagesOnly: Story = {
     messages: sampleMessages,
     toolCalls: [],
     toolResults: [],
+    pipelineStages: [],
   },
 };
 
@@ -123,6 +125,7 @@ export const Complete: Story = {
     messages: sampleMessages,
     toolCalls: sampleToolCalls,
     toolResults: sampleToolResults,
+    pipelineStages: [],
   },
 };
 
@@ -134,6 +137,7 @@ export const InProgress: Story = {
     messages: sampleMessages.slice(0, 2),
     toolCalls: sampleToolCalls,
     toolResults: [], // No results yet
+    pipelineStages: [],
   },
 };
 
@@ -198,6 +202,7 @@ export const MixedTools: Story = {
         timestamp: Date.now() - 1500,
       },
     ],
+    pipelineStages: [],
   },
 };
 
@@ -243,5 +248,6 @@ export const LongConversation: Story = {
         timestamp: Date.now() - 300,
       },
     ],
+    pipelineStages: [],
   },
 };

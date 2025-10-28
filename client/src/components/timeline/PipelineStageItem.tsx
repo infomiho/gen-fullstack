@@ -175,7 +175,7 @@ export function PipelineStageItem({
   onToggleSection,
 }: PipelineStageItemProps) {
   const { icon: StageIcon, color: iconColor } = getStageIcon(stage.type);
-  const systemColor = 'bg-gray-50 dark:bg-gray-900/30 border-gray-200 dark:border-gray-800';
+  const systemColor = 'bg-gray-100 dark:bg-gray-900/30 border-gray-300 dark:border-gray-800';
 
   return (
     <Dialog.Root open={isOpen} onOpenChange={onOpenChange}>
@@ -195,7 +195,7 @@ export function PipelineStageItem({
                     ? 'text-green-600'
                     : stage.status === 'failed'
                       ? 'text-red-600'
-                      : 'text-yellow-600'
+                      : 'text-gray-500'
                 }`}
               >
                 {stage.status === 'completed' ? '●' : stage.status === 'failed' ? '✕' : '○'}

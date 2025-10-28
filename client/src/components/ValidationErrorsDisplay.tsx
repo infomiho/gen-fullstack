@@ -53,8 +53,10 @@ export function ValidationErrorsDisplay({
   // Helper to render error type badge
   const renderTypeBadge = (type: 'prisma' | 'typescript') => {
     const colors = {
-      prisma: 'bg-purple-500/10 text-purple-500 border-purple-500/20',
-      typescript: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
+      prisma:
+        'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700',
+      typescript:
+        'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700',
     };
     const labels = {
       prisma: 'Prisma',
@@ -96,7 +98,7 @@ export function ValidationErrorsDisplay({
             </div>
           </Collapsible.Trigger>
           <Collapsible.Content className="mt-2">
-            <div className={`${spacing.list} border-l-2 border-red-500/30 pl-4`}>
+            <div className={`${spacing.list} border-l-2 border-gray-200 dark:border-gray-700 pl-4`}>
               {prismaErrors.map((error, index) => (
                 <div
                   key={`prisma-${error.file}-${error.line || 0}-${index}`}
@@ -108,7 +110,7 @@ export function ValidationErrorsDisplay({
                       {formatLocation(error)}
                     </div>
                   </div>
-                  <div className="text-red-600 text-sm bg-red-500/5 p-2 rounded border border-red-500/20">
+                  <div className="text-foreground text-sm bg-muted/50 p-2 rounded border border-border">
                     {error.message}
                   </div>
                 </div>
@@ -131,7 +133,7 @@ export function ValidationErrorsDisplay({
             </div>
           </Collapsible.Trigger>
           <Collapsible.Content className="mt-2">
-            <div className={`${spacing.list} border-l-2 border-red-500/30 pl-4`}>
+            <div className={`${spacing.list} border-l-2 border-gray-200 dark:border-gray-700 pl-4`}>
               {typescriptErrors.map((error, index) => (
                 <div
                   key={`typescript-${error.file}-${error.line || 0}-${index}`}
@@ -148,7 +150,7 @@ export function ValidationErrorsDisplay({
                       {formatLocation(error)}
                     </div>
                   </div>
-                  <div className="text-red-600 text-sm bg-red-500/5 p-2 rounded border border-red-500/20">
+                  <div className="text-foreground text-sm bg-muted/50 p-2 rounded border border-border">
                     {error.message}
                   </div>
                 </div>
