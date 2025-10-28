@@ -7,15 +7,9 @@ This is Gen Fullstack - an experimental LLM-powered full-stack application gener
 - **Server**: Express 5 + TypeScript + RESTful API
 - **Database**: Prisma ORM + SQLite
 
-The system provides a real-time interface for generating applications using different prompting strategies and tool-calling approaches, with Docker-based execution for immediate previewing.
+The system provides a real-time interface for generating applications using different capability configurations and tool-calling approaches, with Docker-based execution for immediate previewing.
 
 ## Architecture
-
-### Tech Stack
-- **Frontend**: React 19 + TypeScript + Vite + Tailwind CSS
-- **Backend**: Node.js + TypeScript + Socket.IO + Express
-- **AI**: Vercel AI SDK with OpenAI models
-- **Monorepo**: pnpm workspaces
 
 ### Project Structure
 ```
@@ -33,7 +27,7 @@ gen-fullstack/
 │   │   │   ├── filesystem.service.ts  # File operations
 │   │   │   ├── command.service.ts     # Command execution
 │   │   │   └── llm.service.ts         # LLM integration
-│   │   ├── strategies/   # Generation strategies (naive, plan-first, etc.)
+│   │   ├── capabilities/ # Capability implementations (unified code generation)
 │   │   ├── tools/        # LLM tools (readFile, writeFile, etc.)
 │   │   └── docker/       # Docker configuration
 │   │       └── runner.Dockerfile  # Container image for generated apps
@@ -42,16 +36,37 @@ gen-fullstack/
 └── generated/        # Generated application outputs (per-session directories)
 ```
 
+### Generation Architecture
+The system uses a unified orchestrator pattern for code generation:
+
+**UnifiedOrchestrator** (`server/src/orchestrator/unified-orchestrator.ts`):
+- Single orchestrator for all generation modes
+- Composes capabilities dynamically based on configuration
+- Manages LLM streaming, tool execution, and event emission
+- Handles error recovery and timeout management
+
+**Capability System** (`server/src/capabilities/`):
+- **BaseCapability**: Core file system operations (read, write, getFileTree, executeCommand)
+- **UnifiedCodeGenerationCapability**: Main generation logic with composable features
+- **TemplateCapability**: Template-specific operations (npm dependencies)
+- Tools are filtered based on capability configuration (naive vs template, planning, compiler checks, building blocks)
+
+**Prompt Builder** (`server/src/config/prompt-builder.ts`):
+- Constructs system prompts based on capability configuration
+- Includes dependency versions, file structure, and mode-specific instructions
+- Adapts instructions for planning, compiler checks, and building blocks
+
 ## Key Features
 
 ### 1. Real-Time Communication
 - WebSocket-based bidirectional communication via Socket.IO
-- Events stream from server to client:
-  - `llm_message` - LLM responses
-  - `tool_call` - Tool invocations
-  - `tool_result` - Tool execution results
-  - `file_updated` - Generated file updates
-  - `generation_complete` - Generation finished with metrics
+- Events stream from server to client for:
+  - LLM responses and tool execution
+  - File updates and generation progress
+  - App execution status and logs
+  - Build events and error notifications
+  - Generation lifecycle (start, complete, error)
+- Event definitions: `server/src/websocket.ts` and `shared/src/index.ts`
 
 ### 2. Unified Timeline
 - Chronologically ordered display of all LLM messages and tool calls
@@ -72,7 +87,7 @@ Flexible capability system with composable options:
 **Capability Toggles** (can be combined with any input mode):
 - **Planning**: Generate architectural plan (database schema, API endpoints, components) before implementation
 - **Compiler Checks**: Validate with Prisma and TypeScript compilers, iterate to fix errors
-- **Building Blocks**: Use higher-level reusable components (future)
+- **Building Blocks**: Use higher-level reusable components (requestBlock tool)
 
 **Example Configurations**:
 - Quick Start: `{ inputMode: 'naive', planning: false, compilerChecks: false }`
@@ -80,22 +95,31 @@ Flexible capability system with composable options:
 - Template + Checks: `{ inputMode: 'template', planning: false, compilerChecks: true }`
 - Full-Featured: `{ inputMode: 'template', planning: true, compilerChecks: true }`
 
-All configurations generate monorepo structure with npm workspaces:
-```
-generated/session-id/
-├── package.json       (root with workspaces, concurrently)
-├── .env               (DATABASE_URL)
-├── client/            (Vite + React 19 + Tailwind 4 + Router 7)
-├── server/            (Express 5 + TypeScript)
-└── prisma/            (schema + migrations)
-```
+All configurations generate the same monorepo structure (see Project Structure above).
 
 ### 4. LLM Tools
-File system tools available to the LLM:
+Tools available to the LLM, organized by capability configuration:
+
+**Base Tools** (always available):
 - `readFile` - Read file contents
 - `writeFile` - Create/update files
-- `listFiles` - List directory contents
+- `getFileTree` - List directory contents and file structure
 - `executeCommand` - Run shell commands
+
+**Planning Tools** (available when `planning: true`):
+- `planArchitecture` - Generate architectural plan (database schema, API endpoints, components)
+
+**Template Tools** (available when `inputMode: 'template'`):
+- `installNpmDep` - Install npm dependencies to package.json
+
+**Compiler Check Tools** (available when `compilerChecks: true`):
+- `validatePrismaSchema` - Validate Prisma schema for errors
+- `validateTypeScript` - Run TypeScript compiler checks
+
+**Building Block Tools** (available when `buildingBlocks: true`):
+- `requestBlock` - Copy pre-built reusable components
+
+Tool definitions: `server/src/tools/index.ts`
 
 ### 5. Design System
 Centralized design tokens in `client/src/lib/design-tokens.ts`:
@@ -106,7 +130,18 @@ Centralized design tokens in `client/src/lib/design-tokens.ts`:
 - **Focus states**: Consistent focus ring styles
 - **Transitions**: Standard transition durations
 
-### 6. App Execution (Phase 4)
+### 6. State Management
+Client-side state managed with Zustand stores:
+- **App state** - App execution status, ports, logs
+- **Connection state** - WebSocket connection management
+- **Generation state** - Generation progress, timeline, files
+- **Presentation state** - Presentation mode, overlays, effects
+- **Replay state** - Session replay controls and playback
+- **UI state** - Modal dialogs, toasts, loading states
+
+Store definitions: `client/src/stores/`
+
+### 7. App Execution
 Docker-based secure execution of generated full-stack apps:
 - **Docker Service** (`server/src/services/docker.service.ts`):
   - Container lifecycle management (create, start, stop, destroy)
@@ -135,16 +170,18 @@ Docker-based secure execution of generated full-stack apps:
   - Network isolation via Docker
   - Read-only root filesystem
 
-### 7. Presentation Mode (Phase 6 - Fighting Game Arena)
+### 8. Presentation Mode (Fighting Game Arena)
 Full-screen, stage-ready presentation mode for live demos and conference presentations:
 
 **Features**:
-- **5 Dramatic Overlays** with fighting game aesthetics (Tekken/Street Fighter inspired):
-  1. GenerationStartOverlay - "READY... FIGHT!" sequence with capability config
-  2. ToolCallHUD - Live tool call tracking with combo counter and budget
-  3. FileCreatedOverlay - Achievement toasts with confetti particle effects
-  4. ErrorOverlay - "K.O." screen with screen shake and glitch effects
-  5. VictoryOverlay - Final stats screen with animated counters and fireworks
+- **Dramatic Overlays** with fighting game aesthetics (Tekken/Street Fighter inspired):
+  - GenerationStartOverlay - "READY... FIGHT!" sequence with capability config
+  - ToolCallHUD - Live tool call tracking with combo counter and budget
+  - FileCreatedOverlay - Achievement toasts with confetti particle effects
+  - ErrorOverlay - "K.O." screen with screen shake and glitch effects
+  - VictoryOverlay - Final stats screen with animated counters and fireworks
+  - ValidationOverlay, TemplateLoadingOverlay, BlockRequestOverlay, PlanningOverlay, and more
+  - See `client/src/components/presentation/` for complete list
 - **Keyboard Controls**:
   - `P` - Toggle presentation mode on/off
   - `M` - Toggle audio mute (when active)
@@ -155,7 +192,7 @@ Full-screen, stage-ready presentation mode for live demos and conference present
   - **Replay mode**: Syncs with 10x replay playback speed
 
 **Technical Stack**:
-- Zustand store (`presentationStore.ts`) for state management
+- Zustand stores for state management (presentation, replay, generation)
 - tsParticles for confetti/fireworks effects
 - Motion library for smooth animations
 - React hooks for keyboard shortcuts and event handling
@@ -168,7 +205,7 @@ Full-screen, stage-ready presentation mode for live demos and conference present
 
 **Usage**: Press `P` on any SessionPage (live or completed) to activate presentation mode. In replay mode, press the play button to see overlays animate with the replay.
 
-### 8. Storybook Component Development
+### 9. Storybook Component Development
 Storybook 9.1+ for isolated component development and testing:
 
 **Configuration**:
@@ -210,17 +247,6 @@ export const Default: Story = {
 - Document props with JSDoc comments
 - Use `satisfies` operator for type safety
 - When using custom `render` functions in stories, always provide minimal required `args` (e.g., `args: { id: "" }` for a component that requires `id`)
-
-## Recent Changes
-
-### Presentation Mode (January 2025) ✅
-Full-screen presentation mode for live demos with fighting game aesthetics. Features 5 dramatic overlays (GenerationStart, ToolCallHUD, FileCreated, Error, Victory) with keyboard controls (P/M/Escape). Works with both live generations and 10x replay mode. Uses Zustand store, tsParticles for effects, and neon color palette for stage visibility. Makes Gen Fullstack conference-ready.
-
-### Dependency Version Reference (January 2025) ✅
-Added comprehensive dependency versions to base prompt (React 19, Vite 7, Express 5, Tailwind 4, etc.) to prevent LLM from guessing incorrect versions. Single source of truth in `COMMON DEPENDENCY VERSIONS` section. Fixes npm install failures from non-existent package versions like `@tailwindcss/vite@^1.0.0` (correct: `^4.0.27`).
-
-### Tool Filtering by Input Mode (January 2025) ✅
-Added `getToolsForMode()` helper to conditionally provide tools based on input mode. `installNpmDep` tool now only available when `inputMode: 'template'` (where package.json exists). Naive mode writes complete package.json files directly. Saves 2-4 wasted tool calls per generation.
 
 ## Development Commands
 
@@ -266,92 +292,50 @@ cd server && pnpm exec tsx ../scripts/cleanup-generations.ts
 
 ## What to Work On Next
 
-### Using GitHub Issues as Memory
+### GitHub-Based Workflow
 
 **IMPORTANT**: All future work, planning, and task tracking should be done in GitHub issues, NOT in markdown files.
 
 **DO:**
 - ✅ Use `gh issue create` to track new features, bugs, or ideas
 - ✅ Use `gh issue comment` to add notes, updates, or implementation details
-- ✅ Use `gh issue edit` to update descriptions with new findings
-- ✅ Use labels to organize issues (phase-5, phase-6, phase-7, refactoring)
+- ✅ Use labels to organize issues (bug, enhancement, refactoring, etc.)
 - ✅ Reference issues in commit messages (e.g., "Fixes #8")
 
 **DON'T:**
 - ❌ Create new markdown files for planning (PLAN_V2.md, TODO.md, etc.)
 - ❌ Create analysis documents (ANALYSIS.md, RESEARCH.md, etc.)
-- ❌ Create tracking documents (PROGRESS.md, STATUS.md, etc.)
 - ❌ Create temporary notes files that accumulate over time
 
-**Exception**: Only update existing documentation files:
-- `CLAUDE.md` - Project context (this file)
-- `DESIGN.md` - Design system reference
-- `TESTING.md` - Testing procedures
-- `README.md` - User-facing documentation
+**Exception**: Only update existing documentation files (CLAUDE.md, DESIGN.md, TESTING.md, README.md)
 
-**For Analysis/Research Work:**
-If you need to analyze code, document findings, or plan implementation:
-1. Create a GitHub issue with a descriptive title
-2. Add your analysis in the issue description (supports markdown)
-3. Use comments to add updates as you discover more
-4. Close the issue when the work is complete or findings are applied
-5. Reference the issue in commits (e.g., "Refactor based on analysis from #15")
-
-**Example workflow:**
-```bash
-# Create issue for code analysis
-gh issue create --title "Analyze authentication flow for security improvements" \
-  --body "## Current State
-- Using JWT tokens
-- No refresh token mechanism
-...
-
-## Recommendations
-1. Add refresh tokens
-2. Implement token rotation
-..."
-
-# Add updates as you work
-gh issue comment 23 --body "Found vulnerability in token validation..."
-
-# Reference in commits
-git commit -m "Add token rotation (relates to #23)"
-
-# Close when done
-gh issue close 23 --comment "Implemented all security improvements"
-```
-
-### Checking GitHub Issues
-
-All future work is tracked in GitHub issues. Use the `gh` CLI to view and work on tasks:
-
+**Common Commands:**
 ```bash
 # View all open issues
 gh issue list
 
-# View issues by phase
-gh issue list --label "phase-5"    # Optimization Toggles
-gh issue list --label "phase-6"    # Demo Scenarios
-gh issue list --label "phase-7"    # Polish & UX
-gh issue list --label "refactoring" # Code refactoring tasks
+# View issues by label
+gh issue list --label "bug"
+gh issue list --label "enhancement"
 
-# View a specific issue (if you get a Projects deprecation error, use --json)
-gh issue view <issue-number>
-# Alternative: Use JSON format to avoid deprecation warnings
-gh issue view <issue-number> --json title,body,labels,state | cat
+# Create issue
+gh issue create --title "Issue title" --body "Description..."
 
-# Work on an issue (creates a branch and checks it out)
-gh issue develop <issue-number>
+# Add updates
+gh issue comment <number> --body "Update..."
+
+# Close when done
+gh issue close <number> --comment "Completed"
 ```
 
-### Completed Phases
+### Completed Major Features
 
-✅ **Phase 1-4**: Basic harness, LLM integration, file system, Docker execution
-✅ **Phase 4.5**: Session persistence with Drizzle ORM
-✅ **Phase 4.6**: Session recovery with React Router 7
-✅ **Phase 5**: Capability system with input modes (naive/template) and toggles (planning/compiler checks)
-✅ **Zustand Migration**: Complete with stores
+✅ **Foundation**: Basic harness, LLM integration, file system, Docker execution
+✅ **Session Persistence**: Drizzle ORM database, session recovery with React Router 7
+✅ **Capability System**: Input modes (naive/template) and toggles (planning/compiler checks/building blocks)
+✅ **State Management**: Complete Zustand migration with specialized stores
 ✅ **File Editing**: CodeMirror editor, tabs, resizable panels
+✅ **Presentation Mode**: Full-screen fighting game aesthetics for live demos
 
 ## Maintenance
 
@@ -398,7 +382,7 @@ For detailed analysis of generation sessions (especially failures), use the **Se
 - After a generation fails (status = 'failed')
 - When an app completes but doesn't work correctly
 - To understand what the LLM generated and why
-- To gather evidence for improving prompts or strategies
+- To gather evidence for improving prompts or capabilities
 - Before creating bug reports or GitHub issues
 
 See the cookbook for complete details on database schema, query examples, and analysis best practices.
@@ -471,12 +455,11 @@ See `server/.env.example` for a complete template.
 
 - Server tests in `server/src/**/__tests__/*.test.ts`
 - Uses Vitest 3.2 for testing
-- **Current test suite: 322/322 tests passing** ✅ (307 server + 15 new session reliability tests)
-  - All test suites passing with zero errors
+- Comprehensive test suite with all tests passing
   - TypeScript strict mode enabled
-  - Full coverage of strategies, Docker service, process service, and session reliability
+  - Full coverage of capabilities, Docker service, process service, and session reliability
 - Comprehensive test coverage:
-  - Strategy implementations and tool execution
+  - Capability implementations and tool execution
   - Docker container lifecycle and security features
   - Stream processing and error handling
   - App execution orchestration
@@ -527,7 +510,7 @@ All future work is tracked in GitHub issues. See the "What to Work On Next" sect
 
 **Quick Links:**
 - [View all issues](https://github.com/infomiho/gen-fullstack/issues)
-- [Phase 5 tasks (Optimization Toggles)](https://github.com/infomiho/gen-fullstack/labels/phase-5)
-- [Phase 6 tasks (Demo Scenarios)](https://github.com/infomiho/gen-fullstack/labels/phase-6)
-- [Phase 7 tasks (Polish & UX)](https://github.com/infomiho/gen-fullstack/labels/phase-7)
+- [Bug fixes](https://github.com/infomiho/gen-fullstack/labels/bug)
+- [New features & enhancements](https://github.com/infomiho/gen-fullstack/labels/enhancement)
 - [Refactoring tasks (Code quality)](https://github.com/infomiho/gen-fullstack/labels/refactoring)
+- [Prompt engineering improvements](https://github.com/infomiho/gen-fullstack/labels/prompt-engineering)
