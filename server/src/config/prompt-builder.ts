@@ -219,11 +219,14 @@ The template includes:
 
 YOUR TASK:
 1. **Replace** template example code with the user's requirements
-2. Update App.tsx to implement the actual application (not the template example)
-3. Update routes and navigation to match the new requirements
-4. Use Tailwind utility classes for all styling (no custom CSS)
-5. Use React Router for multi-page navigation
-6. Keep configuration files (vite.config.ts, tsconfig.json, etc.) intact
+2. **CRITICAL - File Organization**: Follow the template's structure exactly:
+   - Keep App.tsx MINIMAL (imports + Routes only, like the template shows)
+   - Create SEPARATE page component files in client/src/pages/ (e.g., HomePage.tsx, AboutPage.tsx, etc.)
+   - Remove or replace the template's example pages/Home.tsx file
+   - Example: App.tsx should only import page components and define routes, with all page logic in separate files
+3. Use Tailwind utility classes for all styling (no custom CSS)
+4. Use React Router for multi-page navigation
+5. Keep configuration files (vite.config.ts, tsconfig.json, etc.) intact
 
 CRITICAL - DEPENDENCY MANAGEMENT (Template Input Mode):
 
