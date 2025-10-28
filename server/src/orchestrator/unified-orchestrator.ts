@@ -335,18 +335,24 @@ export class UnifiedOrchestrator {
       // Wait for machine to reach a final state
       const snapshot = await new Promise<ReturnType<typeof this.actor.getSnapshot>>(
         (resolve, reject) => {
-          const subscription = this.actor!.subscribe((state) => {
+          // Actor must exist at this point (created above), but use optional chaining for safety
+          const subscription = this.actor?.subscribe((state) => {
             // Check if we reached a final state
             if (state.status === 'done') {
-              subscription.unsubscribe();
+              subscription?.unsubscribe();
               resolve(state);
             }
           });
 
+          if (!subscription) {
+            reject(new Error('Failed to subscribe to actor'));
+            return;
+          }
+
           // Set up abort handler immediately after subscription
           const abortHandler = () => {
             subscription.unsubscribe();
-            this.actor!.send({ type: 'ABORT' });
+            this.actor?.send({ type: 'ABORT' });
             reject(new Error('Generation aborted'));
           };
 
