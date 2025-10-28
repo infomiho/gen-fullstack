@@ -69,8 +69,11 @@ export class UnifiedOrchestrator {
   private generationTimeout?: NodeJS.Timeout;
   // XState machine actor that orchestrates generation
   private actor?: GenerationMachineActor;
-  // Track pipeline stage IDs for updates (prevents duplicate cards in UI)
-  private stageIds: Map<string, string> = new Map();
+  // Track pipeline stage IDs and timestamps for updates (prevents duplicate cards in UI)
+  // Key: Stage key (type or type-iteration), Value: { id, timestamp }
+  private stageIds: Map<string, { id: string; timestamp: number }> = new Map();
+  // Counter for generating unique stage IDs (prevents race conditions)
+  private stageIdCounter = 0;
 
   constructor(
     modelName: ModelName,
@@ -131,20 +134,26 @@ export class UnifiedOrchestrator {
     },
   ): void {
     // For validation stages with multiple iterations, use unique keys
-    const stageKey = type === 'validation' && data?.iteration ? `${type}-${data.iteration}` : type;
+    // Always default to iteration 1 if not specified (first attempt)
+    const stageKey = type === 'validation' ? `${type}-${data?.iteration ?? 1}` : type;
 
-    // Get or create stable ID for this stage
-    let stageId = this.stageIds.get(stageKey);
-    if (!stageId) {
-      stageId = `stage-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-      this.stageIds.set(stageKey, stageId);
+    // Get or create stable ID and timestamp for this stage
+    let stageInfo = this.stageIds.get(stageKey);
+    if (!stageInfo) {
+      // First time seeing this stage - create new ID and timestamp
+      const now = Date.now();
+      stageInfo = {
+        id: `stage-${now}-${++this.stageIdCounter}`, // Use counter to prevent race conditions
+        timestamp: now,
+      };
+      this.stageIds.set(stageKey, stageInfo);
     }
 
     const event = {
-      id: stageId,
+      id: stageInfo.id,
       type,
       status,
-      timestamp: Date.now(),
+      timestamp: stageInfo.timestamp, // Always use original timestamp to prevent timeline jumping
       data,
     };
 
@@ -546,6 +555,10 @@ export class UnifiedOrchestrator {
     config: CapabilityConfig,
     sessionId: string,
   ): Promise<GenerationMetrics> {
+    // Reset state for new generation session
+    this.stageIds.clear();
+    this.stageIdCounter = 0;
+
     this.logger.info(
       {
         sessionId,

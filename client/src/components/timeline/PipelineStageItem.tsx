@@ -197,6 +197,13 @@ export function PipelineStageItem({
                       ? 'text-red-600'
                       : 'text-gray-500'
                 }`}
+                aria-label={
+                  stage.status === 'completed'
+                    ? 'Completed'
+                    : stage.status === 'failed'
+                      ? 'Failed'
+                      : 'In progress'
+                }
               >
                 {stage.status === 'completed' ? '●' : stage.status === 'failed' ? '✕' : '○'}
               </span>
