@@ -471,8 +471,8 @@ function SessionPage() {
                   </>
                 )}
 
-                {/* Presentation Mode Toggle - Available on all tabs */}
-                <PresentationToggle sessionStatus={sessionData.session.status} />
+                {/* Presentation Mode Toggle - Available on all tabs (hidden during generation) */}
+                {sessionData.session.status !== 'generating' && <PresentationToggle />}
               </div>
             </div>
           </div>

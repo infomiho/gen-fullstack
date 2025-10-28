@@ -10,20 +10,13 @@ import { transitions, focus } from '../../lib/design-tokens';
  * Presentation mode is completely independent of replay mode.
  * Users can activate presentation mode on any session (live or completed)
  * without affecting replay mode state.
+ *
+ * Note: This component is hidden during active generation via parent conditional rendering.
  */
-interface PresentationToggleProps {
-  sessionStatus?: 'generating' | 'completed' | 'failed';
-}
-
-export function PresentationToggle({ sessionStatus }: PresentationToggleProps) {
+export function PresentationToggle() {
   const { isEnabled, toggleEnabled } = usePresentationStore();
 
   const handleToggle = () => {
-    // Don't allow presentation mode during active generation
-    if (!isEnabled && sessionStatus === 'generating') {
-      return;
-    }
-
     // Simply toggle presentation mode - completely independent of replay
     toggleEnabled();
   };
