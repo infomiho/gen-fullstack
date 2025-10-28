@@ -2,7 +2,7 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import type { CapabilityConfig } from '@gen-fullstack/shared';
 import { checkFileSafety } from '../lib/file-safety.js';
-import { databaseLogger } from '../lib/logger.js';
+import { databaseLogger, commandLogger } from '../lib/logger.js';
 import * as commandService from '../services/command.service.js';
 import * as filesystemService from '../services/filesystem.service.js';
 import { requestBlock } from './request-block.tool.js';
@@ -131,10 +131,6 @@ export const getFileTree = tool({
   description:
     'Get a complete tree view of the project structure. Returns all files and directories in a hierarchical format. Use this once at the start to understand the full project layout.',
   inputSchema: z.object({
-    maxDepth: z
-      .number()
-      .optional()
-      .describe('Maximum depth to traverse (default: unlimited for our small apps)'),
     reason: z
       .string()
       .min(10)
@@ -143,9 +139,9 @@ export const getFileTree = tool({
         'Brief explanation of why you need the file tree and what you are looking for (10-200 characters)',
       ),
   }),
-  execute: async ({ maxDepth }, { experimental_context: context }) => {
+  execute: async (_params, { experimental_context: context }) => {
     const { sessionId } = extractToolContext(context);
-    return await filesystemService.getFileTree(sessionId, maxDepth);
+    return await filesystemService.getFileTree(sessionId);
   },
 });
 
@@ -439,22 +435,98 @@ async function validateTarget(sessionId: string, target: 'client' | 'server') {
   );
 
   // Check if command execution itself failed (timeout, missing files, etc.)
+  // BUT: TypeScript compilation errors (exit code 1) are NOT execution failures
   if (!result.success) {
-    const errorMessage = result.stderr || 'Command execution failed';
+    // Check if this looks like TypeScript compilation errors
+    const combinedOutput = result.stdout + result.stderr;
+    const hasTypeScriptErrors = combinedOutput.includes('error TS');
+
+    // Log diagnostic information for debugging
+    commandLogger.debug(
+      {
+        sessionId,
+        target,
+        exitCode: result.exitCode,
+        hasTypeScriptErrors,
+        stdoutLength: result.stdout.length,
+        stderrLength: result.stderr.length,
+        stdoutPreview: result.stdout.substring(0, 200),
+        stderrPreview: result.stderr.substring(0, 200),
+      },
+      'TypeScript validation command result',
+    );
+
+    if (!hasTypeScriptErrors) {
+      // This is a real execution error (timeout, missing file, permission denied, etc.)
+      // Build a helpful error message with context
+      const errorParts: string[] = [];
+
+      if (result.stderr) {
+        errorParts.push(result.stderr);
+      }
+
+      if (result.exitCode !== undefined && result.exitCode !== 0) {
+        errorParts.push(`Exit code: ${result.exitCode}`);
+      }
+
+      if (result.stdout && !result.stderr) {
+        // If stderr is empty but stdout has content, include it
+        errorParts.push(`Output: ${result.stdout.substring(0, 200)}`);
+      }
+
+      const errorMessage =
+        errorParts.length > 0 ? errorParts.join('\n') : 'Command execution failed with no output';
+
+      commandLogger.error(
+        {
+          sessionId,
+          target,
+          exitCode: result.exitCode,
+          errorMessage,
+        },
+        'TypeScript validation execution error',
+      );
+
+      return {
+        target,
+        passed: false,
+        errorCount: 0,
+        errors: '',
+        executionError: errorMessage,
+      };
+    }
+    // Fall through to parsing if it looks like TypeScript compilation errors
+  }
+
+  // Parse TypeScript output (prioritize stdout where TypeScript writes errors)
+  const output = result.stdout || result.stderr;
+  const parsedErrors = parseTypeScriptErrors(output);
+
+  // Sanity check: if we got non-zero exit but parsed 0 errors, something went wrong
+  if (parsedErrors.length === 0 && !result.success) {
+    commandLogger.warn(
+      {
+        sessionId,
+        target,
+        exitCode: result.exitCode,
+        outputLength: output.length,
+        outputPreview: output.substring(0, 500),
+      },
+      'TypeScript failed but no errors parsed',
+    );
+
+    // Return the raw output so LLM can at least see what happened
     return {
       target,
       passed: false,
-      errorCount: 0,
-      errors: '',
-      executionError: errorMessage,
+      errorCount: 1,
+      errors:
+        'TypeScript validation failed but errors could not be parsed. Raw output:\n' +
+        output.substring(0, 500),
     };
   }
 
-  const output = result.stderr || result.stdout;
-  const parsedErrors = parseTypeScriptErrors(output);
-
   // Trust parsed error count as source of truth for validation status
-  // If we parsed 0 errors, validation passed regardless of exit code
   return {
     target,
     passed: parsedErrors.length === 0,

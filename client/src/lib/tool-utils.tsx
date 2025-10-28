@@ -21,9 +21,8 @@ function getReadFileSummary(args: Record<string, unknown>): string {
   return `Reading ${path || 'unknown'}`;
 }
 
-function getFileTreeSummary(args: Record<string, unknown>): string {
-  const { maxDepth } = args as { maxDepth?: number };
-  return maxDepth ? `Getting file tree (depth: ${maxDepth})` : 'Getting file tree';
+function getFileTreeSummary(): string {
+  return 'Getting file tree';
 }
 
 function getExecuteCommandSummary(args: Record<string, unknown>): string {
@@ -160,16 +159,9 @@ export function renderToolParameters(
 
   // Custom formatting for getFileTree
   if (toolName === 'getFileTree') {
-    const { maxDepth } = args as { maxDepth?: number };
     return (
       <div className={typography.body}>
-        {maxDepth && (
-          <div>
-            <span className="text-muted-foreground">maxDepth:</span>
-            <span className={`${typography.mono} text-foreground ml-2`}>{maxDepth}</span>
-          </div>
-        )}
-        {!maxDepth && <div className="text-muted-foreground">Full tree (unlimited depth)</div>}
+        <div className="text-muted-foreground">Full tree</div>
       </div>
     );
   }

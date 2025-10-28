@@ -138,24 +138,6 @@ describe('Tools', () => {
       expect(result).toMatch(/\d+ files?, \d+ director(y|ies)/);
     });
 
-    it('should respect maxDepth parameter', async () => {
-      // Setup: Create nested structure
-      await mkdir(join(sandboxPath, 'depth-test/level2'), { recursive: true });
-      await fsWriteFile(join(sandboxPath, 'depth-test/file.txt'), 'Level 1', 'utf-8');
-      await fsWriteFile(join(sandboxPath, 'depth-test/level2/deep.txt'), 'Level 2', 'utf-8');
-
-      const result = await getFileTree.execute?.(
-        { maxDepth: 1, reason: 'Testing depth limiting' },
-        context as any,
-      );
-
-      // Should include first-level directory
-      expect(result).toContain('depth-test');
-
-      // Should NOT include nested files beyond depth 1
-      expect(result).not.toContain('deep.txt');
-    });
-
     it('should show empty directory message', async () => {
       // Use empty sandbox
       const result = await getFileTree.execute?.(
@@ -391,6 +373,7 @@ describe('Tools', () => {
 
     it('should fail validation with TypeScript errors', async () => {
       // Mock command execution with TypeScript errors
+      // REALISTIC: TypeScript exits with code 1 when errors found, so success=false
       const mockOutput = `
 client/src/App.tsx(10,5): error TS2322: Type 'string' is not assignable to type 'number'.
 client/src/App.tsx(15,10): error TS2304: Cannot find name 'foo'.
@@ -400,7 +383,7 @@ client/src/App.tsx(15,10): error TS2304: Cannot find name 'foo'.
         stderr: '',
         exitCode: 1,
         executionTime: 1000,
-        success: true,
+        success: false, // Exit code 1 means success=false in real execution
       });
 
       const result = await validateTypeScript.execute?.(
@@ -435,8 +418,9 @@ client/src/App.tsx(15,10): error TS2304: Cannot find name 'foo'.
       expect(result).not.toContain('0 errors'); // Should not say "failed with 0 errors"
     });
 
-    it('should handle missing tsconfig.json as execution error', async () => {
+    it('should handle missing tsconfig.json with error details', async () => {
       // Mock command failure due to missing tsconfig.json
+      // This produces a TypeScript error (TS5058) but in a non-parseable format
       vi.spyOn(commandService, 'executeCommand').mockResolvedValue({
         stdout: '',
         stderr: "error TS5058: The specified path does not exist: 'client/tsconfig.json'.",
@@ -450,8 +434,11 @@ client/src/App.tsx(15,10): error TS2304: Cannot find name 'foo'.
         context as any,
       );
 
-      expect(result).toContain('execution errors');
+      // Should detect "error TS" and try to parse, but parser fails
+      // Fallback shows raw output with the error details
+      expect(result).toContain('TypeScript validation failed');
       expect(result).toContain('tsconfig.json');
+      expect(result).toContain('TS5058');
       expect(result).not.toContain('0 errors'); // Should not say "failed with 0 errors"
     });
 
@@ -509,6 +496,79 @@ client/src/App.tsx(15,10): error TS2304: Cannot find name 'foo'.
       expect(result).toContain('execution errors');
       expect(result).toContain('SERVER');
       expect(result).toContain('timed out');
+    });
+
+    it('should handle TypeScript errors in stderr instead of stdout', async () => {
+      // Some TypeScript configurations write to stderr
+      const mockOutput = `
+server/src/index.ts(5,10): error TS2322: Type 'string' is not assignable to type 'number'.
+`;
+      vi.spyOn(commandService, 'executeCommand').mockResolvedValue({
+        stdout: '',
+        stderr: mockOutput,
+        exitCode: 1,
+        executionTime: 1000,
+        success: false,
+      });
+
+      const result = await validateTypeScript.execute?.(
+        { target: 'server', reason: 'Testing stderr errors' },
+        context as any,
+      );
+
+      expect(result).toContain('TypeScript validation failed');
+      expect(result).toContain('1 error');
+      expect(result).toContain('TS2322');
+      expect(result).not.toContain('execution error');
+    });
+
+    it('should handle malformed TypeScript output gracefully', async () => {
+      // Exit code 1 but output doesn't match expected format
+      const mockOutput = 'Something went wrong but no TS errors';
+      vi.spyOn(commandService, 'executeCommand').mockResolvedValue({
+        stdout: mockOutput,
+        stderr: '',
+        exitCode: 1,
+        executionTime: 1000,
+        success: false,
+      });
+
+      const result = await validateTypeScript.execute?.(
+        { target: 'client', reason: 'Testing malformed output' },
+        context as any,
+      );
+
+      // Should treat as execution error since no TypeScript errors detected
+      expect(result).toContain('execution errors');
+      expect(result).toContain('Exit code: 1');
+    });
+
+    it('should parse errors even when success=false with TypeScript output', async () => {
+      // This is the real-world scenario: compilation errors cause success=false
+      const mockOutput = `
+client/src/components/Header.tsx(12,5): error TS2741: Property 'onClick' is missing in type.
+client/src/components/Footer.tsx(8,10): error TS7006: Parameter 'event' implicitly has an 'any' type.
+client/src/utils/helpers.ts(3,1): error TS2322: Type 'string' is not assignable to type 'number'.
+`;
+      vi.spyOn(commandService, 'executeCommand').mockResolvedValue({
+        stdout: mockOutput,
+        stderr: '',
+        exitCode: 1,
+        executionTime: 2000,
+        success: false,
+      });
+
+      const result = await validateTypeScript.execute?.(
+        { target: 'client', reason: 'Testing real-world scenario' },
+        context as any,
+      );
+
+      expect(result).toContain('TypeScript validation failed');
+      expect(result).toContain('3 errors');
+      expect(result).toContain('TS2741');
+      expect(result).toContain('TS7006');
+      expect(result).toContain('TS2322');
+      expect(result).not.toContain('execution error');
     });
   });
 });

@@ -248,18 +248,6 @@ describe('Filesystem Service', () => {
       expect(result).not.toContain('tsconfig.tsbuildinfo');
     });
 
-    it('should respect maxDepth parameter', async () => {
-      const result = await getFileTree(sessionId, 1);
-
-      // Should include root-level files
-      expect(result).toContain('file1.txt');
-      expect(result).toContain('subdir');
-
-      // Should include first-level subdirectory but not its contents
-      expect(result).not.toContain('nested.txt');
-      expect(result).not.toContain('deep');
-    });
-
     it('should handle empty directory', async () => {
       // Clean up the test files
       await cleanupSandbox(sessionId);

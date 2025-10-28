@@ -29,11 +29,6 @@ describe('tool-utils', () => {
     });
 
     it('formats getFileTree summary', () => {
-      const result = getToolSummary('getFileTree', { maxDepth: 2 });
-      expect(result).toBe('Getting file tree (depth: 2)');
-    });
-
-    it('formats getFileTree with default (no maxDepth)', () => {
       const result = getToolSummary('getFileTree', {});
       expect(result).toBe('Getting file tree');
     });

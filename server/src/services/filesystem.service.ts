@@ -225,16 +225,9 @@ function shouldExclude(name: string, excludePatterns: string[]): boolean {
 async function buildFileTree(
   dir: string,
   sandboxPath: string,
-  currentDepth: number,
-  maxDepth: number | undefined,
   excludePatterns: string[],
   stats: { fileCount: number; dirCount: number },
 ): Promise<FileTreeEntry[]> {
-  // Check depth limit
-  if (maxDepth !== undefined && currentDepth >= maxDepth) {
-    return [];
-  }
-
   // Check file count limit
   if (stats.fileCount + stats.dirCount > 500) {
     throw new Error('File tree too large (exceeded 500 items)');
@@ -260,14 +253,7 @@ async function buildFileTree(
 
     if (entry.isDirectory()) {
       stats.dirCount++;
-      const children = await buildFileTree(
-        fullPath,
-        sandboxPath,
-        currentDepth + 1,
-        maxDepth,
-        excludePatterns,
-        stats,
-      );
+      const children = await buildFileTree(fullPath, sandboxPath, excludePatterns, stats);
 
       result.push({
         name: entry.name,
@@ -324,22 +310,14 @@ function formatFileTree(entries: FileTreeEntry[], prefix = ''): string {
  * excluding common build artifacts and dependencies.
  *
  * @param sessionId - Session identifier
- * @param maxDepth - Maximum depth to traverse (default: unlimited)
  * @returns Formatted tree string with file counts
  */
-export async function getFileTree(sessionId: string, maxDepth?: number): Promise<string> {
+export async function getFileTree(sessionId: string): Promise<string> {
   const sandboxPath = getSandboxPath(sessionId);
 
   try {
     const stats = { fileCount: 0, dirCount: 0 };
-    const tree = await buildFileTree(
-      sandboxPath,
-      sandboxPath,
-      0,
-      maxDepth,
-      DEFAULT_EXCLUDES,
-      stats,
-    );
+    const tree = await buildFileTree(sandboxPath, sandboxPath, DEFAULT_EXCLUDES, stats);
 
     if (tree.length === 0) {
       return 'Empty project directory (no files found)';
