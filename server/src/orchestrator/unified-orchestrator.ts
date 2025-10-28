@@ -157,6 +157,23 @@ export class UnifiedOrchestrator {
       data,
     };
 
+    // Persist to database (async, don't block WebSocket emission)
+    databaseService
+      .upsertPipelineStage(
+        sessionId,
+        stageInfo.id,
+        type,
+        status,
+        new Date(stageInfo.timestamp),
+        data,
+      )
+      .catch((error) => {
+        this.logger.error(
+          { sessionId, stageId: stageInfo.id, error },
+          'Failed to persist pipeline stage',
+        );
+      });
+
     this.logger.debug({ sessionId, stage: type, status }, 'Emitting pipeline stage event');
     this.io.emit('pipeline_stage', event);
   }

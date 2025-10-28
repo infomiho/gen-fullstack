@@ -45,7 +45,7 @@ export const sessions = sqliteTable('sessions', {
 });
 
 /**
- * Timeline items table - stores all LLM messages, tool calls, and tool results
+ * Timeline items table - stores all LLM messages, tool calls, tool results, and pipeline stages
  */
 export const timelineItems = sqliteTable('timeline_items', {
   id: integer('id', { mode: 'number' }).primaryKey({ autoIncrement: true }),
@@ -53,7 +53,7 @@ export const timelineItems = sqliteTable('timeline_items', {
     .notNull()
     .references(() => sessions.id, { onDelete: 'cascade' }),
   timestamp: integer('timestamp', { mode: 'timestamp_ms' }).notNull(),
-  type: text('type').notNull(), // 'message' | 'tool_call' | 'tool_result'
+  type: text('type').notNull(), // 'message' | 'tool_call' | 'tool_result' | 'pipeline_stage'
   // Message fields (when type = 'message')
   messageId: text('message_id'), // Unique ID for LLM messages (for upserting streaming chunks)
   role: text('role'), // 'user' | 'assistant' | 'system'
@@ -68,6 +68,11 @@ export const timelineItems = sqliteTable('timeline_items', {
   toolResultFor: text('tool_result_for'), // References toolCallId
   result: text('result'),
   isError: integer('is_error', { mode: 'boolean' }).default(false),
+  // Pipeline stage fields (when type = 'pipeline_stage')
+  stageId: text('stage_id'), // Unique ID for this stage (stable across status updates)
+  stageType: text('stage_type'), // 'planning' | 'validation' | 'template_loading' | 'completing'
+  stageStatus: text('stage_status'), // 'started' | 'completed' | 'failed'
+  stageData: text('stage_data'), // JSON string with plan/errors/iteration/etc
 });
 
 /**

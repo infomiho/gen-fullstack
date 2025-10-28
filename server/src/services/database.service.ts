@@ -231,6 +231,65 @@ class DatabaseService {
     await this.db.delete(timelineItems).where(eq(timelineItems.sessionId, sessionId));
   }
 
+  /**
+   * Upsert pipeline stage by stageId
+   * If stageId exists, updates status and data. Otherwise inserts new stage.
+   *
+   * This allows stages to update in-place (e.g., "started" → "completed")
+   * while preserving their original timestamp for stable timeline positioning.
+   */
+  async upsertPipelineStage(
+    sessionId: string,
+    stageId: string,
+    stageType: 'planning' | 'validation' | 'template_loading' | 'completing',
+    stageStatus: 'started' | 'completed' | 'failed',
+    timestamp: Date,
+    stageData?: Record<string, unknown>,
+  ): Promise<TimelineItem> {
+    try {
+      const dataJson = stageData ? JSON.stringify(stageData) : null;
+
+      // Use raw SQL for proper UPSERT
+      const result = this.sqlite
+        .prepare(
+          `
+        INSERT INTO timeline_items (session_id, timestamp, type, stage_id, stage_type, stage_status, stage_data)
+        VALUES (?, ?, 'pipeline_stage', ?, ?, ?, ?)
+        ON CONFLICT (session_id, stage_id) WHERE stage_id IS NOT NULL
+        DO UPDATE SET
+          stage_status = excluded.stage_status,
+          stage_data = excluded.stage_data
+        RETURNING *
+      `,
+        )
+        .get(
+          sessionId,
+          timestamp.getTime(),
+          stageId,
+          stageType,
+          stageStatus,
+          dataJson,
+        ) as TimelineItem;
+
+      if (!result) {
+        throw new Error('Failed to upsert pipeline stage: no result returned');
+      }
+
+      return result;
+    } catch (error) {
+      databaseLogger.error(
+        {
+          sessionId,
+          stageId,
+          stageType,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        'Failed to upsert pipeline stage',
+      );
+      throw error;
+    }
+  }
+
   // ==================== File Operations ====================
 
   /**
