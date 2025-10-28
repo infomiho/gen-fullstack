@@ -1,8 +1,9 @@
-import type { LLMMessage, ToolCall, ToolResult } from '@gen-fullstack/shared';
+import type { LLMMessage, PipelineStageEvent, ToolCall, ToolResult } from '@gen-fullstack/shared';
 import { Bot } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { EmptyState } from './EmptyState';
 import { MessageItem } from './timeline/MessageItem';
+import { PipelineStageItem } from './timeline/PipelineStageItem';
 import { SkeletonLoader } from './timeline/SkeletonLoader';
 import { type ToolExecution, ToolItem } from './timeline/ToolItem';
 
@@ -10,13 +11,15 @@ interface TimelineProps {
   messages: LLMMessage[];
   toolCalls: ToolCall[];
   toolResults: ToolResult[];
+  pipelineStages: PipelineStageEvent[];
   /** Whether generation is currently in progress */
   isGenerating?: boolean;
 }
 
 type TimelineItem =
   | { type: 'message'; data: LLMMessage; timestamp: number }
-  | { type: 'tool'; data: ToolExecution; timestamp: number };
+  | { type: 'tool'; data: ToolExecution; timestamp: number }
+  | { type: 'pipeline_stage'; data: PipelineStageEvent; timestamp: number };
 
 /**
  * Timeline Component
@@ -29,11 +32,13 @@ export function Timeline({
   messages,
   toolCalls,
   toolResults,
+  pipelineStages,
   isGenerating = false,
 }: TimelineProps) {
-  // Track which tool dialog is open (by tool ID)
+  // Track which tool/stage dialog is open (by ID)
   // This state is lifted to Timeline to persist across re-renders
   const [openToolId, setOpenToolId] = useState<string | null>(null);
+  const [openStageId, setOpenStageId] = useState<string | null>(null);
 
   // Track which sections are expanded in PlanArchitectureDisplay for each tool
   // Key: `${toolId}-${sectionName}`, Value: boolean (true = expanded)
@@ -98,9 +103,18 @@ export function Timeline({
       });
     });
 
+    // Add pipeline stages with their real timestamps
+    pipelineStages.forEach((stage) => {
+      items.push({
+        type: 'pipeline_stage',
+        data: stage,
+        timestamp: stage.timestamp,
+      });
+    });
+
     // Sort by timestamp in reverse (newest first)
     return items.sort((a, b) => b.timestamp - a.timestamp);
-  }, [messages, toolExecutions]);
+  }, [messages, toolExecutions, pipelineStages]);
 
   // Show empty state only if not generating and no timeline items
   if (timeline.length === 0 && !isGenerating) {
@@ -118,20 +132,34 @@ export function Timeline({
       {/* Show skeleton loader at top when generating */}
       {isGenerating && <SkeletonLoader />}
 
-      {timeline.map((item, index) =>
-        item.type === 'message' ? (
-          <MessageItem key={`${item.data.id}-${index}`} message={item.data} />
-        ) : (
-          <ToolItem
+      {timeline.map((item, index) => {
+        if (item.type === 'message') {
+          return <MessageItem key={`${item.data.id}-${index}`} message={item.data} />;
+        }
+        if (item.type === 'tool') {
+          return (
+            <ToolItem
+              key={`${item.data.id}-${index}`}
+              tool={item.data}
+              isOpen={openToolId === item.data.id}
+              onOpenChange={(open) => setOpenToolId(open ? item.data.id : null)}
+              isSectionExpanded={isSectionExpanded}
+              onToggleSection={toggleSection}
+            />
+          );
+        }
+        // pipeline_stage
+        return (
+          <PipelineStageItem
             key={`${item.data.id}-${index}`}
-            tool={item.data}
-            isOpen={openToolId === item.data.id}
-            onOpenChange={(open) => setOpenToolId(open ? item.data.id : null)}
+            stage={item.data}
+            isOpen={openStageId === item.data.id}
+            onOpenChange={(open) => setOpenStageId(open ? item.data.id : null)}
             isSectionExpanded={isSectionExpanded}
             onToggleSection={toggleSection}
           />
-        ),
-      )}
+        );
+      })}
     </div>
   );
 }

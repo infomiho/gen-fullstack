@@ -222,6 +222,7 @@ function SessionPage() {
     messages: liveMessages,
     toolCalls: liveToolCalls,
     toolResults: liveToolResults,
+    pipelineStages: livePipelineStages,
     files: liveFiles,
     appStatus,
     appLogs,
@@ -303,6 +304,7 @@ function SessionPage() {
   const messages = isReplayMode ? replayData.messages : persistedData.messages;
   const toolCalls = isReplayMode ? replayData.toolCalls : persistedData.toolCalls;
   const toolResults = isReplayMode ? replayData.toolResults : persistedData.toolResults;
+  const pipelineStages = livePipelineStages; // Pipeline stages are only live (not persisted yet)
   const files = isReplayMode ? replayData.files : persistedData.files;
 
   // Parse capabilityConfig for presentation mode
@@ -505,6 +507,7 @@ function SessionPage() {
                       messages={messages}
                       toolCalls={toolCalls}
                       toolResults={toolResults}
+                      pipelineStages={pipelineStages}
                       isGenerating={isActiveSession}
                     />
                   </ErrorBoundaryComponent>

@@ -6,6 +6,7 @@ import type {
   FileUpdate,
   GenerationMetrics,
   LLMMessage,
+  PipelineStageEvent,
   ToolCall,
   ToolResult,
 } from '@gen-fullstack/shared';
@@ -23,6 +24,7 @@ interface UseWebSocketReturn {
   messages: LLMMessage[];
   toolCalls: ToolCall[];
   toolResults: ToolResult[];
+  pipelineStages: PipelineStageEvent[];
   files: FileUpdate[];
   // App execution state
   appStatus: AppInfo | null;
@@ -67,6 +69,7 @@ export function useWebSocket(navigate?: NavigateFunction): UseWebSocketReturn {
   const messages = useGenerationStore((state) => state.messages);
   const toolCalls = useGenerationStore((state) => state.toolCalls);
   const toolResults = useGenerationStore((state) => state.toolResults);
+  const pipelineStages = useGenerationStore((state) => state.pipelineStages);
   const files = useGenerationStore((state) => state.files);
 
   const appStatus = useAppStore((state) => state.appStatus);
@@ -195,6 +198,10 @@ export function useWebSocket(navigate?: NavigateFunction): UseWebSocketReturn {
       useGenerationStore.getState().updateFile(file);
     };
 
+    const handlePipelineStage = (stage: PipelineStageEvent) => {
+      useGenerationStore.getState().addPipelineStage(stage);
+    };
+
     const handleGenerationComplete = (metrics: GenerationMetrics) => {
       useGenerationStore.getState().setGenerating(false);
       useGenerationStore.getState().setMetrics(metrics);
@@ -250,6 +257,7 @@ export function useWebSocket(navigate?: NavigateFunction): UseWebSocketReturn {
     newSocket.off('tool_call');
     newSocket.off('tool_result');
     newSocket.off('file_updated');
+    newSocket.off('pipeline_stage');
     newSocket.off('generation_complete');
     newSocket.off('error');
     newSocket.off('app_status');
@@ -264,6 +272,7 @@ export function useWebSocket(navigate?: NavigateFunction): UseWebSocketReturn {
     newSocket.on('tool_call', handleToolCall);
     newSocket.on('tool_result', handleToolResult);
     newSocket.on('file_updated', handleFileUpdated);
+    newSocket.on('pipeline_stage', handlePipelineStage);
     newSocket.on('generation_complete', handleGenerationComplete);
     newSocket.on('error', handleError);
     newSocket.on('app_status', handleAppStatus);
@@ -284,6 +293,7 @@ export function useWebSocket(navigate?: NavigateFunction): UseWebSocketReturn {
       newSocket.off('tool_call', handleToolCall);
       newSocket.off('tool_result', handleToolResult);
       newSocket.off('file_updated', handleFileUpdated);
+      newSocket.off('pipeline_stage', handlePipelineStage);
       newSocket.off('generation_complete', handleGenerationComplete);
       newSocket.off('error', handleError);
       newSocket.off('app_status', handleAppStatus);
@@ -350,6 +360,7 @@ export function useWebSocket(navigate?: NavigateFunction): UseWebSocketReturn {
     messages,
     toolCalls,
     toolResults,
+    pipelineStages,
     files,
     // App execution state
     appStatus,

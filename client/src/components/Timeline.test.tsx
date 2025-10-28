@@ -13,12 +13,20 @@ import { Timeline } from './Timeline';
 
 describe('Timeline', () => {
   it('should render empty state when no messages or tool calls', () => {
-    render(<Timeline messages={[]} toolCalls={[]} toolResults={[]} />);
+    render(<Timeline messages={[]} toolCalls={[]} toolResults={[]} pipelineStages={[]} />);
     expect(screen.getByText('No activity yet')).toBeInTheDocument();
   });
 
   it('should render skeleton loader when generating', () => {
-    render(<Timeline messages={[]} toolCalls={[]} toolResults={[]} isGenerating={true} />);
+    render(
+      <Timeline
+        messages={[]}
+        toolCalls={[]}
+        toolResults={[]}
+        pipelineStages={[]}
+        isGenerating={true}
+      />,
+    );
     expect(screen.getByTestId('skeleton-loader')).toBeInTheDocument();
   });
 
@@ -35,6 +43,7 @@ describe('Timeline', () => {
         ]}
         toolCalls={[]}
         toolResults={[]}
+        pipelineStages={[]}
         isGenerating={false}
       />,
     );
@@ -54,6 +63,7 @@ describe('Timeline', () => {
         ]}
         toolCalls={[]}
         toolResults={[]}
+        pipelineStages={[]}
         isGenerating={true}
       />,
     );
@@ -76,6 +86,7 @@ describe('Timeline', () => {
         ]}
         toolCalls={[]}
         toolResults={[]}
+        pipelineStages={[]}
       />,
     );
     expect(screen.queryByTestId('skeleton-loader')).not.toBeInTheDocument();
@@ -103,6 +114,7 @@ describe('Timeline', () => {
         messages={initialMessages}
         toolCalls={initialToolCalls}
         toolResults={initialResults}
+        pipelineStages={[]}
       />,
     );
 
@@ -127,7 +139,12 @@ describe('Timeline', () => {
 
     // Re-render with new data (simulating WebSocket update)
     rerender(
-      <Timeline messages={newMessages} toolCalls={initialToolCalls} toolResults={initialResults} />,
+      <Timeline
+        messages={newMessages}
+        toolCalls={initialToolCalls}
+        toolResults={initialResults}
+        pipelineStages={[]}
+      />,
     );
 
     // Dialog should STILL be open after re-render
@@ -156,6 +173,7 @@ describe('Timeline', () => {
         messages={initialMessages}
         toolCalls={initialToolCalls}
         toolResults={initialResults}
+        pipelineStages={[]}
       />,
     );
 
@@ -181,7 +199,12 @@ describe('Timeline', () => {
 
     // Re-render with result
     rerender(
-      <Timeline messages={initialMessages} toolCalls={initialToolCalls} toolResults={newResults} />,
+      <Timeline
+        messages={initialMessages}
+        toolCalls={initialToolCalls}
+        toolResults={newResults}
+        pipelineStages={[]}
+      />,
     );
 
     // Dialog should STILL be open and now show "Complete"

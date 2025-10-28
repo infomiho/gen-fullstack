@@ -2,6 +2,7 @@ import type {
   FileUpdate,
   GenerationMetrics,
   LLMMessage,
+  PipelineStageEvent,
   ToolCall,
   ToolResult,
 } from '@gen-fullstack/shared';
@@ -27,6 +28,7 @@ interface GenerationState {
   toolCalls: ToolCall[];
   toolResults: ToolResult[];
   files: FileUpdate[];
+  pipelineStages: PipelineStageEvent[]; // Phase B - explicit orchestration stages
   isGenerating: boolean;
   metrics: GenerationMetrics | null;
   // Track current session to enable session-aware cleanup
@@ -44,6 +46,9 @@ interface GenerationActions {
 
   // File management
   updateFile: (file: FileUpdate) => void;
+
+  // Pipeline stage management (Phase B)
+  addPipelineStage: (stage: PipelineStageEvent) => void;
 
   // Generation control
   setGenerating: (value: boolean) => void;
@@ -67,6 +72,7 @@ const initialState: GenerationState = {
   toolCalls: [],
   toolResults: [],
   files: [],
+  pipelineStages: [],
   isGenerating: false,
   metrics: null,
   currentSessionId: null,
@@ -117,6 +123,11 @@ export const useGenerationStore = create<GenerationStore>()(
           } else {
             state.files.push(file);
           }
+        }),
+
+      addPipelineStage: (stage) =>
+        set((state) => {
+          state.pipelineStages.push(stage);
         }),
 
       setGenerating: (value) => set({ isGenerating: value }),
