@@ -1,4 +1,10 @@
-import type { FileUpdate, LLMMessage, ToolCall, ToolResult } from '@gen-fullstack/shared';
+import type {
+  FileUpdate,
+  LLMMessage,
+  PipelineStageEvent,
+  ToolCall,
+  ToolResult,
+} from '@gen-fullstack/shared';
 import { useMemo } from 'react';
 
 /**
@@ -22,7 +28,7 @@ interface SessionTimeline {
   id: number;
   sessionId: string;
   timestamp: Date;
-  type: 'message' | 'tool_call' | 'tool_result';
+  type: 'message' | 'tool_call' | 'tool_result' | 'pipeline_stage';
   // Message fields
   messageId?: string;
   role?: 'user' | 'assistant' | 'system';
@@ -37,6 +43,11 @@ interface SessionTimeline {
   toolResultFor?: string;
   result?: string;
   isError?: boolean;
+  // Pipeline stage fields
+  stageId?: string;
+  stageType?: 'planning' | 'validation' | 'template_loading' | 'completing';
+  stageStatus?: 'started' | 'completed' | 'failed';
+  stageData?: string; // JSON string
 }
 
 interface SessionFile {
@@ -93,6 +104,21 @@ function convertPersistedToolResults(timeline: SessionTimeline[]): ToolResult[] 
 }
 
 /**
+ * Helper: Convert persisted timeline pipeline stages to client format
+ */
+function convertPersistedPipelineStages(timeline: SessionTimeline[]): PipelineStageEvent[] {
+  return timeline
+    .filter((item) => item.type === 'pipeline_stage' && item.stageId && item.stageType)
+    .map((item) => ({
+      id: item.stageId as string,
+      type: item.stageType as 'planning' | 'validation' | 'template_loading' | 'completing',
+      status: (item.stageStatus as 'started' | 'completed' | 'failed') || 'started',
+      timestamp: new Date(item.timestamp).getTime(),
+      data: safeJsonParse<Record<string, unknown>>(item.stageData, {}),
+    }));
+}
+
+/**
  * Helper: Convert persisted files to client format
  */
 function convertPersistedFiles(files: SessionFile[]): FileUpdate[] {
@@ -135,6 +161,8 @@ export interface UseSessionDataParams {
   liveToolCalls: ToolCall[];
   /** Live tool results from WebSocket */
   liveToolResults: ToolResult[];
+  /** Live pipeline stages from WebSocket */
+  livePipelineStages: PipelineStageEvent[];
   /** Live files from WebSocket */
   liveFiles: FileUpdate[];
   /** Whether the session is still generating */
@@ -150,7 +178,7 @@ export interface UseSessionDataParams {
  * when viewing an active session.
  *
  * @param params - Object containing all session data and flags
- * @returns Merged messages, tool calls, tool results, and files
+ * @returns Merged messages, tool calls, tool results, pipeline stages, and files
  */
 export function useSessionData(params: UseSessionDataParams) {
   const {
@@ -159,6 +187,7 @@ export function useSessionData(params: UseSessionDataParams) {
     liveMessages,
     liveToolCalls,
     liveToolResults,
+    livePipelineStages,
     liveFiles,
     isConnectedToRoom,
   } = params;
@@ -166,6 +195,10 @@ export function useSessionData(params: UseSessionDataParams) {
   const persistedMessages = useMemo(() => convertPersistedMessages(timeline), [timeline]);
   const persistedToolCalls = useMemo(() => convertPersistedToolCalls(timeline), [timeline]);
   const persistedToolResults = useMemo(() => convertPersistedToolResults(timeline), [timeline]);
+  const persistedPipelineStages = useMemo(
+    () => convertPersistedPipelineStages(timeline),
+    [timeline],
+  );
   const persistedFiles = useMemo(
     () => convertPersistedFiles(persistedFilesData),
     [persistedFilesData],
@@ -195,10 +228,18 @@ export function useSessionData(params: UseSessionDataParams) {
     [isConnectedToRoom, persistedToolResults, liveToolResults],
   );
 
+  const pipelineStages = useMemo(
+    () =>
+      isConnectedToRoom
+        ? mergeByIdAndSort(persistedPipelineStages, livePipelineStages)
+        : persistedPipelineStages,
+    [isConnectedToRoom, persistedPipelineStages, livePipelineStages],
+  );
+
   const files = useMemo(
     () => (isConnectedToRoom ? mergeByPath(persistedFiles, liveFiles) : persistedFiles),
     [isConnectedToRoom, persistedFiles, liveFiles],
   );
 
-  return { messages, toolCalls, toolResults, files };
+  return { messages, toolCalls, toolResults, pipelineStages, files };
 }

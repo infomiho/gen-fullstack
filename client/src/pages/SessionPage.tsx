@@ -63,7 +63,7 @@ interface SessionData {
     id: number;
     sessionId: string;
     timestamp: Date;
-    type: 'message' | 'tool_call' | 'tool_result';
+    type: 'message' | 'tool_call' | 'tool_result' | 'pipeline_stage';
     // Message fields
     messageId?: string;
     role?: 'user' | 'assistant' | 'system';
@@ -78,6 +78,11 @@ interface SessionData {
     toolResultFor?: string;
     result?: string;
     isError?: boolean;
+    // Pipeline stage fields
+    stageId?: string;
+    stageType?: 'planning' | 'validation' | 'template_loading' | 'completing';
+    stageStatus?: 'started' | 'completed' | 'failed';
+    stageData?: string; // JSON string
   }>;
   files: Array<{
     id: number;
@@ -295,6 +300,7 @@ function SessionPage() {
     liveMessages,
     liveToolCalls,
     liveToolResults,
+    livePipelineStages,
     liveFiles,
     isActiveSession,
     isConnectedToRoom,
@@ -304,7 +310,7 @@ function SessionPage() {
   const messages = isReplayMode ? replayData.messages : persistedData.messages;
   const toolCalls = isReplayMode ? replayData.toolCalls : persistedData.toolCalls;
   const toolResults = isReplayMode ? replayData.toolResults : persistedData.toolResults;
-  const pipelineStages = livePipelineStages; // Pipeline stages are only live (not persisted yet)
+  const pipelineStages = isReplayMode ? replayData.pipelineStages : persistedData.pipelineStages;
   const files = isReplayMode ? replayData.files : persistedData.files;
 
   // Parse capabilityConfig for presentation mode

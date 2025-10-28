@@ -15,7 +15,7 @@ import { useReplayStore, REPLAY_SPEED } from '../stores/replay.store';
  * - Filtering timeline data based on currentTime
  * - Subscribing to replay state changes
  *
- * @returns Replay data (messages, toolCalls, toolResults, files) or empty arrays if not in replay mode
+ * @returns Replay data (messages, toolCalls, toolResults, pipelineStages, files) or empty arrays if not in replay mode
  */
 export function useReplayMode() {
   // Subscribe to specific slices to control re-renders
@@ -65,7 +65,7 @@ export function useReplayMode() {
   // biome-ignore lint/correctness/useExhaustiveDependencies: replayCurrentTime is needed to trigger recomputation on time changes
   const replayData = useMemo(() => {
     if (!isReplayModeActive) {
-      return { messages: [], toolCalls: [], toolResults: [], files: [] };
+      return { messages: [], toolCalls: [], toolResults: [], pipelineStages: [], files: [] };
     }
 
     const state = useReplayStore.getState();
@@ -77,6 +77,8 @@ export function useReplayMode() {
         state.sessionStartTime,
         state.currentTime,
       ),
+      // TODO: Add getReplayPipelineStages function for proper replay support
+      pipelineStages: [],
       files: getReplayFiles(state.files, state.sessionStartTime, state.currentTime),
     };
   }, [isReplayModeActive, replayCurrentTime]);

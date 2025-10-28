@@ -119,6 +119,14 @@ router.get('/:sessionId/replay-data', async (req, res) => {
           toolName: item.toolName,
           result: item.result,
         };
+      } else if (item.type === 'pipeline_stage') {
+        // Use stageId as the ID for pipeline stages
+        id = item.stageId || String(item.id);
+        data = {
+          type: item.stageType,
+          status: item.stageStatus,
+          data: item.stageData ? JSON.parse(item.stageData) : {},
+        };
       }
 
       return {
