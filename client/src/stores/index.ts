@@ -7,5 +7,6 @@
 
 export { useAppStore } from './app';
 export { useConnectionStore } from './connection';
+export { useGenerationConfigStore } from './generation-config.store';
 export { useGenerationStore } from './generation';
 export { useUIStore } from './ui.store';

@@ -205,14 +205,6 @@ export function useWebSocket(navigate?: NavigateFunction): UseWebSocketReturn {
       useGenerationStore.getState().setGenerating(false);
       useGenerationStore.getState().setMetrics(metrics);
 
-      // Add completion message
-      useGenerationStore.getState().addMessage({
-        id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-        role: 'system' as const,
-        content: `Generation completed! Tokens: ${metrics.totalTokens}, Cost: $${metrics.cost.toFixed(4)}, Duration: ${(metrics.duration / 1000).toFixed(1)}s`,
-        timestamp: Date.now(),
-      });
-
       // Auto-start the app after a short delay to let files finish writing
       // sessionId comes from the event payload (server always knows which session completed)
       // Only auto-start if generation was successful

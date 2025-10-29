@@ -8,11 +8,11 @@ import { PromptInput } from '../components/PromptInput';
 import { SessionFilters, type SessionFiltersState } from '../components/SessionFilters';
 import { SessionMetadata } from '../components/SessionMetadata';
 import { ThemeToggle } from '../components/ThemeToggle';
-import { useLocalStorageDraft } from '../hooks/useLocalStorageDraft';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { card, focus, spacing, transitions, typography } from '../lib/design-tokens';
 import { env } from '../lib/env';
 import { parseCapabilityConfig } from '../lib/format-utils';
+import { useGenerationConfigStore } from '../stores/generation-config.store';
 
 /**
  * Session list item from the API
@@ -88,19 +88,19 @@ function matchesFilters(session: SessionWithParsedConfig, filters: SessionFilter
  */
 function HomePage() {
   const navigate = useNavigate();
-  const { isConnected, startGeneration, isGenerating } = useWebSocket(navigate);
+  const { isConnected, startGeneration } = useWebSocket(navigate);
 
-  // Prompt state (persisted to localStorage with debouncing)
-  const [prompt, setPrompt, clearPrompt] = useLocalStorageDraft('gen-fullstack:draft-prompt');
+  // Local submission state (not persisted) - tracks form submission for THIS HomePage instance
+  // Resets to false when: (1) component unmounts on navigation, (2) timeout after 2s
+  // This prevents the bug where visiting an in-progress session leaves global isGenerating=true
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Capability mode state
-  const [capabilityConfig, setCapabilityConfig] = useState<CapabilityConfig>({
-    inputMode: 'naive',
-    planning: false,
-    compilerChecks: false,
-    buildingBlocks: false,
-    maxIterations: 3,
-  });
+  // Generation config state (persisted to localStorage via Zustand)
+  const promptDraft = useGenerationConfigStore((state) => state.promptDraft);
+  const setPromptDraft = useGenerationConfigStore((state) => state.setPromptDraft);
+  const clearPromptDraft = useGenerationConfigStore((state) => state.clearPromptDraft);
+  const capabilityConfig = useGenerationConfigStore((state) => state.capabilityConfig);
+  const setCapabilityConfig = useGenerationConfigStore((state) => state.setCapabilityConfig);
 
   const [sessions, setSessions] = useState<SessionWithParsedConfig[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(true);
@@ -150,10 +150,17 @@ function HomePage() {
   }, []);
 
   const handleGenerate = () => {
-    if (prompt.trim()) {
-      startGeneration(prompt, capabilityConfig, 'gpt-5-mini');
-      // Clear draft from localStorage after successful generation start
-      clearPrompt();
+    if (promptDraft.trim()) {
+      setIsSubmitting(true);
+      startGeneration(promptDraft, capabilityConfig, 'gpt-5-mini');
+      clearPromptDraft();
+
+      // Safety timeout: Reset if navigation doesn't happen (error case)
+      // Normal flow: session_started event triggers navigation → component unmounts → state resets
+      // This timeout handles failures where navigation never occurs
+      setTimeout(() => {
+        setIsSubmitting(false);
+      }, 2000);
     }
   };
 
@@ -165,7 +172,7 @@ function HomePage() {
       </div>
 
       {/* Main content - Centered */}
-      <main className="max-w-5xl mx-auto px-6 py-16">
+      <main className="max-w-5xl mx-auto px-6 py-32">
         {/* Title */}
         <div className="text-center mb-12">
           <h1 className="text-5xl font-bold text-foreground">
@@ -177,14 +184,14 @@ function HomePage() {
         </div>
 
         {/* Generation form */}
-        <div className="mb-16">
+        <div className="mb-32">
           <div className={`${spacing.sections}`}>
             {/* Prompt input */}
             <div>
               <PromptInput
-                value={prompt}
-                onChange={setPrompt}
-                disabled={isGenerating || !isConnected}
+                value={promptDraft}
+                onChange={setPromptDraft}
+                disabled={isSubmitting || !isConnected}
               />
             </div>
 
@@ -192,7 +199,7 @@ function HomePage() {
             <CapabilitySection
               config={capabilityConfig}
               onConfigChange={setCapabilityConfig}
-              disabled={isGenerating}
+              disabled={isSubmitting}
             />
 
             {/* Generate button */}
@@ -200,7 +207,7 @@ function HomePage() {
               <button
                 type="button"
                 onClick={handleGenerate}
-                disabled={isGenerating || !isConnected || !prompt.trim()}
+                disabled={isSubmitting || !isConnected || !promptDraft.trim()}
                 className={`w-full flex items-center justify-center gap-2 rounded border border-primary bg-primary px-4 py-3 text-base font-medium text-primary-foreground ${transitions.colors} hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-muted disabled:border-muted disabled:text-muted-foreground ${focus.ring}`}
               >
                 <Send size={16} />
