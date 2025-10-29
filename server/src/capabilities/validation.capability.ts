@@ -93,7 +93,7 @@ export class ValidationCapability extends BaseCapability {
       // Install dependencies (doesn't return ValidationError[], so handle separately)
       await this.executeValidationStep(
         'install-deps',
-        'installDependencies',
+        TOOL_NAMES.INSTALL_DEPENDENCIES,
         { path: sandboxDir },
         sessionId,
         async () => {
