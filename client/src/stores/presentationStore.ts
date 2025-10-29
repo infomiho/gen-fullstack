@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { CapabilityConfig } from '@gen-fullstack/shared';
+import { extractOverlayData } from '../lib/presentation-type-guards';
 
 export type PresentationOverlay =
   | 'none'
@@ -17,24 +18,49 @@ export type PresentationOverlay =
   | 'victory'; // Final stats
 
 /**
- * Presentation overlay event - pre-computed from timeline
+ * Presentation overlay data structure (used by overlayData in store)
  */
-export interface PresentationEvent {
-  type: PresentationOverlay;
-  duration: number; // milliseconds to show overlay
-  data?: {
-    planItem?: {
-      type: 'model' | 'endpoint' | 'component';
-      name: string;
-    };
-    blockName?: string;
-    validationResult?: { passed: boolean; errorCount?: number; iteration?: number };
-    comboMilestone?: number;
-    toolCall?: { name: string; file?: string };
-    stats?: PresentationStats;
-    fileName?: string;
+export interface PresentationOverlayData {
+  planItem?: {
+    type: 'model' | 'endpoint' | 'component';
+    name: string;
   };
+  blockName?: string;
+  validationResult?: { passed: boolean; errorCount?: number; iteration?: number };
+  comboMilestone?: number;
+  toolCall?: { name: string; file?: string };
+  stats?: PresentationStats;
+  fileName?: string;
 }
+
+/**
+ * Presentation overlay event - pre-computed from timeline
+ * Discriminated union ensures type-safe event creation
+ */
+export type PresentationEvent =
+  // Events with no data
+  | { type: 'none'; duration: number }
+  | { type: 'generation-start'; duration: number }
+  | { type: 'template-loading'; duration: number }
+  | { type: 'validation-prisma'; duration: number }
+  | { type: 'validation-typescript'; duration: number }
+  | { type: 'error-ko'; duration: number }
+  | { type: 'tool-hud'; duration: number }
+  // Events with specific data
+  | {
+      type: 'planning';
+      duration: number;
+      data: { planItem: { type: 'model' | 'endpoint' | 'component'; name: string } };
+    }
+  | { type: 'block-request'; duration: number; data: { blockName: string } }
+  | {
+      type: 'validation-result';
+      duration: number;
+      data: { validationResult: { passed: boolean; errorCount?: number; iteration?: number } };
+    }
+  | { type: 'combo-milestone'; duration: number; data: { comboMilestone: number } }
+  | { type: 'file-created'; duration: number; data: { fileName: string } }
+  | { type: 'victory'; duration: number; data: { stats: PresentationStats } };
 
 export interface ComboState {
   count: number;
@@ -103,17 +129,8 @@ export interface PresentationState {
   clearPlanningHistory: () => void;
 
   // Overlay-specific data
-  overlayData: {
-    planItem?: {
-      type: 'model' | 'endpoint' | 'component';
-      name: string;
-    };
-    blockName?: string;
-    validationResult?: { passed: boolean; errorCount?: number; iteration?: number };
-    comboMilestone?: number;
-    fileName?: string;
-  };
-  setOverlayData: (data: PresentationState['overlayData']) => void;
+  overlayData: PresentationOverlayData;
+  setOverlayData: (data: PresentationOverlayData) => void;
 
   // Audio control
   isMuted: boolean;
@@ -150,18 +167,19 @@ export const usePresentationStore = create<PresentationState>((set) => ({
   loadPresentationQueue: (events) => {
     // Immediately show first event when loading queue and start auto-playing
     const firstEvent = events[0];
+    const overlayData = firstEvent ? extractOverlayData(firstEvent) : {};
     const updates: Partial<PresentationState> = {
       presentationQueue: events,
       currentEventIndex: 0,
       isAutoPlaying: true, // Auto-start playback
       currentOverlay: firstEvent?.type || 'none',
-      overlayData: firstEvent?.data || {},
+      overlayData,
       planningHistory: [], // Clear planning history for fresh start
     };
 
     // If first event has stats (e.g., victory overlay), update stats immediately
-    if (firstEvent?.data?.stats) {
-      updates.stats = firstEvent.data.stats as PresentationStats;
+    if (overlayData.stats) {
+      updates.stats = overlayData.stats;
     }
 
     set(updates);
@@ -176,16 +194,17 @@ export const usePresentationStore = create<PresentationState>((set) => ({
       }
 
       const event = state.presentationQueue[nextIndex];
+      const overlayData = extractOverlayData(event);
 
       // Update stats if the event has stats data (e.g., victory overlay)
       const updates: Partial<PresentationState> = {
         currentEventIndex: nextIndex,
         currentOverlay: event.type,
-        overlayData: event.data || {},
+        overlayData,
       };
 
-      if (event.data?.stats) {
-        updates.stats = event.data.stats as PresentationStats;
+      if (overlayData.stats) {
+        updates.stats = overlayData.stats;
       }
 
       return updates;
@@ -203,7 +222,7 @@ export const usePresentationStore = create<PresentationState>((set) => ({
       return {
         currentEventIndex: prevIndex,
         currentOverlay: event.type,
-        overlayData: event.data || {},
+        overlayData: extractOverlayData(event),
       };
     }),
 
@@ -216,7 +235,7 @@ export const usePresentationStore = create<PresentationState>((set) => ({
           isAutoPlaying: true,
           currentEventIndex: 0,
           currentOverlay: firstEvent?.type || 'none',
-          overlayData: firstEvent?.data || {},
+          overlayData: firstEvent ? extractOverlayData(firstEvent) : {},
         };
       }
       return { isAutoPlaying: true };
@@ -231,7 +250,7 @@ export const usePresentationStore = create<PresentationState>((set) => ({
         currentEventIndex: 0,
         isAutoPlaying: false,
         currentOverlay: firstEvent?.type || 'none',
-        overlayData: firstEvent?.data || {},
+        overlayData: firstEvent ? extractOverlayData(firstEvent) : {},
         planningHistory: [], // Clear planning history on reset
       };
     }),

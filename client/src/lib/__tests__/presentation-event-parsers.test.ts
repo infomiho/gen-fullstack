@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { PipelineStageEvent, ToolCall } from '@gen-fullstack/shared';
+import type { PresentationEvent } from '../../stores/presentationStore';
 import {
   parseTemplateLoadingStage,
   parsePlanningStage,
@@ -161,8 +162,18 @@ describe('presentation-event-parsers', () => {
       const result = parsePlanningStage(stage);
 
       expect(result).toHaveLength(2);
-      expect(result[0].data?.planItem).toEqual({ type: 'endpoint', name: 'GET /users' });
-      expect(result[1].data?.planItem).toEqual({ type: 'endpoint', name: 'POST /posts' });
+      expect((result[0] as Extract<PresentationEvent, { type: 'planning' }>).data.planItem).toEqual(
+        {
+          type: 'endpoint',
+          name: 'GET /users',
+        },
+      );
+      expect((result[1] as Extract<PresentationEvent, { type: 'planning' }>).data.planItem).toEqual(
+        {
+          type: 'endpoint',
+          name: 'POST /posts',
+        },
+      );
     });
 
     it('should parse client components', () => {
@@ -184,8 +195,18 @@ describe('presentation-event-parsers', () => {
       const result = parsePlanningStage(stage);
 
       expect(result).toHaveLength(2);
-      expect(result[0].data?.planItem).toEqual({ type: 'component', name: 'Header' });
-      expect(result[1].data?.planItem).toEqual({ type: 'component', name: 'Footer' });
+      expect((result[0] as Extract<PresentationEvent, { type: 'planning' }>).data.planItem).toEqual(
+        {
+          type: 'component',
+          name: 'Header',
+        },
+      );
+      expect((result[1] as Extract<PresentationEvent, { type: 'planning' }>).data.planItem).toEqual(
+        {
+          type: 'component',
+          name: 'Footer',
+        },
+      );
     });
 
     it('should include method in route name', () => {
@@ -203,7 +224,12 @@ describe('presentation-event-parsers', () => {
 
       const result = parsePlanningStage(stage);
 
-      expect(result[0].data?.planItem).toEqual({ type: 'endpoint', name: 'GET /users' });
+      expect((result[0] as Extract<PresentationEvent, { type: 'planning' }>).data.planItem).toEqual(
+        {
+          type: 'endpoint',
+          name: 'GET /users',
+        },
+      );
     });
 
     it('should return empty array if no plan data', () => {
@@ -384,7 +410,9 @@ describe('presentation-event-parsers', () => {
 
       const result = parseBlockRequestTool(toolCall);
 
-      expect(result?.data?.blockName).toBe('Building Block');
+      expect(
+        (result as Extract<PresentationEvent, { type: 'block-request' }> | null)?.data?.blockName,
+      ).toBe('Building Block');
     });
 
     it('should return null if args parsing fails', () => {
@@ -430,11 +458,9 @@ describe('presentation-event-parsers', () => {
 
       expect(result).toHaveLength(2);
       expect(result[0].type).toBe('file-created');
-      expect(result[1]).toEqual({
-        type: 'combo-milestone',
-        duration: 2000,
-        data: { comboMilestone: 5 },
-      });
+      expect(
+        (result[1] as Extract<PresentationEvent, { type: 'combo-milestone' }>).data.comboMilestone,
+      ).toBe(5);
     });
 
     it('should add combo milestone at 10 files', () => {
@@ -448,7 +474,9 @@ describe('presentation-event-parsers', () => {
       const result = parseWriteFileTool(toolCall, 9);
 
       expect(result).toHaveLength(2);
-      expect(result[1].data?.comboMilestone).toBe(10);
+      expect(
+        (result[1] as Extract<PresentationEvent, { type: 'combo-milestone' }>).data.comboMilestone,
+      ).toBe(10);
     });
 
     it('should add combo milestone at 20, 30, etc.', () => {
@@ -457,14 +485,18 @@ describe('presentation-event-parsers', () => {
         19,
       );
       expect(result).toHaveLength(2);
-      expect(result[1].data?.comboMilestone).toBe(20);
+      expect(
+        (result[1] as Extract<PresentationEvent, { type: 'combo-milestone' }>).data.comboMilestone,
+      ).toBe(20);
 
       result = parseWriteFileTool(
         { id: '30', name: 'writeFile', args: { path: 'file30.ts' }, timestamp: 1000 },
         29,
       );
       expect(result).toHaveLength(2);
-      expect(result[1].data?.comboMilestone).toBe(30);
+      expect(
+        (result[1] as Extract<PresentationEvent, { type: 'combo-milestone' }>).data.comboMilestone,
+      ).toBe(30);
     });
 
     it('should not add combo at other numbers', () => {
@@ -486,7 +518,9 @@ describe('presentation-event-parsers', () => {
 
       const result = parseWriteFileTool(toolCall, 2);
 
-      expect(result[0].data?.fileName).toBe('file-3');
+      expect(
+        (result[0] as Extract<PresentationEvent, { type: 'file-created' }>).data.fileName,
+      ).toBe('file-3');
     });
   });
 });

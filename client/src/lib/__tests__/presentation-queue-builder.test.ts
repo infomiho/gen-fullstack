@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildPresentationQueue } from '../presentation-queue-builder';
 import type { LLMMessage, ToolCall, PipelineStageEvent } from '@gen-fullstack/shared';
+import type { PresentationEvent } from '../../stores/presentationStore';
 
 describe('buildPresentationQueue', () => {
   describe('basic structure', () => {
@@ -22,7 +23,9 @@ describe('buildPresentationQueue', () => {
 
       const lastEvent = queue[queue.length - 1];
       expect(lastEvent.type).toBe('victory');
-      expect(lastEvent.data?.stats).toBeDefined();
+      expect(
+        (lastEvent as Extract<PresentationEvent, { type: 'victory' }>).data.stats,
+      ).toBeDefined();
     });
 
     it('should end with error-ko event when errors present', () => {
@@ -238,7 +241,10 @@ describe('buildPresentationQueue', () => {
       expect(validationEvents).toHaveLength(2);
       expect(validationEvents[0].type).toBe('validation-prisma');
       expect(validationEvents[1].type).toBe('validation-result');
-      expect(validationEvents[1].data?.validationResult).toEqual({
+      expect(
+        (validationEvents[1] as Extract<PresentationEvent, { type: 'validation-result' }>).data
+          .validationResult,
+      ).toEqual({
         passed: true,
         errorCount: 0,
         iteration: undefined,

@@ -150,8 +150,18 @@ describe('usePresentationMode', () => {
         store.setEnabled(true);
         store.loadPresentationQueue([
           { type: 'generation-start', duration: 1000 },
-          { type: 'planning', duration: 400 },
-          { type: 'victory', duration: 6000 },
+          {
+            type: 'planning',
+            duration: 400,
+            data: { planItem: { type: 'model', name: 'TestModel' } },
+          },
+          {
+            type: 'victory',
+            duration: 6000,
+            data: {
+              stats: { duration: 10, toolCalls: 5, filesCreated: 3, successRate: 100, combos: 5 },
+            },
+          },
         ]);
         store.pausePresentation(); // Must be paused for arrow keys
       });
@@ -375,7 +385,13 @@ describe('usePresentationMode', () => {
         store.setEnabled(true);
         store.loadPresentationQueue([
           { type: 'generation-start', duration: 1000 },
-          { type: 'victory', duration: 6000 },
+          {
+            type: 'victory',
+            duration: 6000,
+            data: {
+              stats: { duration: 10, toolCalls: 5, filesCreated: 3, successRate: 100, combos: 5 },
+            },
+          },
         ]);
         store.pausePresentation();
       });

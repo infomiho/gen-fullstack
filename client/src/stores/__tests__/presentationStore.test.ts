@@ -42,7 +42,13 @@ describe('presentationStore', () => {
     const mockQueue: PresentationEvent[] = [
       { type: 'generation-start', duration: 6000 },
       { type: 'planning', duration: 400, data: { planItem: { type: 'model', name: 'User' } } },
-      { type: 'victory', duration: 6000 },
+      {
+        type: 'victory',
+        duration: 6000,
+        data: {
+          stats: { duration: 10, toolCalls: 5, filesCreated: 3, successRate: 100, combos: 5 },
+        },
+      },
     ];
 
     it('should load presentation queue and start auto-playing', () => {
@@ -144,7 +150,13 @@ describe('presentationStore', () => {
   describe('playback controls', () => {
     const mockQueue: PresentationEvent[] = [
       { type: 'generation-start', duration: 6000 },
-      { type: 'victory', duration: 6000 },
+      {
+        type: 'victory',
+        duration: 6000,
+        data: {
+          stats: { duration: 10, toolCalls: 5, filesCreated: 3, successRate: 100, combos: 5 },
+        },
+      },
     ];
 
     it('should pause presentation', () => {
