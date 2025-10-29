@@ -215,9 +215,12 @@ export function useWebSocket(navigate?: NavigateFunction): UseWebSocketReturn {
 
       // Auto-start the app after a short delay to let files finish writing
       // sessionId comes from the event payload (server always knows which session completed)
-      setTimeout(() => {
-        newSocket.emit('start_app', { sessionId: metrics.sessionId });
-      }, TIMEOUTS.AUTO_START_DELAY);
+      // Only auto-start if generation was successful
+      if (metrics.status === 'completed') {
+        setTimeout(() => {
+          newSocket.emit('start_app', { sessionId: metrics.sessionId });
+        }, TIMEOUTS.AUTO_START_DELAY);
+      }
     };
 
     const handleError = (error: string) => {

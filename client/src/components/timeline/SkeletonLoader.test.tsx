@@ -9,9 +9,11 @@ describe('SkeletonLoader', () => {
     expect(skeleton).toBeInTheDocument();
   });
 
-  it('should display generating text', () => {
+  it('should display animated dots', () => {
     render(<SkeletonLoader />);
-    expect(screen.getByText('Generating...')).toBeInTheDocument();
+    const skeleton = screen.getByTestId('skeleton-loader');
+    // Should contain three bullet points (•)
+    expect(skeleton.textContent).toContain('•');
   });
 
   it('should have card background with border', () => {
@@ -37,10 +39,9 @@ describe('SkeletonLoader', () => {
     render(<SkeletonLoader />);
     const skeleton = screen.getByTestId('skeleton-loader');
 
-    // Should have centered flex layout for icon and text
+    // Should have centered flex layout for dots
     expect(skeleton).toHaveClass('flex');
     expect(skeleton).toHaveClass('items-center');
     expect(skeleton).toHaveClass('justify-center');
-    expect(skeleton).toHaveClass('gap-3');
   });
 });

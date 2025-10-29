@@ -8,6 +8,7 @@ import { PromptInput } from '../components/PromptInput';
 import { SessionFilters, type SessionFiltersState } from '../components/SessionFilters';
 import { SessionMetadata } from '../components/SessionMetadata';
 import { ThemeToggle } from '../components/ThemeToggle';
+import { useLocalStorageDraft } from '../hooks/useLocalStorageDraft';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { card, focus, spacing, transitions, typography } from '../lib/design-tokens';
 import { env } from '../lib/env';
@@ -89,8 +90,8 @@ function HomePage() {
   const navigate = useNavigate();
   const { isConnected, startGeneration, isGenerating } = useWebSocket(navigate);
 
-  // Prompt state
-  const [prompt, setPrompt] = useState('');
+  // Prompt state (persisted to localStorage with debouncing)
+  const [prompt, setPrompt, clearPrompt] = useLocalStorageDraft('gen-fullstack:draft-prompt');
 
   // Capability mode state
   const [capabilityConfig, setCapabilityConfig] = useState<CapabilityConfig>({
@@ -151,8 +152,8 @@ function HomePage() {
   const handleGenerate = () => {
     if (prompt.trim()) {
       startGeneration(prompt, capabilityConfig, 'gpt-5-mini');
-      // Keep prompt visible in input after generation starts
-      // (it will be cleared when user manually edits it or navigates away)
+      // Clear draft from localStorage after successful generation start
+      clearPrompt();
     }
   };
 
