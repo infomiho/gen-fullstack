@@ -250,6 +250,10 @@ export function useWebSocket(navigate?: NavigateFunction): UseWebSocketReturn {
       useAppStore.getState().addBuildEvent(event);
     };
 
+    const handleGenerationStatus = (data: { isGenerating: boolean }) => {
+      useGenerationStore.getState().setGenerating(data.isGenerating);
+    };
+
     // ALWAYS register handlers on every mount to prevent memory leaks
     // Remove any existing handlers first (prevents accumulation from previous mounts)
     newSocket.off('connect');
@@ -261,6 +265,7 @@ export function useWebSocket(navigate?: NavigateFunction): UseWebSocketReturn {
     newSocket.off('file_updated');
     newSocket.off('pipeline_stage');
     newSocket.off('generation_complete');
+    newSocket.off('generation_status');
     newSocket.off('error');
     newSocket.off('app_status');
     newSocket.off('app_log');
@@ -276,6 +281,7 @@ export function useWebSocket(navigate?: NavigateFunction): UseWebSocketReturn {
     newSocket.on('file_updated', handleFileUpdated);
     newSocket.on('pipeline_stage', handlePipelineStage);
     newSocket.on('generation_complete', handleGenerationComplete);
+    newSocket.on('generation_status', handleGenerationStatus);
     newSocket.on('error', handleError);
     newSocket.on('app_status', handleAppStatus);
     newSocket.on('app_log', handleAppLog);
@@ -297,6 +303,7 @@ export function useWebSocket(navigate?: NavigateFunction): UseWebSocketReturn {
       newSocket.off('file_updated', handleFileUpdated);
       newSocket.off('pipeline_stage', handlePipelineStage);
       newSocket.off('generation_complete', handleGenerationComplete);
+      newSocket.off('generation_status', handleGenerationStatus);
       newSocket.off('error', handleError);
       newSocket.off('app_status', handleAppStatus);
       newSocket.off('app_log', handleAppLog);

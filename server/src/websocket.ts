@@ -141,7 +141,7 @@ export function setupWebSocket(httpServer: HTTPServer) {
   io.on('connection', (socket) => {
     websocketLogger.info({ socketId: socket.id }, 'Client connected');
 
-    socket.on('subscribe_to_session', (payload) => {
+    socket.on('subscribe_to_session', async (payload) => {
       try {
         const { sessionId } = SubscribeSessionSchema.parse(payload);
 
@@ -167,6 +167,14 @@ export function setupWebSocket(httpServer: HTTPServer) {
         // Now join the new session room (client only in ONE session)
         socket.join(sessionId);
         websocketLogger.info({ socketId: socket.id, sessionId }, 'Socket subscribed to session');
+
+        // Sync generation state: if session is currently generating, notify the client
+        // This ensures the UI shows the correct live indicator after page reload
+        const session = await databaseService.getSession(sessionId);
+        if (session && session.status === 'generating') {
+          socket.emit('generation_status', { isGenerating: true });
+          websocketLogger.debug({ socketId: socket.id, sessionId }, 'Emitted generation status');
+        }
       } catch (error) {
         socket.emit('error', sanitizeError(error));
       }

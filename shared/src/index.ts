@@ -322,6 +322,7 @@ export interface ServerToClientEvents {
   tool_result: (result: ToolResult) => void;
   file_updated: (data: FileUpdate) => void;
   generation_complete: (metrics: GenerationMetrics) => void;
+  generation_status: (data: { isGenerating: boolean }) => void;
   workspace_cleared: () => void;
 
   // Pipeline stage events (Phase B - explicit orchestration)

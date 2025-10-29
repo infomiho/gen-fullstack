@@ -507,6 +507,69 @@ describe('WebSocket Handler Edge Cases', () => {
     });
   });
 
+  describe('Generation Status Synchronization', () => {
+    it('should emit generation_status when subscribing to generating session', async () => {
+      const { randomUUID } = await import('node:crypto');
+      const sessionId = randomUUID();
+
+      // Create a session that's currently generating
+      await databaseService.createSession({
+        id: sessionId,
+        prompt: 'Test generating session',
+        capabilityConfig: JSON.stringify({ inputMode: 'naive' }),
+        status: 'generating', // Key: status is 'generating'
+      });
+
+      const generationStatuses: { isGenerating: boolean }[] = [];
+      clientSocket.on('generation_status', (data: { isGenerating: boolean }) => {
+        generationStatuses.push(data);
+      });
+
+      // Subscribe to the generating session
+      clientSocket.emit('subscribe_to_session', { sessionId });
+
+      // Wait for async handler to process
+      await new Promise((resolve) => setTimeout(resolve, 150));
+
+      // Should have received generation_status event with isGenerating: true
+      expect(generationStatuses).toHaveLength(1);
+      expect(generationStatuses[0].isGenerating).toBe(true);
+
+      // Cleanup
+      await databaseService.deleteSession(sessionId);
+    });
+
+    it('should not emit generation_status when subscribing to completed session', async () => {
+      const { randomUUID } = await import('node:crypto');
+      const sessionId = randomUUID();
+
+      // Create a completed session
+      await databaseService.createSession({
+        id: sessionId,
+        prompt: 'Test completed session',
+        capabilityConfig: JSON.stringify({ inputMode: 'naive' }),
+        status: 'completed', // Key: status is 'completed'
+      });
+
+      const generationStatuses: { isGenerating: boolean }[] = [];
+      clientSocket.on('generation_status', (data: { isGenerating: boolean }) => {
+        generationStatuses.push(data);
+      });
+
+      // Subscribe to the completed session
+      clientSocket.emit('subscribe_to_session', { sessionId });
+
+      // Wait for async handler to process
+      await new Promise((resolve) => setTimeout(resolve, 150));
+
+      // Should NOT have received generation_status event
+      expect(generationStatuses).toHaveLength(0);
+
+      // Cleanup
+      await databaseService.deleteSession(sessionId);
+    });
+  });
+
   describe('Concurrent Operations', () => {
     it('should handle multiple simultaneous generations', async () => {
       const sessionIds: string[] = [];
