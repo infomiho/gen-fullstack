@@ -780,11 +780,6 @@ export const tools = {
 };
 
 /**
- * Tool names for reference
- */
-export const TOOL_NAMES = Object.keys(tools) as Array<keyof typeof tools>;
-
-/**
  * Get tools composed by capability configuration
  *
  * Composes tool groups based on enabled capabilities:
