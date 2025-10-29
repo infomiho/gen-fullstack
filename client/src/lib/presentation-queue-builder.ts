@@ -8,7 +8,9 @@ import type { PresentationEvent } from '../stores/presentationStore';
 import {
   parseTemplateLoadingStage,
   parsePlanningStage,
+  parseCodeGenerationStage,
   parseValidationStage,
+  parseErrorFixingStage,
   parseBlockRequestTool,
   parseWriteFileTool,
 } from './presentation-event-parsers';
@@ -58,8 +60,18 @@ function processStageEvent(stage: PipelineStageEvent, events: PresentationEvent[
       events.push(...parsed);
       break;
     }
+    case 'code_generation': {
+      const parsed = parseCodeGenerationStage(stage);
+      if (parsed) events.push(parsed);
+      break;
+    }
     case 'validation': {
       const parsed = parseValidationStage(stage);
+      events.push(...parsed);
+      break;
+    }
+    case 'error_fixing': {
+      const parsed = parseErrorFixingStage(stage);
       if (parsed) events.push(parsed);
       break;
     }
@@ -73,6 +85,7 @@ function processToolCallEvent(
   toolCall: ToolCall,
   totalFileWrites: number,
   events: PresentationEvent[],
+  seenFiles: Set<string>,
 ): number {
   switch (toolCall.name) {
     case TOOL_NAMES.REQUEST_BLOCK: {
@@ -81,9 +94,10 @@ function processToolCallEvent(
       return totalFileWrites;
     }
     case TOOL_NAMES.WRITE_FILE: {
-      const parsed = parseWriteFileTool(toolCall, totalFileWrites);
+      const parsed = parseWriteFileTool(toolCall, totalFileWrites, seenFiles);
       events.push(...parsed);
-      return totalFileWrites + 1;
+      // Only increment if we actually created a new file (parsed is not empty)
+      return parsed.length > 0 ? totalFileWrites + 1 : totalFileWrites;
     }
     default:
       return totalFileWrites;
@@ -143,12 +157,13 @@ export function buildPresentationQueue(
 
   // 3. Process events in chronological order
   let totalFileWrites = 0;
+  const seenFiles = new Set<string>(); // Track files to distinguish created vs modified
 
   for (const event of timelineEvents) {
     if (event.type === 'stage') {
       processStageEvent(event.stage, events);
     } else {
-      totalFileWrites = processToolCallEvent(event.toolCall, totalFileWrites, events);
+      totalFileWrites = processToolCallEvent(event.toolCall, totalFileWrites, events, seenFiles);
     }
   }
 

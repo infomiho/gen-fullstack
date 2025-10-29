@@ -174,6 +174,86 @@ describe('buildPresentationQueue', () => {
     });
   });
 
+  describe('code generation pipeline stage', () => {
+    it('should add code-generation event when pipeline stage is present', () => {
+      const pipelineStages: PipelineStageEvent[] = [
+        {
+          id: 'stage-1',
+          type: 'code_generation' as const,
+          status: 'started' as const,
+          timestamp: 1000,
+          data: {},
+        },
+      ];
+
+      const queue = buildPresentationQueue([], [], pipelineStages);
+
+      expect(queue[1]).toEqual({
+        type: 'code-generation',
+        duration: 2000,
+      });
+    });
+
+    it('should not add code-generation event when no code generation stage present', () => {
+      const queue = buildPresentationQueue([], [], []);
+
+      const hasCodeGen = queue.some((e) => e.type === 'code-generation');
+      expect(hasCodeGen).toBe(false);
+    });
+  });
+
+  describe('error fixing pipeline stage', () => {
+    it('should add error-fixing event when pipeline stage is present', () => {
+      const pipelineStages: PipelineStageEvent[] = [
+        {
+          id: 'stage-1',
+          type: 'error_fixing' as const,
+          status: 'started' as const,
+          timestamp: 1000,
+          data: {},
+        },
+      ];
+
+      const queue = buildPresentationQueue([], [], pipelineStages);
+
+      expect(queue[1]).toEqual({
+        type: 'error-fixing',
+        duration: 3000,
+        data: { iteration: undefined, errorCount: undefined },
+      });
+    });
+
+    it('should include iteration and error count in error-fixing event', () => {
+      const pipelineStages: PipelineStageEvent[] = [
+        {
+          id: 'stage-1',
+          type: 'error_fixing' as const,
+          status: 'started' as const,
+          timestamp: 1000,
+          data: {
+            iteration: 2,
+            errorCount: 5,
+          },
+        },
+      ];
+
+      const queue = buildPresentationQueue([], [], pipelineStages);
+
+      const fixingEvent = queue.find((e) => e.type === 'error-fixing');
+      expect(fixingEvent).toBeDefined();
+      expect(fixingEvent?.data?.iteration).toBe(2);
+      expect(fixingEvent?.data?.errorCount).toBe(5);
+      expect(fixingEvent?.duration).toBe(3000);
+    });
+
+    it('should not add error-fixing event when no error fixing stage present', () => {
+      const queue = buildPresentationQueue([], [], []);
+
+      const hasErrorFixing = queue.some((e) => e.type === 'error-fixing');
+      expect(hasErrorFixing).toBe(false);
+    });
+  });
+
   describe('requestBlock tool call', () => {
     it('should create block-request event with blockName', () => {
       const toolCalls: ToolCall[] = [
@@ -211,24 +291,13 @@ describe('buildPresentationQueue', () => {
   });
 
   describe('validation pipeline stage', () => {
-    it('should create validation events for Prisma schema', () => {
+    it('should create validation events for Prisma schema (replay mode - completed only)', () => {
       const pipelineStages: PipelineStageEvent[] = [
         {
           id: 'stage-1',
           type: 'validation' as const,
-          status: 'started' as const,
-          timestamp: 1000,
-          data: {
-            validationErrors: [
-              { type: 'prisma' as const, file: 'schema.prisma', message: 'Error' },
-            ],
-          },
-        },
-        {
-          id: 'stage-2',
-          type: 'validation' as const,
           status: 'completed' as const,
-          timestamp: 1500,
+          timestamp: 1000,
           data: {
             validationErrors: [],
           },
@@ -238,8 +307,9 @@ describe('buildPresentationQueue', () => {
       const queue = buildPresentationQueue([], [], pipelineStages);
 
       const validationEvents = queue.filter((e) => e.type.startsWith('validation'));
+      // In replay mode, completed generates both loading + result
       expect(validationEvents).toHaveLength(2);
-      expect(validationEvents[0].type).toBe('validation-prisma');
+      expect(validationEvents[0].type).toBe('validation-typescript');
       expect(validationEvents[1].type).toBe('validation-result');
       expect(
         (validationEvents[1] as Extract<PresentationEvent, { type: 'validation-result' }>).data
@@ -251,22 +321,13 @@ describe('buildPresentationQueue', () => {
       });
     });
 
-    it('should create validation events for TypeScript', () => {
+    it('should create validation events for TypeScript (replay mode - completed only)', () => {
       const pipelineStages: PipelineStageEvent[] = [
         {
           id: 'stage-1',
           type: 'validation' as const,
-          status: 'started' as const,
-          timestamp: 1000,
-          data: {
-            validationErrors: [{ type: 'typescript' as const, file: 'test.ts', message: 'Error' }],
-          },
-        },
-        {
-          id: 'stage-2',
-          type: 'validation' as const,
           status: 'completed' as const,
-          timestamp: 1500,
+          timestamp: 1000,
           data: {
             validationErrors: [],
           },
@@ -276,27 +337,19 @@ describe('buildPresentationQueue', () => {
       const queue = buildPresentationQueue([], [], pipelineStages);
 
       const validationEvents = queue.filter((e) => e.type.startsWith('validation'));
+      // In replay mode, completed generates both loading + result
       expect(validationEvents).toHaveLength(2);
       expect(validationEvents[0].type).toBe('validation-typescript');
       expect(validationEvents[1].type).toBe('validation-result');
     });
 
-    it('should handle validation failure', () => {
+    it('should handle validation failure (replay mode - completed only)', () => {
       const pipelineStages: PipelineStageEvent[] = [
         {
           id: 'stage-1',
           type: 'validation' as const,
-          status: 'started' as const,
+          status: 'completed' as const,
           timestamp: 1000,
-          data: {
-            validationErrors: [{ type: 'typescript' as const, file: 'test.ts', message: 'Error' }],
-          },
-        },
-        {
-          id: 'stage-2',
-          type: 'validation' as const,
-          status: 'failed' as const,
-          timestamp: 1500,
           data: {
             validationErrors: [
               { type: 'typescript' as const, file: 'test.ts', message: 'Error 1' },
@@ -312,13 +365,16 @@ describe('buildPresentationQueue', () => {
 
       const queue = buildPresentationQueue([], [], pipelineStages);
 
+      const validationEvents = queue.filter((e) => e.type.startsWith('validation'));
+      expect(validationEvents).toHaveLength(2); // loading + result
+
       const resultEvent = queue.find((e) => e.type === 'validation-result');
       expect(resultEvent?.data?.validationResult).toEqual({
         passed: false,
         errorCount: 5,
         iteration: 2,
       });
-      expect(resultEvent?.duration).toBe(3000); // Failed validations have longer duration
+      expect(resultEvent?.duration).toBe(2500); // Failed validations have longer duration
     });
   });
 
@@ -338,7 +394,7 @@ describe('buildPresentationQueue', () => {
       const fileEvent = queue.find((e) => e.type === 'file-created');
       expect(fileEvent).toBeDefined();
       expect(fileEvent?.data?.fileName).toBe('test.ts');
-      expect(fileEvent?.duration).toBe(500);
+      expect(fileEvent?.duration).toBe(1000);
     });
 
     it('should create combo-milestone event at 5 files', () => {
@@ -402,6 +458,82 @@ describe('buildPresentationQueue', () => {
       expect(fileEvents[0].data?.fileName).toBe('test1.ts');
       expect(fileEvents[1].data?.fileName).toBe('test2.ts');
       expect(fileEvents[2].data?.fileName).toBe('test3.ts');
+    });
+
+    it('should only show file-created overlay on first write (not modifications)', () => {
+      const toolCalls: ToolCall[] = [
+        {
+          id: '1',
+          name: 'writeFile',
+          args: { path: 'test.ts' },
+          timestamp: 1000,
+        },
+        {
+          id: '2',
+          name: 'writeFile',
+          args: { path: 'other.ts' },
+          timestamp: 1001,
+        },
+        {
+          id: '3',
+          name: 'writeFile',
+          args: { path: 'test.ts' }, // Duplicate - modification
+          timestamp: 1002,
+        },
+        {
+          id: '4',
+          name: 'writeFile',
+          args: { path: 'other.ts' }, // Duplicate - modification
+          timestamp: 1003,
+        },
+        {
+          id: '5',
+          name: 'writeFile',
+          args: { path: 'new.ts' },
+          timestamp: 1004,
+        },
+      ];
+
+      const queue = buildPresentationQueue([], toolCalls, []);
+
+      const fileEvents = queue.filter((e) => e.type === 'file-created');
+      expect(fileEvents).toHaveLength(3); // Only first writes to test.ts, other.ts, and new.ts
+      expect(fileEvents[0].data?.fileName).toBe('test.ts');
+      expect(fileEvents[1].data?.fileName).toBe('other.ts');
+      expect(fileEvents[2].data?.fileName).toBe('new.ts');
+    });
+
+    it('should only count unique files toward combo milestones', () => {
+      const toolCalls: ToolCall[] = [
+        ...Array.from({ length: 5 }, (_, i) => ({
+          id: `${i}`,
+          name: 'writeFile',
+          args: { path: `file${i}.ts` },
+          timestamp: 1000 + i,
+        })),
+        // Duplicate writes (modifications)
+        {
+          id: '5',
+          name: 'writeFile',
+          args: { path: 'file0.ts' },
+          timestamp: 1005,
+        },
+        {
+          id: '6',
+          name: 'writeFile',
+          args: { path: 'file1.ts' },
+          timestamp: 1006,
+        },
+      ];
+
+      const queue = buildPresentationQueue([], toolCalls, []);
+
+      const comboEvents = queue.filter((e) => e.type === 'combo-milestone');
+      expect(comboEvents).toHaveLength(1); // Only at 5 unique files
+      expect(comboEvents[0].data?.comboMilestone).toBe(5);
+
+      const fileEvents = queue.filter((e) => e.type === 'file-created');
+      expect(fileEvents).toHaveLength(5); // Only unique files
     });
   });
 

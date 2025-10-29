@@ -24,6 +24,18 @@ function safeParse<T>(json: string | unknown): T | null {
 }
 
 /**
+ * Normalize file path for consistent comparison
+ * Removes leading './', normalizes slashes, collapses redundant segments
+ */
+function normalizePath(path: string): string {
+  return path
+    .replace(/^\.\//, '') // Remove leading './'
+    .replace(/\\/g, '/') // Normalize backslashes to forward slashes
+    .replace(/\/\.\//g, '/') // Remove redundant './''
+    .replace(/\/+/g, '/'); // Collapse multiple slashes
+}
+
+/**
  * Extract file path from tool call arguments
  */
 export function extractFileFromToolCall(toolCall: ToolCall): string | undefined {
@@ -35,9 +47,11 @@ export function extractFileFromToolCall(toolCall: ToolCall): string | undefined 
 
 /**
  * Parse template loading stage event
+ * Note: Due to database UPSERT behavior, 'started' events are overwritten by 'completed',
+ * so we create the overlay from 'completed' status for replay mode.
  */
 export function parseTemplateLoadingStage(stage: PipelineStageEvent): PresentationEvent | null {
-  if (stage.status === 'started') {
+  if (stage.status === 'started' || stage.status === 'completed') {
     return {
       type: 'template-loading',
       duration: 3000, // 3 seconds
@@ -88,32 +102,79 @@ export function parsePlanningStage(stage: PipelineStageEvent): PresentationEvent
 }
 
 /**
- * Parse validation stage event
+ * Parse code generation stage event
+ * Note: Due to database UPSERT behavior, 'started' events are overwritten by 'completed',
+ * so we create the overlay from 'completed' status for replay mode.
  */
-export function parseValidationStage(stage: PipelineStageEvent): PresentationEvent | null {
-  if (stage.status === 'started') {
-    // Determine validation type from errors (if prisma errors, it's prisma validation)
-    const isPrisma = stage.data?.validationErrors?.some((e) => e.type === 'prisma') ?? false;
+export function parseCodeGenerationStage(stage: PipelineStageEvent): PresentationEvent | null {
+  if (stage.status === 'started' || stage.status === 'completed') {
     return {
-      type: isPrisma ? 'validation-prisma' : 'validation-typescript',
-      duration: 3000,
+      type: 'code-generation',
+      duration: 2000, // 2 seconds
     };
   }
+  return null;
+}
 
-  if (stage.status === 'completed' || stage.status === 'failed') {
-    const passed = stage.status === 'completed';
+/**
+ * Parse validation stage event
+ * Note: Returns array to support both loading and result overlays.
+ * Due to database UPSERT, we create both from 'completed' status for replay mode.
+ */
+export function parseValidationStage(stage: PipelineStageEvent): PresentationEvent[] {
+  const events: PresentationEvent[] = [];
+
+  if (stage.status === 'started') {
+    // Live mode: just show loading
+    const isPrisma = stage.data?.validationErrors?.some((e) => e.type === 'prisma') ?? false;
+    events.push({
+      type: isPrisma ? 'validation-prisma' : 'validation-typescript',
+      duration: 2000,
+    });
+  } else if (stage.status === 'completed' || stage.status === 'failed') {
+    // Replay mode: show both loading AND result (since 'started' was overwritten)
     const errorCount = stage.data?.validationErrors?.length || 0;
+    const passed = errorCount === 0;
     const iteration = stage.data?.iteration;
 
-    return {
+    // Determine validation type from errors
+    const isPrisma = stage.data?.validationErrors?.some((e) => e.type === 'prisma') ?? false;
+
+    // Add loading overlay first
+    events.push({
+      type: isPrisma ? 'validation-prisma' : 'validation-typescript',
+      duration: 2000,
+    });
+
+    // Then add result overlay
+    events.push({
       type: 'validation-result',
-      duration: passed ? 2000 : 3000,
+      duration: passed ? 2000 : 2500,
       data: {
         validationResult: { passed, errorCount, iteration },
       },
-    };
+    });
   }
 
+  return events;
+}
+
+/**
+ * Parse error fixing stage event
+ * Note: Due to database UPSERT behavior, 'started' events are overwritten by 'completed',
+ * so we create the overlay from 'completed' status for replay mode.
+ */
+export function parseErrorFixingStage(stage: PipelineStageEvent): PresentationEvent | null {
+  if (stage.status === 'started' || stage.status === 'completed') {
+    const iteration = stage.data?.iteration;
+    const errorCount = stage.data?.errorCount || stage.data?.validationErrors?.length;
+
+    return {
+      type: 'error-fixing',
+      duration: 3000,
+      data: { iteration, errorCount },
+    };
+  }
   return null;
 }
 
@@ -136,21 +197,35 @@ export function parseBlockRequestTool(toolCall: ToolCall): PresentationEvent | n
  * Parse writeFile tool call
  *
  * @param toolCall - The tool call to parse
- * @param currentFileWriteCount - Current count of file writes (for combo milestones)
+ * @param currentFileWriteCount - Current count of unique file creates (for combo milestones)
+ * @param seenFiles - Set of file paths already written (to distinguish created vs modified)
  * @returns Array of events (file-created, and optionally combo-milestone)
  */
 export function parseWriteFileTool(
   toolCall: ToolCall,
   currentFileWriteCount: number,
+  seenFiles: Set<string>,
 ): PresentationEvent[] {
   const events: PresentationEvent[] = [];
+  const filePath = extractFileFromToolCall(toolCall);
+  const normalizedPath = filePath ? normalizePath(filePath) : undefined;
+
+  // Skip if file was already written (modification, not creation)
+  if (normalizedPath && seenFiles.has(normalizedPath)) {
+    return events; // Empty array - no overlay for modifications
+  }
+
+  // Mark file as seen
+  if (normalizedPath) {
+    seenFiles.add(normalizedPath);
+  }
+
   const fileCount = currentFileWriteCount + 1;
 
-  const fileName = extractFileFromToolCall(toolCall);
   events.push({
     type: 'file-created',
-    duration: 500,
-    data: { fileName: fileName || `file-${fileCount}` },
+    duration: 1000, // 1 second minimum for visibility
+    data: { fileName: filePath || `file-${fileCount}` },
   });
 
   // Show combo milestone right after milestone files (5, 10, 20, 30, etc.)

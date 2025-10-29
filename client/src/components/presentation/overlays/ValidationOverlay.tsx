@@ -36,7 +36,7 @@ function ValidationLoading({ title }: ValidationLoadingProps) {
         style={{
           fontSize: '8rem',
           marginBottom: '2rem',
-          fontFamily: presentationTokens.fonts.heroFamily,
+          fontFamily: presentationTokens.fonts.monoFamily,
           color: presentationTokens.colors.neonYellow,
           textShadow: '0 0 20px rgba(255, 255, 0, 0.8)',
           display: 'flex',
@@ -92,7 +92,7 @@ interface ValidationResultProps {
 
 function ValidationResult({ passed, errorCount, iteration }: ValidationResultProps) {
   const icon = passed ? '✓' : '✗';
-  const title = passed ? 'PASSED' : 'FAILED';
+  const title = passed ? 'VALIDATION PASSED' : 'VALIDATION FAILED';
   const color = passed
     ? presentationTokens.colors.successGreen
     : presentationTokens.colors.errorRed;
@@ -167,13 +167,9 @@ function ValidationResult({ passed, errorCount, iteration }: ValidationResultPro
 export function ValidationOverlay() {
   const { currentOverlay, overlayData } = usePresentationStore();
 
-  // Loading state
-  if (currentOverlay === 'validation-prisma') {
-    return <ValidationLoading title="VALIDATING SCHEMA" />;
-  }
-
-  if (currentOverlay === 'validation-typescript') {
-    return <ValidationLoading title="TYPE CHECKING" />;
+  // Loading state (generic title works for both Prisma and TypeScript validation)
+  if (currentOverlay === 'validation-prisma' || currentOverlay === 'validation-typescript') {
+    return <ValidationLoading title="VALIDATING..." />;
   }
 
   // Result state
