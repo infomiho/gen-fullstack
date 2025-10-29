@@ -10,9 +10,8 @@ import { SessionMetadata } from '../components/SessionMetadata';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { card, focus, spacing, transitions, typography } from '../lib/design-tokens';
+import { env } from '../lib/env';
 import { parseCapabilityConfig } from '../lib/format-utils';
-
-const SERVER_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 /**
  * Session list item from the API
@@ -126,7 +125,7 @@ function HomePage() {
   useEffect(() => {
     const fetchSessions = async () => {
       try {
-        const response = await fetch(`${SERVER_URL}/api/sessions`);
+        const response = await fetch(`${env.VITE_API_URL}/api/sessions`);
         if (response.ok) {
           const data = await response.json();
           // Parse capability configs once to avoid repeated parsing during filtering

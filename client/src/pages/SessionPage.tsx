@@ -24,8 +24,7 @@ import { useReplayModeHandlers } from '../hooks/useReplayModeHandlers';
 import { useSessionDataLayer } from '../hooks/useSessionDataLayer';
 import { useSessionLifecycle } from '../hooks/useSessionLifecycle';
 import { usePresentationQueue } from '../hooks/usePresentationQueue';
-
-const SERVER_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { env } from '../lib/env';
 
 /**
  * Session data structure from the API
@@ -92,7 +91,7 @@ export async function clientLoader({ params }: LoaderFunctionArgs) {
   const sessionId = params.sessionId as string;
 
   try {
-    const response = await fetch(`${SERVER_URL}/api/sessions/${sessionId}`);
+    const response = await fetch(`${env.VITE_API_URL}/api/sessions/${sessionId}`);
 
     if (!response.ok) {
       if (response.status === 404) {

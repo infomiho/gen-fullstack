@@ -1,7 +1,6 @@
 import { useCallback } from 'react';
 import { useReplayStore } from '../stores/replay.store';
-
-const SERVER_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { env } from '../lib/env';
 
 /**
  * Custom hook for replay mode handlers
@@ -32,7 +31,7 @@ export function useReplayModeHandlers(
     }
 
     try {
-      const response = await fetch(`${SERVER_URL}/api/sessions/${sessionId}/replay-data`);
+      const response = await fetch(`${env.VITE_API_URL}/api/sessions/${sessionId}/replay-data`);
 
       if (!response.ok) {
         throw new Error(`Failed to load replay data: ${response.statusText}`);

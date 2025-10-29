@@ -16,6 +16,7 @@ import { io, type Socket } from 'socket.io-client';
 import { useToast } from '../components/ToastProvider';
 import { useAppStore, useConnectionStore, useGenerationStore } from '../stores';
 import { useDebouncedNotification } from './useDebouncedNotification';
+import { env } from '../lib/env';
 
 interface UseWebSocketReturn {
   socket: Socket | null;
@@ -44,8 +45,6 @@ interface UseWebSocketReturn {
   // File editing functions
   saveFile: (sessionId: string, path: string, content: string) => void;
 }
-
-const SERVER_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 // Debounce windows for notification throttling
 const DEBOUNCE_WINDOWS = {
@@ -118,7 +117,7 @@ export function useWebSocket(navigate?: NavigateFunction): UseWebSocketReturn {
 
     if (!newSocket || !newSocket.connected) {
       try {
-        newSocket = io(SERVER_URL, {
+        newSocket = io(env.VITE_API_URL, {
           reconnection: true,
           reconnectionDelay: 1000,
           reconnectionDelayMax: 5000,
