@@ -198,15 +198,12 @@ export class ErrorFixingCapability extends BaseCapability {
 
 Your task is to fix validation errors in a full-stack application:
 - **Database**: Prisma ORM + SQLite
-- **Server**: Express 5 + TypeScript + RESTful API
+- **Server**: Express 5 + TypeScript + RESTful API (uses "type": "module")
 - **Client**: Vite + React 19 + TypeScript + Tailwind CSS 4 + React Router 7
 
-IMPORTANT INSTRUCTIONS:
-1. **Read files** to understand the current code before making changes
-2. **Fix errors systematically** - address root causes, not symptoms
-3. **Write corrected files** with complete, valid content
-4. **Verify fixes** - ensure your changes resolve the reported errors
-5. **Maintain code quality** - preserve existing structure and patterns
+${this.getTypeScriptErrorFixingGuidance()}
+
+${this.getPrismaErrorFixingGuidance()}
 
 AVAILABLE TOOLS:
 - readFile: Read file contents to understand context
@@ -214,8 +211,102 @@ AVAILABLE TOOLS:
 - getFileTree: List project structure if needed
 - executeCommand: Run allowed commands (npm install, etc.)
 
+WORKFLOW:
+1. Read the affected files to understand the current code
+2. Fix errors one at a time or by related groups
+3. Write corrected files back with complete, valid content
+4. The system will re-validate automatically after you finish
+
 CRITICAL: Do NOT try to validate your changes. The system will run validation after you complete your fixes.
-Focus ONLY on fixing the reported errors.`;
+Focus ONLY on fixing the reported errors. Do NOT add new features or refactor unrelated code.`;
+  }
+
+  private getTypeScriptErrorFixingGuidance(): string {
+    return `## FIXING TYPESCRIPT ERRORS
+
+CRITICAL - ES MODULE IMPORTS:
+This project uses "type": "module" in package.json. Many npm packages (jsonwebtoken, bcryptjs, etc.)
+are CommonJS modules that require DEFAULT imports, NOT namespace imports:
+
+✅ CORRECT:
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
+const token = jwt.sign(payload, secret);
+
+❌ WRONG (passes TypeScript but fails at runtime):
+import * as jwt from 'jsonwebtoken';
+import * as bcrypt from 'bcryptjs';
+const token = jwt.sign(payload, secret);  // Runtime error: jwt.sign is not a function
+
+Why this fails: With ES modules, namespace imports (import * as) create a module object where
+CommonJS exports are nested under a .default property. TypeScript may not catch this, but it
+WILL fail at runtime in the Docker container.
+
+FIX STRATEGY BY ERROR CODE:
+
+TS2769 "No overload matches this call":
+→ Fix argument TYPES first, not imports
+→ Example: jwt.sign(payload, secret as string, { expiresIn: '15m' })
+→ Use type assertions to match expected types
+→ ONLY change imports if you're using namespace imports incorrectly
+
+TS2304 "Cannot find name":
+→ Missing import or typo in variable/function name
+→ Check spelling and add proper import statements
+
+TS2345 "Argument type mismatch":
+→ Type assertion: req.body as CreateUserInput
+→ Cast to expected type: userId as string
+
+TS2339 "Property does not exist on type":
+→ Check if property exists in type definition
+→ If using @prisma/client types, run "npx prisma generate" to regenerate types
+→ May need to add property to interface or type definition
+
+VALIDATION WORKFLOW:
+- Fix ONE error or one group of related errors at a time
+- Write the corrected file
+- System will re-validate automatically (do NOT call validation tools yourself)
+- If you see the same errors again, your fix didn't work - try a different approach`;
+  }
+
+  private getPrismaErrorFixingGuidance(): string {
+    return `## FIXING PRISMA SCHEMA ERRORS
+
+COMMON ERROR PATTERNS:
+
+"Reference causes a cycle" / "Cycle path: Model A → Model B → Model C":
+→ Break the cycle by adding onUpdate: NoAction to ONE relation in the cycle
+→ Example: @relation(fields: [userId], references: [id], onUpdate: NoAction)
+→ You only need to fix ONE relation, not all of them
+
+"Multiple cascade paths between Model A and Model B":
+→ When deleting/updating a record cascades through multiple paths
+→ Add onUpdate: NoAction to ONE of the relations in the path
+→ Example: author User @relation(fields: [authorId], references: [id], onUpdate: NoAction)
+
+"Self-relation must have onDelete and onUpdate set to NoAction":
+→ Self-referencing relations (e.g., Employee → manager: Employee) require BOTH actions
+→ Example: manager Employee? @relation(name: "management", fields: [managerId], references: [id],
+                                       onDelete: NoAction, onUpdate: NoAction)
+
+"Missing opposite relation field on model X":
+→ Every relation needs a field on BOTH models
+→ If Post has "author: User", then User must have "posts: Post[]"
+→ Prisma requires both sides of the relationship to be defined
+
+"Missing references argument in @relation":
+→ Specify which field to reference in the @relation attribute
+→ Example: @relation(fields: [userId], references: [id])
+
+REFERENTIAL ACTIONS GUIDE:
+- Use onUpdate: NoAction when breaking cycles or multiple cascade paths
+- Use onDelete: Cascade when child records should be deleted with parent
+- Default if not specified: onDelete: Restrict, onUpdate: Cascade
+
+AFTER FIXING PRISMA SCHEMA:
+Always run "npx prisma generate" with executeCommand to regenerate @prisma/client types.
+This updates TypeScript types to match your new schema.`;
   }
 
   /**
