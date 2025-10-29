@@ -61,7 +61,7 @@ export class DockerService extends EventEmitter {
       const containerInfo = this.containers.get(sessionId);
       if (containerInfo?.actor) {
         containerInfo.actor.send({ type: 'VITE_READY' });
-        dockerLogger.debug({ sessionId }, 'Sent VITE_READY event to state machine');
+        dockerLogger.debug({ sessionId }, 'Vite dev server is ready');
       }
     });
   }
@@ -918,9 +918,9 @@ export class DockerService extends EventEmitter {
         TIMEOUTS.install, // Use configured timeout for npm install + Prisma
       );
 
-      dockerLogger.info({ sessionId }, 'Dependencies installed successfully via state machine');
+      dockerLogger.info({ sessionId }, 'Dependencies installed successfully');
     } catch (error) {
-      dockerLogger.error({ error, sessionId }, 'Failed to install dependencies via state machine');
+      dockerLogger.error({ error, sessionId }, 'Failed to install dependencies');
       throw error;
     }
   }
@@ -1076,9 +1076,9 @@ export class DockerService extends EventEmitter {
       // Wait for machine to reach 'running' state with timeout protection
       await this.waitForMachineState(containerInfo.actor, ['running'], TIMEOUTS.viteHttpReady);
 
-      dockerLogger.info({ sessionId }, 'Dev servers running successfully via state machine');
+      dockerLogger.info({ sessionId }, 'Dev servers running successfully');
     } catch (error) {
-      dockerLogger.error({ error, sessionId }, 'Failed to start dev servers via state machine');
+      dockerLogger.error({ error, sessionId }, 'Failed to start dev servers');
       throw error;
     }
   }
@@ -1155,7 +1155,7 @@ export class DockerService extends EventEmitter {
         'Dev servers stopped. Container is ready to restart.',
       );
     } catch (error) {
-      dockerLogger.error({ error, sessionId }, 'Failed to stop dev server via state machine');
+      dockerLogger.error({ error, sessionId }, 'Failed to stop dev server');
       throw error;
     }
   }

@@ -564,25 +564,9 @@ export class UnifiedOrchestrator {
       },
     });
 
-    // Create actor and subscribe to state changes for logging
+    // Create actor
     const actor = createActor(machine, {
       input: { sessionId, prompt, config, modelName: this.modelName },
-    });
-
-    actor.subscribe((state) => {
-      this.logger.info(
-        {
-          sessionId,
-          state: state.value,
-          context: {
-            tokens: state.context.tokens,
-            cost: state.context.cost,
-            toolCalls: state.context.toolCalls,
-            error: state.context.error,
-          },
-        },
-        `[XState Machine] State changed: ${String(state.value)}`,
-      );
     });
 
     actor.start();

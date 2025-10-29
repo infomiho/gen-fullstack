@@ -51,7 +51,7 @@ describe('checkHttpReady', () => {
 
     expect(ready).toBe(false);
     expect(global.fetch).toHaveBeenCalledTimes(10); // maxAttempts from HTTP_READY_CHECK
-  });
+  }, 10000); // Increase timeout to 10s (10 attempts × 500ms delay = 5000ms + request overhead)
 
   it('should accept 404 responses as ready', async () => {
     // Mock fetch to return 404 (which means server is listening)
