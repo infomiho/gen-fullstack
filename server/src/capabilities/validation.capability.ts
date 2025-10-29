@@ -1,14 +1,7 @@
 import type { ValidationError } from '@gen-fullstack/shared';
-import type { Server as SocketIOServer } from 'socket.io';
 import { getErrorMessage } from '../lib/error-utils.js';
 import * as commandService from '../services/command.service.js';
-import type { ModelName } from '../services/llm.service.js';
-import type {
-  CapabilityContext,
-  CapabilityResult,
-  ClientToServerEvents,
-  ServerToClientEvents,
-} from '../types/index.js';
+import type { CapabilityContext, CapabilityResult } from '../types/index.js';
 import { BaseCapability } from './base.capability.js';
 
 /**
@@ -34,13 +27,6 @@ import { BaseCapability } from './base.capability.js';
  * - Errors are stored in machine context for error fixing stage
  */
 export class ValidationCapability extends BaseCapability {
-  constructor(
-    modelName: ModelName,
-    io: SocketIOServer<ClientToServerEvents, ServerToClientEvents>,
-  ) {
-    super(modelName, io);
-  }
-
   getName(): string {
     return 'Validation';
   }

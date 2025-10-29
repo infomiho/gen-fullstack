@@ -214,6 +214,54 @@ export abstract class BaseCapability {
   }
 
   /**
+   * Process tool calls and results from AI SDK streaming event
+   *
+   * This is a common pattern across capabilities that use streaming LLM responses.
+   * Emits tool calls and results to client, and optionally calls a handler for specific tool outputs.
+   *
+   * @param event - Step finish event from AI SDK
+   * @param sessionId - Session identifier
+   * @param onToolResult - Optional callback for handling specific tool outputs
+   * @returns Number of tool calls processed
+   */
+  protected async processToolCallEvent(
+    event: {
+      toolCalls?: Array<TypedToolCall<ToolSet>>;
+      toolResults?: Array<TypedToolResult<ToolSet>>;
+    },
+    sessionId: string,
+    onToolResult?: (toolName: string, output: unknown) => void,
+  ): Promise<number> {
+    if (!event.toolCalls?.length) return 0;
+
+    let count = 0;
+
+    for (const toolCall of event.toolCalls) {
+      count++;
+
+      this.emitToolCall(
+        toolCall.toolCallId,
+        toolCall.toolName,
+        toolCall.input as Record<string, unknown>,
+        sessionId,
+      );
+
+      const toolResult = event.toolResults?.find((r) => r.toolCallId === toolCall.toolCallId);
+
+      if (toolResult) {
+        const outputString = toToolResult(toolResult.output);
+
+        this.emitToolResult(toolResult.toolCallId, toolCall.toolName, outputString, sessionId);
+
+        // Allow caller to handle specific tool outputs
+        onToolResult?.(toolCall.toolName, toolResult.output);
+      }
+    }
+
+    return count;
+  }
+
+  /**
    * Create an onStepFinish handler for streamText calls
    *
    * This handler is called by AI SDK after each generation step completes. A step

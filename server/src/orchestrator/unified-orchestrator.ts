@@ -13,11 +13,13 @@ import { databaseService } from '../services/database.service.js';
 import { initializeSandbox } from '../services/filesystem.service.js';
 import type { ModelName } from '../services/llm.service.js';
 import type {
+  ArchitecturePlan,
   CapabilityConfig,
   CapabilityContext,
   ClientToServerEvents,
   GenerationMetrics,
   ServerToClientEvents,
+  ValidationError,
 } from '../types/index.js';
 import {
   createGenerationMachine,
@@ -125,8 +127,8 @@ export class UnifiedOrchestrator {
     type: 'planning' | 'validation' | 'template_loading' | 'completing',
     status: 'started' | 'completed' | 'failed',
     data?: {
-      plan?: any;
-      validationErrors?: any[];
+      plan?: ArchitecturePlan;
+      validationErrors?: ValidationError[];
       iteration?: number;
       maxIterations?: number;
       templateName?: string;

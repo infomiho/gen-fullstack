@@ -65,6 +65,9 @@ export class ErrorFixingCapability extends BaseCapability {
     this.validateContext(context);
 
     const { sessionId, sandboxPath, validationErrors, errorFixAttempts = 0, abortSignal } = context;
+
+    // After validation, we know validationErrors exists and is non-empty
+    const errors = validationErrors as ValidationError[];
     const startTime = Date.now();
 
     try {
@@ -77,7 +80,7 @@ export class ErrorFixingCapability extends BaseCapability {
 
       // Build error-fixing prompt
       const systemPrompt = this.buildSystemPrompt();
-      const userPrompt = this.buildUserPrompt(validationErrors!, iteration);
+      const userPrompt = this.buildUserPrompt(errors, iteration);
 
       // Get tools (only file operations, no planning/validation tools)
       const tools = getToolsForCapability({
@@ -89,7 +92,7 @@ export class ErrorFixingCapability extends BaseCapability {
       });
 
       // Emit errors for context
-      this.emitMessage('system', this.formatErrorSummary(validationErrors!), sessionId);
+      this.emitMessage('system', this.formatErrorSummary(errors), sessionId);
 
       let toolCallCount = 0;
 
@@ -137,7 +140,7 @@ export class ErrorFixingCapability extends BaseCapability {
             }
           }
 
-          if (event.text && event.text.trim()) {
+          if (event.text?.trim()) {
             this.emitMessage('assistant', event.text, sessionId);
           }
         },
@@ -223,50 +226,57 @@ CRITICAL: Do NOT try to validate your changes. The system will run validation af
 Focus ONLY on fixing the reported errors.`;
   }
 
+  /**
+   * Format a single validation error with all its fields
+   */
+  private formatValidationError(error: ValidationError): string {
+    const lines = [`- **File**: ${error.file}`];
+
+    if (error.line) {
+      let lineInfo = `  **Line**: ${error.line}`;
+      if (error.column) {
+        lineInfo += `, **Column**: ${error.column}`;
+      }
+      lines.push(lineInfo);
+    }
+
+    if (error.code) {
+      lines.push(`  **Code**: ${error.code}`);
+    }
+
+    lines.push(`  **Error**: ${error.message}`);
+    lines.push(''); // blank line
+
+    return lines.join('\n');
+  }
+
+  /**
+   * Build a section with header and formatted errors
+   */
+  private buildErrorSection(title: string, errors: ValidationError[]): string {
+    if (errors.length === 0) return '';
+
+    const header = `## ${title} (${errors.length})\n\n`;
+    const body = errors.map((e) => this.formatValidationError(e)).join('');
+    return header + body;
+  }
+
   private buildUserPrompt(errors: ValidationError[], iteration: number): string {
     const errorsByType = this.groupErrorsByType(errors);
 
-    let prompt = `Fix the following validation errors (iteration ${iteration} of allowed attempts):\n\n`;
+    const sections = [
+      `Fix the following validation errors (iteration ${iteration} of allowed attempts):\n\n`,
+      this.buildErrorSection('Prisma Schema Errors', errorsByType.prisma),
+      this.buildErrorSection('TypeScript Errors', errorsByType.typescript),
+      '\n**Instructions**:',
+      '1. Read the affected files to understand the code',
+      '2. Fix all errors systematically',
+      '3. Write the corrected files back',
+      '',
+      'Remember: Focus ONLY on fixing these specific errors. Do not add new features or refactor unrelated code.',
+    ];
 
-    // Add Prisma errors
-    if (errorsByType.prisma.length > 0) {
-      prompt += `## Prisma Schema Errors (${errorsByType.prisma.length})\n\n`;
-      for (const error of errorsByType.prisma) {
-        prompt += `- **File**: ${error.file}\n`;
-        if (error.line) {
-          prompt += `  **Line**: ${error.line}\n`;
-        }
-        prompt += `  **Error**: ${error.message}\n\n`;
-      }
-    }
-
-    // Add TypeScript errors
-    if (errorsByType.typescript.length > 0) {
-      prompt += `## TypeScript Errors (${errorsByType.typescript.length})\n\n`;
-      for (const error of errorsByType.typescript) {
-        prompt += `- **File**: ${error.file}\n`;
-        if (error.line) {
-          prompt += `  **Line**: ${error.line}`;
-          if (error.column) {
-            prompt += `, **Column**: ${error.column}`;
-          }
-          prompt += '\n';
-        }
-        if (error.code) {
-          prompt += `  **Code**: ${error.code}\n`;
-        }
-        prompt += `  **Error**: ${error.message}\n\n`;
-      }
-    }
-
-    prompt += `\n**Instructions**:
-1. Read the affected files to understand the code
-2. Fix all errors systematically
-3. Write the corrected files back
-
-Remember: Focus ONLY on fixing these specific errors. Do not add new features or refactor unrelated code.`;
-
-    return prompt;
+    return sections.join('\n');
   }
 
   // ============================================================================

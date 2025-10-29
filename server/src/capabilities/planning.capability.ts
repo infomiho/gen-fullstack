@@ -1,17 +1,9 @@
 import type { ArchitecturePlan } from '@gen-fullstack/shared';
 import { stepCountIs, streamText, tool } from 'ai';
-import type { Server as SocketIOServer } from 'socket.io';
 import { z } from 'zod';
 import { getErrorMessage } from '../lib/error-utils.js';
-import { toToolResult } from '../lib/tool-utils.js';
-import type { ModelName } from '../services/llm.service.js';
 import { calculateCost } from '../services/llm.service.js';
-import type {
-  CapabilityContext,
-  CapabilityResult,
-  ClientToServerEvents,
-  ServerToClientEvents,
-} from '../types/index.js';
+import type { CapabilityContext, CapabilityResult } from '../types/index.js';
 import { BaseCapability } from './base.capability.js';
 
 /**
@@ -35,13 +27,6 @@ import { BaseCapability } from './base.capability.js';
  * - Uses single tool call with structured output
  */
 export class PlanningCapability extends BaseCapability {
-  constructor(
-    modelName: ModelName,
-    io: SocketIOServer<ClientToServerEvents, ServerToClientEvents>,
-  ) {
-    super(modelName, io);
-  }
-
   getName(): string {
     return 'Planning';
   }
@@ -164,41 +149,14 @@ Call the planArchitecture tool with a complete plan covering:
         stopWhen: stepCountIs(1),
         abortSignal,
         onStepFinish: async (event) => {
-          // Capture tool calls
-          if (event.toolCalls && event.toolCalls.length > 0) {
-            for (const toolCall of event.toolCalls) {
-              toolCallCount++;
-
-              this.emitToolCall(
-                toolCall.toolCallId,
-                toolCall.toolName,
-                toolCall.input as Record<string, unknown>,
-                sessionId,
-              );
-
-              const toolResult = event.toolResults?.find(
-                (r) => r.toolCallId === toolCall.toolCallId,
-              );
-
-              if (toolResult) {
-                const output = toolResult.output;
-                const outputString = toToolResult(output);
-
-                this.emitToolResult(
-                  toolResult.toolCallId,
-                  toolCall.toolName,
-                  outputString,
-                  sessionId,
-                );
-
-                if (toolCall.toolName === 'planArchitecture' && output) {
-                  plan = output as ArchitecturePlan;
-                }
-              }
+          // Process tool calls and capture plan
+          toolCallCount += await this.processToolCallEvent(event, sessionId, (toolName, output) => {
+            if (toolName === 'planArchitecture') {
+              plan = output as ArchitecturePlan;
             }
-          }
+          });
 
-          if (event.text && event.text.trim()) {
+          if (event.text?.trim()) {
             this.emitMessage('assistant', event.text, sessionId);
           }
         },
