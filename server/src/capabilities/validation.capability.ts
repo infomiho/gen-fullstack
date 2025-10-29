@@ -89,8 +89,6 @@ export class ValidationCapability extends BaseCapability {
     const sandboxDir = sandboxPath as string;
 
     try {
-      this.emitMessage('assistant', 'Installing dependencies before validation...', sessionId);
-
       // Install dependencies (doesn't return ValidationError[], so handle separately)
       await this.executeValidationStep(
         'install-deps',
@@ -113,8 +111,6 @@ export class ValidationCapability extends BaseCapability {
         },
         'Dependencies installed successfully',
       );
-
-      this.emitMessage('assistant', 'Running compiler checks...', sessionId);
 
       const errors: ValidationError[] = [];
 
@@ -139,16 +135,6 @@ export class ValidationCapability extends BaseCapability {
         'TypeScript validation passed',
       );
       errors.push(...tsErrors);
-
-      if (errors.length === 0) {
-        this.emitMessage('assistant', '✓ All compiler checks passed', sessionId);
-      } else {
-        this.emitMessage(
-          'assistant',
-          `Found ${errors.length} validation errors that need fixing`,
-          sessionId,
-        );
-      }
 
       return {
         success: true,

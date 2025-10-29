@@ -130,6 +130,8 @@ export interface CodeGenerationOutput {
 export interface ValidationInput {
   sessionId: string;
   sandboxPath: string;
+  /** Current error fix attempt count (0-based). Display as iteration = errorFixAttempts + 1 */
+  errorFixAttempts: number;
 }
 
 export interface ValidationOutput {
@@ -359,6 +361,7 @@ export const generationMachine = createMachine(
             return {
               sessionId: context.sessionId,
               sandboxPath: context.sandboxPath,
+              errorFixAttempts: context.errorFixAttempts,
             };
           },
           onDone: [

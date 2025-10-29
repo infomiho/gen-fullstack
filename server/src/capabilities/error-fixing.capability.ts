@@ -72,11 +72,6 @@ export class ErrorFixingCapability extends BaseCapability {
 
     try {
       const iteration = errorFixAttempts + 1;
-      this.emitMessage(
-        'assistant',
-        `Fixing validation errors (iteration ${iteration})...`,
-        sessionId,
-      );
 
       // Build error-fixing prompt
       const systemPrompt = this.buildSystemPrompt();
@@ -90,9 +85,6 @@ export class ErrorFixingCapability extends BaseCapability {
         buildingBlocks: false, // No building blocks during fixes
         maxIterations: 3, // Not used for tool budget here
       });
-
-      // Emit errors for context
-      this.emitMessage('system', this.formatErrorSummary(errors), sessionId);
 
       let toolCallCount = 0;
 
@@ -291,20 +283,5 @@ Focus ONLY on fixing the reported errors.`;
       prisma: errors.filter((e) => e.type === 'prisma'),
       typescript: errors.filter((e) => e.type === 'typescript'),
     };
-  }
-
-  private formatErrorSummary(errors: ValidationError[]): string {
-    const grouped = this.groupErrorsByType(errors);
-    const parts: string[] = [];
-
-    if (grouped.prisma.length > 0) {
-      parts.push(`${grouped.prisma.length} Prisma error(s)`);
-    }
-
-    if (grouped.typescript.length > 0) {
-      parts.push(`${grouped.typescript.length} TypeScript error(s)`);
-    }
-
-    return `Found ${errors.length} validation errors: ${parts.join(', ')}`;
   }
 }

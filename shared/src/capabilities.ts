@@ -21,6 +21,11 @@ import type { ArchitecturePlan, ValidationError } from './index.js';
  */
 export const DEFAULT_TEMPLATE_NAME = 'vite-fullstack-base' as const;
 
+/**
+ * Default maximum iterations for compiler check error-fixing loop
+ */
+export const DEFAULT_MAX_ITERATIONS = 3 as const;
+
 // ============================================================================
 // Input Mode (Mutually Exclusive)
 // ============================================================================
@@ -55,7 +60,7 @@ export const CapabilityConfigSchema = z
     compilerChecks: z.boolean().optional().default(false),
 
     // Compiler check iterations (only used if compilerChecks is true)
-    maxIterations: z.number().int().min(1).max(5).optional().default(3),
+    maxIterations: z.number().int().min(1).max(5).optional().default(DEFAULT_MAX_ITERATIONS),
 
     // Building blocks: whether to enable pre-built reusable components
     buildingBlocks: z.boolean().optional().default(false),

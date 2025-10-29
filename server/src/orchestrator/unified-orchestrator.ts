@@ -21,6 +21,7 @@ import type {
   ServerToClientEvents,
   ValidationError,
 } from '../types/index.js';
+import { DEFAULT_MAX_ITERATIONS } from '@gen-fullstack/shared';
 import {
   createGenerationMachine,
   type GenerationMachineActor,
@@ -374,8 +375,11 @@ export class UnifiedOrchestrator {
         validationActor: async (input: ValidationInput): Promise<ValidationOutput> => {
           this.logger.info({ sessionId: input.sessionId }, 'Starting validation');
 
-          // Emit validation started
-          this.emitPipelineStage(input.sessionId, 'validation', 'started');
+          // Emit validation started with iteration info
+          this.emitPipelineStage(input.sessionId, 'validation', 'started', {
+            iteration: input.errorFixAttempts + 1,
+            maxIterations: DEFAULT_MAX_ITERATIONS,
+          });
 
           const capability = new ValidationCapability(this.modelName, this.io);
           const context: CapabilityContext = {
@@ -414,6 +418,8 @@ export class UnifiedOrchestrator {
           // Emit validation completed with errors (if any)
           this.emitPipelineStage(input.sessionId, 'validation', 'completed', {
             validationErrors,
+            iteration: input.errorFixAttempts + 1,
+            maxIterations: DEFAULT_MAX_ITERATIONS,
           });
 
           return { validationErrors };
