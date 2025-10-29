@@ -328,43 +328,65 @@ Work systematically through each part of the plan. Call tools to read existing f
  * Format structured architectural plan for prompt
  * Converts ArchitecturePlan JSON to readable text format
  */
+/**
+ * Format a database model into string lines
+ */
+function formatDatabaseModel(model: NonNullable<ArchitecturePlan['databaseModels']>[0]): string[] {
+  const lines = [`- ${model.name}:`];
+
+  if (model.fields?.length) {
+    lines.push(`  Fields: ${model.fields.join(', ')}`);
+  }
+
+  if (model.relations?.length) {
+    lines.push(`  Relations: ${model.relations.join(', ')}`);
+  }
+
+  return lines;
+}
+
+/**
+ * Format an API route into string lines
+ */
+function formatApiRoute(route: NonNullable<ArchitecturePlan['apiRoutes']>[0]): string[] {
+  return [`- ${route.method} ${route.path}`, `  ${route.description}`];
+}
+
+/**
+ * Format a client component into string lines
+ */
+function formatClientComponent(
+  component: NonNullable<ArchitecturePlan['clientComponents']>[0],
+): string[] {
+  const lines = [`- ${component.name}`, `  ${component.purpose}`];
+
+  if (component.key_features?.length) {
+    lines.push(`  Features: ${component.key_features.join(', ')}`);
+  }
+
+  return lines;
+}
+
+/**
+ * Format a section with items using a formatter function
+ */
+function formatPlanSection<T>(
+  title: string,
+  items: T[] | undefined,
+  formatter: (item: T) => string[],
+): string[] {
+  if (!items?.length) return [];
+
+  return [`\n${title}:`, ...items.flatMap((item) => ['\n', ...formatter(item)])];
+}
+
 function formatArchitecturalPlan(plan: ArchitecturePlan): string {
-  const sections: string[] = ['ARCHITECTURAL PLAN:'];
-
-  // Database models
-  if (plan.databaseModels && plan.databaseModels.length > 0) {
-    sections.push('\nDatabase Models:');
-    for (const model of plan.databaseModels) {
-      sections.push(`\n- ${model.name}:`);
-      if (model.fields && model.fields.length > 0) {
-        sections.push(`  Fields: ${model.fields.join(', ')}`);
-      }
-      if (model.relations && model.relations.length > 0) {
-        sections.push(`  Relations: ${model.relations.join(', ')}`);
-      }
-    }
-  }
-
-  // API routes
-  if (plan.apiRoutes && plan.apiRoutes.length > 0) {
-    sections.push('\nAPI Routes:');
-    for (const route of plan.apiRoutes) {
-      sections.push(`\n- ${route.method} ${route.path}`);
-      sections.push(`  ${route.description}`);
-    }
-  }
-
-  // Client components
-  if (plan.clientComponents && plan.clientComponents.length > 0) {
-    sections.push('\nClient Components:');
-    for (const component of plan.clientComponents) {
-      sections.push(`\n- ${component.name}`);
-      sections.push(`  ${component.purpose}`);
-      if (component.key_features && component.key_features.length > 0) {
-        sections.push(`  Features: ${component.key_features.join(', ')}`);
-      }
-    }
-  }
+  const sections = [
+    'ARCHITECTURAL PLAN:',
+    ...formatPlanSection('Database Models', plan.databaseModels, formatDatabaseModel),
+    ...formatPlanSection('API Routes', plan.apiRoutes, formatApiRoute),
+    ...formatPlanSection('Client Components', plan.clientComponents, formatClientComponent),
+  ];
 
   return sections.join('\n');
 }

@@ -40,132 +40,105 @@ export class ValidationCapability extends BaseCapability {
     }
   }
 
+  /**
+   * Execute a validation step with consistent error handling and result emission
+   *
+   * @param stepName - Name of the validation step (for IDs and logging)
+   * @param toolName - Tool name for emission
+   * @param toolArgs - Arguments to pass to the tool
+   * @param sessionId - Session identifier
+   * @param validator - Async function that performs the validation and returns errors
+   * @param successMessage - Message to display on success
+   * @returns Array of validation errors (empty if successful)
+   */
+  private async executeValidationStep(
+    stepName: string,
+    toolName: string,
+    toolArgs: Record<string, unknown>,
+    sessionId: string,
+    validator: () => Promise<ValidationError[]>,
+    successMessage: string,
+  ): Promise<ValidationError[]> {
+    const callId = `${stepName}-${Date.now()}`;
+
+    try {
+      this.emitToolCall(callId, toolName, toolArgs, sessionId, `Validate ${stepName}`);
+
+      const errors = await validator();
+
+      const resultMessage =
+        errors.length === 0 ? `✓ ${successMessage}` : `✗ Found ${errors.length} error(s)`;
+
+      this.emitToolResult(callId, toolName, resultMessage, sessionId, errors.length > 0);
+
+      return errors;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.emitToolResult(callId, toolName, `Error: ${errorMessage}`, sessionId, true);
+      throw error;
+    }
+  }
+
   async execute(context: CapabilityContext): Promise<CapabilityResult> {
     this.validateContext(context);
 
     const { sessionId, sandboxPath } = context;
     const startTime = Date.now();
 
+    // After validation, sandboxPath is guaranteed to be non-null
+    const sandboxDir = sandboxPath as string;
+
     try {
       this.emitMessage('assistant', 'Installing dependencies before validation...', sessionId);
 
-      const installCallId = `install-deps-${Date.now()}`;
-      try {
-        this.emitToolCall(
-          installCallId,
-          'installDependencies',
-          { path: sandboxPath! },
-          sessionId,
-          'Install npm dependencies for compilation',
-        );
-
-        const installResult = await commandService.executeCommand(sessionId, 'npm install', 180000);
-
-        if (installResult.exitCode !== 0) {
-          const errorOutput = installResult.stderr || installResult.stdout;
-          this.emitToolResult(
-            installCallId,
-            'installDependencies',
-            `✗ Dependency installation failed: ${errorOutput.substring(0, 500)}`,
+      // Install dependencies (doesn't return ValidationError[], so handle separately)
+      await this.executeValidationStep(
+        'install-deps',
+        'installDependencies',
+        { path: sandboxDir },
+        sessionId,
+        async () => {
+          const installResult = await commandService.executeCommand(
             sessionId,
-            true,
+            'npm install',
+            180000,
           );
-          throw new Error(`Dependency installation failed: ${errorOutput.substring(0, 200)}`);
-        }
 
-        this.emitToolResult(
-          installCallId,
-          'installDependencies',
-          '✓ Dependencies installed successfully',
-          sessionId,
-          false,
-        );
-      } catch (error) {
-        this.emitToolResult(
-          installCallId,
-          'installDependencies',
-          `Error: ${error instanceof Error ? error.message : String(error)}`,
-          sessionId,
-          true,
-        );
-        throw error;
-      }
+          if (installResult.exitCode !== 0) {
+            const errorOutput = installResult.stderr || installResult.stdout;
+            throw new Error(`Dependency installation failed: ${errorOutput.substring(0, 200)}`);
+          }
+
+          return []; // No validation errors, just success
+        },
+        'Dependencies installed successfully',
+      );
 
       this.emitMessage('assistant', 'Running compiler checks...', sessionId);
 
       const errors: ValidationError[] = [];
 
-      const prismaCallId = `validate-prisma-${Date.now()}`;
-      try {
-        this.emitToolCall(
-          prismaCallId,
-          'validatePrisma',
-          { path: `${sandboxPath}/prisma/schema.prisma` },
-          sessionId,
-          'Validate Prisma schema for syntax errors',
-        );
+      // Validate Prisma schema
+      const prismaErrors = await this.executeValidationStep(
+        'validate-prisma',
+        'validatePrisma',
+        { path: `${sandboxDir}/prisma/schema.prisma` },
+        sessionId,
+        () => this.validatePrismaSchema(sessionId, sandboxDir),
+        'Prisma schema validation passed',
+      );
+      errors.push(...prismaErrors);
 
-        const prismaErrors = await this.validatePrismaSchema(sessionId, sandboxPath);
-        errors.push(...prismaErrors);
-
-        const prismaResult =
-          prismaErrors.length === 0
-            ? '✓ Prisma schema validation passed'
-            : `✗ Found ${prismaErrors.length} Prisma error(s)`;
-
-        this.emitToolResult(
-          prismaCallId,
-          'validatePrisma',
-          prismaResult,
-          sessionId,
-          prismaErrors.length > 0,
-        );
-      } catch (error) {
-        this.emitToolResult(
-          prismaCallId,
-          'validatePrisma',
-          `Error: ${error instanceof Error ? error.message : String(error)}`,
-          sessionId,
-          true,
-        );
-        throw error;
-      }
-
-      const tsCallId = `validate-typescript-${Date.now()}`;
-      try {
-        this.emitToolCall(
-          tsCallId,
-          'validateTypeScript',
-          { clientPath: `${sandboxPath}/client`, serverPath: `${sandboxPath}/server` },
-          sessionId,
-          'Run TypeScript compiler checks on client and server',
-        );
-
-        const tsErrors = await this.validateTypeScript(sessionId, sandboxPath);
-        errors.push(...tsErrors);
-
-        const tsResult =
-          tsErrors.length === 0
-            ? '✓ TypeScript validation passed'
-            : `✗ Found ${tsErrors.length} TypeScript error(s)`;
-
-        this.emitToolResult(
-          tsCallId,
-          'validateTypeScript',
-          tsResult,
-          sessionId,
-          tsErrors.length > 0,
-        );
-      } catch (error) {
-        this.emitToolResult(
-          tsCallId,
-          'validateTypeScript',
-          `Error: ${error instanceof Error ? error.message : String(error)}`,
-          sessionId,
-          true,
-        );
-        throw error;
-      }
+      // Validate TypeScript
+      const tsErrors = await this.executeValidationStep(
+        'validate-typescript',
+        'validateTypeScript',
+        { clientPath: `${sandboxDir}/client`, serverPath: `${sandboxDir}/server` },
+        sessionId,
+        () => this.validateTypeScript(sessionId, sandboxDir),
+        'TypeScript validation passed',
+      );
+      errors.push(...tsErrors);
 
       if (errors.length === 0) {
         this.emitMessage('assistant', '✓ All compiler checks passed', sessionId);

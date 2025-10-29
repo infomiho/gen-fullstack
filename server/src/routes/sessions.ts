@@ -95,39 +95,51 @@ router.get('/:sessionId/replay-data', async (req, res) => {
         : sessionStartTime;
     const duration = lastEventTime - sessionStartTime;
 
-    // Transform timeline items for replay
-    const timelineItems = timeline.map((item) => {
-      let data: Record<string, unknown> = {};
-      let id = String(item.id);
+    // Type-specific transformers for timeline items
+    type TimelineItem = (typeof timeline)[0];
+    type TransformedItem = { id: string; data: Record<string, unknown> };
 
-      if (item.type === 'message') {
-        data = {
+    const timelineTransformers: Record<string, (item: TimelineItem) => TransformedItem> = {
+      message: (item) => ({
+        id: String(item.id),
+        data: {
           role: item.role,
           content: item.content,
-        };
-      } else if (item.type === 'tool_call') {
-        // Use toolCallId as the ID for tool calls (e.g., "toolu_123")
-        id = item.toolCallId || String(item.id);
-        data = {
+        },
+      }),
+
+      tool_call: (item) => ({
+        id: item.toolCallId || String(item.id),
+        data: {
           name: item.toolName,
           parameters: item.toolArgs ? JSON.parse(item.toolArgs) : {},
           reason: item.toolReason,
-        };
-      } else if (item.type === 'tool_result') {
-        data = {
+        },
+      }),
+
+      tool_result: (item) => ({
+        id: String(item.id),
+        data: {
           toolCallId: item.toolResultFor,
           toolName: item.toolName,
           result: item.result,
-        };
-      } else if (item.type === 'pipeline_stage') {
-        // Use stageId as the ID for pipeline stages
-        id = item.stageId || String(item.id);
-        data = {
+        },
+      }),
+
+      pipeline_stage: (item) => ({
+        id: item.stageId || String(item.id),
+        data: {
           type: item.stageType,
           status: item.stageStatus,
           data: item.stageData ? JSON.parse(item.stageData) : {},
-        };
-      }
+        },
+      }),
+    };
+
+    // Transform timeline items for replay
+    const timelineItems = timeline.map((item) => {
+      const transformer = timelineTransformers[item.type];
+      const { id, data } = transformer(item);
 
       return {
         id,
