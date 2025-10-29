@@ -108,6 +108,7 @@ IMPORTANT RULES:
 - Use Tailwind 4 utility classes for ALL styling (no custom CSS files)
 - Use React Router for multi-page applications
 - API routes should follow RESTful conventions
+- ID Types: Always use String @id for data from external APIs. External systems use various ID formats that may not fit in Int. Use Int only for internal auto-increment IDs.
 
 ERROR HANDLING PATTERN:
 Express 5 automatically forwards rejected promises to your error handler:

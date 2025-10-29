@@ -177,7 +177,7 @@ Use this to install packages (npm install), run builds (npm build), or execute t
  */
 export const planArchitecture = tool({
   description:
-    'Create an architectural plan for the application (database models, API routes, components). Use this before implementing to ensure a well-structured app.',
+    'Create an architectural plan for the application (database models, API routes, components). Use this before implementing to ensure a well-structured app.\n\nIMPORTANT - ID Types: Use String for IDs from external APIs/services. External IDs can be large numbers, UUIDs, or custom formats. Use Int only for internal auto-increment IDs.',
   inputSchema: z.object({
     databaseModels: z
       .array(
