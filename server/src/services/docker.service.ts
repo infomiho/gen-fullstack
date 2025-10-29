@@ -243,6 +243,15 @@ export class DockerService extends EventEmitter {
 
             await this.executeWithTimeout(installStream, TIMEOUTS.install, 'npm install');
 
+            // Check exit code
+            const installInspect = await installExec.inspect();
+            const installExitCode = installInspect.ExitCode ?? 0;
+            if (installExitCode !== 0) {
+              const errorMsg = `npm install failed with exit code ${installExitCode}`;
+              this.logManager.emitLog(input.sessionId, 'system', errorMsg);
+              throw new Error(errorMsg);
+            }
+
             if (cleanupStream) {
               cleanupStream();
               cleanupStream = undefined;
@@ -269,6 +278,15 @@ export class DockerService extends EventEmitter {
               TIMEOUTS.prismaGenerate,
               'prisma generate',
             );
+
+            // Check exit code
+            const generateInspect = await generateExec.inspect();
+            const generateExitCode = generateInspect.ExitCode ?? 0;
+            if (generateExitCode !== 0) {
+              const errorMsg = `prisma generate failed with exit code ${generateExitCode}`;
+              this.logManager.emitLog(input.sessionId, 'system', errorMsg);
+              throw new Error(errorMsg);
+            }
 
             if (cleanupStream) {
               cleanupStream();
@@ -301,6 +319,15 @@ export class DockerService extends EventEmitter {
               TIMEOUTS.prismaMigrate,
               'prisma migrate dev',
             );
+
+            // Check exit code
+            const migrateInspect = await migrateExec.inspect();
+            const migrateExitCode = migrateInspect.ExitCode ?? 0;
+            if (migrateExitCode !== 0) {
+              const errorMsg = `prisma migrate dev failed with exit code ${migrateExitCode}`;
+              this.logManager.emitLog(input.sessionId, 'system', errorMsg);
+              throw new Error(errorMsg);
+            }
 
             if (cleanupStream) {
               cleanupStream();

@@ -49,6 +49,7 @@ vi.mock('dockerode', async () => {
         start: vitest.vi.fn().mockImplementation(() => {
           return Promise.resolve(createMockStream());
         }),
+        inspect: vitest.vi.fn().mockResolvedValue({ ExitCode: 0 }),
       });
     }),
   };
@@ -333,6 +334,135 @@ describe('DockerService', () => {
 
       vi.useRealTimers();
     }, 15000);
+
+    it('should fail when npm install returns non-zero exit code', async () => {
+      const sessionId = 'npm-fail-test';
+      await dockerService.createContainer(sessionId, '/tmp/test-app');
+
+      const Docker = (await import('dockerode')).default;
+      const mockContainer = (Docker as any).mockContainer;
+
+      // Mock exec to return non-zero exit code for npm install
+      const mockStream = new EventEmitter();
+      setTimeout(() => mockStream.emit('end'), 10);
+
+      mockContainer.exec.mockResolvedValueOnce({
+        start: vi.fn().mockResolvedValue(mockStream),
+        inspect: vi.fn().mockResolvedValue({ ExitCode: 1 }),
+      });
+
+      // Should throw error with exit code message
+      await expect(dockerService.installDependencies(sessionId)).rejects.toThrow(
+        'npm install failed with exit code 1',
+      );
+    });
+
+    it('should emit error log when npm install fails', async () => {
+      const sessionId = 'npm-fail-log-test';
+      await dockerService.createContainer(sessionId, '/tmp/test-app');
+
+      const logHandler = vi.fn();
+      dockerService.on('log', logHandler);
+
+      const Docker = (await import('dockerode')).default;
+      const mockContainer = (Docker as any).mockContainer;
+
+      // Mock exec to return non-zero exit code for npm install
+      const mockStream = new EventEmitter();
+      setTimeout(() => mockStream.emit('end'), 10);
+
+      mockContainer.exec.mockResolvedValueOnce({
+        start: vi.fn().mockResolvedValue(mockStream),
+        inspect: vi.fn().mockResolvedValue({ ExitCode: 1 }),
+      });
+
+      // Try to install (will fail)
+      await dockerService.installDependencies(sessionId).catch(() => {
+        // Swallow error
+      });
+
+      // Verify error log was emitted
+      expect(logHandler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sessionId,
+          level: 'system',
+          message: 'npm install failed with exit code 1',
+          type: 'stdout',
+          timestamp: expect.any(Number),
+        }),
+      );
+    });
+
+    it('should fail when prisma generate returns non-zero exit code', async () => {
+      const sessionId = 'prisma-generate-fail-test';
+      await dockerService.createContainer(sessionId, '/tmp/test-app');
+
+      const Docker = (await import('dockerode')).default;
+      const mockContainer = (Docker as any).mockContainer;
+
+      // First call (npm install) succeeds with exit code 0
+      const installStream = new EventEmitter();
+      setTimeout(() => installStream.emit('end'), 10);
+
+      mockContainer.exec.mockResolvedValueOnce({
+        start: vi.fn().mockResolvedValue(installStream),
+        inspect: vi.fn().mockResolvedValue({ ExitCode: 0 }),
+      });
+
+      // Second call (prisma generate) fails with exit code 1
+      const generateStream = new EventEmitter();
+      setTimeout(() => generateStream.emit('end'), 10);
+
+      mockContainer.exec.mockResolvedValueOnce({
+        start: vi.fn().mockResolvedValue(generateStream),
+        inspect: vi.fn().mockResolvedValue({ ExitCode: 1 }),
+      });
+
+      // Should throw error with exit code message
+      await expect(dockerService.installDependencies(sessionId)).rejects.toThrow(
+        'prisma generate failed with exit code 1',
+      );
+    });
+
+    it('should fail when prisma migrate returns non-zero exit code', async () => {
+      const sessionId = 'prisma-migrate-fail-test';
+      await dockerService.createContainer(sessionId, '/tmp/test-app');
+
+      const Docker = (await import('dockerode')).default;
+      const mockContainer = (Docker as any).mockContainer;
+
+      // First call (npm install) succeeds
+      const installStream = new EventEmitter();
+      setTimeout(() => installStream.emit('end'), 10);
+
+      mockContainer.exec.mockResolvedValueOnce({
+        start: vi.fn().mockResolvedValue(installStream),
+        inspect: vi.fn().mockResolvedValue({ ExitCode: 0 }),
+      });
+
+      // Second call (prisma generate) succeeds
+      const generateStream = new EventEmitter();
+      setTimeout(() => generateStream.emit('end'), 10);
+
+      mockContainer.exec.mockResolvedValueOnce({
+        start: vi.fn().mockResolvedValue(generateStream),
+        inspect: vi.fn().mockResolvedValue({ ExitCode: 0 }),
+      });
+
+      // Third call (prisma migrate) fails with exit code 1
+      const migrateStream = new EventEmitter();
+      setTimeout(() => migrateStream.emit('end'), 10);
+
+      mockContainer.exec.mockResolvedValueOnce({
+        start: vi.fn().mockResolvedValue(migrateStream),
+        inspect: vi.fn().mockResolvedValue({ ExitCode: 1 }),
+      });
+
+      // Should throw error with exit code message
+      await expect(dockerService.installDependencies(sessionId)).rejects.toThrow(
+        'prisma migrate dev failed with exit code 1',
+      );
+    });
   });
 
   describe('startDevServer', () => {
