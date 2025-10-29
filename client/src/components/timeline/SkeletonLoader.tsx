@@ -12,26 +12,45 @@ export function SkeletonLoader() {
       className={`${radius.md} ${padding.card} border border-border bg-card flex items-center justify-center`}
       data-testid="skeleton-loader"
     >
-      <div className="inline-flex gap-2">
-        <span
-          className="animate-pulse-dot text-3xl text-muted-foreground leading-none"
-          style={{ animationDelay: '0ms' }}
-        >
-          •
-        </span>
-        <span
-          className="animate-pulse-dot text-3xl text-muted-foreground leading-none"
-          style={{ animationDelay: '150ms' }}
-        >
-          •
-        </span>
-        <span
-          className="animate-pulse-dot text-3xl text-muted-foreground leading-none"
-          style={{ animationDelay: '300ms' }}
-        >
-          •
-        </span>
-      </div>
+      <svg
+        viewBox="0 0 60 20"
+        xmlns="http://www.w3.org/2000/svg"
+        className="w-12 h-5"
+        style={{ display: 'inline-block' }}
+        aria-label="Loading"
+      >
+        <title>Loading</title>
+        <circle
+          cx="10"
+          cy="10"
+          r="4"
+          className="animate-pulse-dot text-muted-foreground"
+          style={{
+            animationDelay: '0ms',
+            fill: 'currentColor',
+          }}
+        />
+        <circle
+          cx="30"
+          cy="10"
+          r="4"
+          className="animate-pulse-dot text-muted-foreground"
+          style={{
+            animationDelay: '150ms',
+            fill: 'currentColor',
+          }}
+        />
+        <circle
+          cx="50"
+          cy="10"
+          r="4"
+          className="animate-pulse-dot text-muted-foreground"
+          style={{
+            animationDelay: '300ms',
+            fill: 'currentColor',
+          }}
+        />
+      </svg>
       <style>{`
         @keyframes pulse-dot {
           0%, 80%, 100% {

@@ -12,8 +12,11 @@ describe('SkeletonLoader', () => {
   it('should display animated dots', () => {
     render(<SkeletonLoader />);
     const skeleton = screen.getByTestId('skeleton-loader');
-    // Should contain three bullet points (•)
-    expect(skeleton.textContent).toContain('•');
+    // Should contain SVG with three circles
+    const svg = skeleton.querySelector('svg');
+    expect(svg).toBeInTheDocument();
+    const circles = skeleton.querySelectorAll('circle');
+    expect(circles).toHaveLength(3);
   });
 
   it('should have card background with border', () => {
