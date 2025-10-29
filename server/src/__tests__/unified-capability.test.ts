@@ -13,10 +13,11 @@ import type { ClientToServerEvents, ServerToClientEvents } from '../types/index.
 
 describe('UnifiedCodeGenerationCapability', () => {
   describe('maxIterations Config', () => {
-    it('should derive tool call budget from maxIterations config', () => {
+    it('should have fixed tool call budget of 150', () => {
       const mockIo = {} as SocketIOServer<ClientToServerEvents, ServerToClientEvents>;
 
-      // Test maxIterations = 1 → 25 tool calls (20 + 1*5)
+      // Budget is now fixed at 150 regardless of maxIterations
+      // This ensures complete app generation even for complex apps with planning
       const cap1 = new UnifiedCodeGenerationCapability('gpt-5-mini', mockIo, {
         inputMode: 'naive',
         planning: false,
@@ -24,9 +25,8 @@ describe('UnifiedCodeGenerationCapability', () => {
         buildingBlocks: false,
         maxIterations: 1,
       });
-      expect((cap1 as any).maxToolCalls).toBe(25);
+      expect((cap1 as any).maxToolCalls).toBe(150);
 
-      // Test maxIterations = 3 → 35 tool calls (20 + 3*5)
       const cap3 = new UnifiedCodeGenerationCapability('gpt-5-mini', mockIo, {
         inputMode: 'naive',
         planning: false,
@@ -34,9 +34,8 @@ describe('UnifiedCodeGenerationCapability', () => {
         buildingBlocks: false,
         maxIterations: 3,
       });
-      expect((cap3 as any).maxToolCalls).toBe(35);
+      expect((cap3 as any).maxToolCalls).toBe(150);
 
-      // Test maxIterations = 5 → 45 tool calls (20 + 5*5)
       const cap5 = new UnifiedCodeGenerationCapability('gpt-5-mini', mockIo, {
         inputMode: 'naive',
         planning: false,
@@ -44,41 +43,21 @@ describe('UnifiedCodeGenerationCapability', () => {
         buildingBlocks: false,
         maxIterations: 5,
       });
-      expect((cap5 as any).maxToolCalls).toBe(45);
+      expect((cap5 as any).maxToolCalls).toBe(150);
     });
 
-    it('should use default maxIterations value correctly', () => {
+    it('should use fixed budget regardless of config', () => {
       const mockIo = {} as SocketIOServer<ClientToServerEvents, ServerToClientEvents>;
 
-      // Default maxIterations is 3 (from Zod schema)
       const cap = new UnifiedCodeGenerationCapability('gpt-5-mini', mockIo, {
-        inputMode: 'naive',
-        planning: false,
-        compilerChecks: false,
-        buildingBlocks: false,
-        maxIterations: 3, // Explicit default
+        inputMode: 'template',
+        planning: true,
+        compilerChecks: true,
+        buildingBlocks: true,
+        maxIterations: 3,
       });
 
-      expect((cap as any).maxToolCalls).toBe(35); // 20 + (3 * 5)
-    });
-
-    it('should calculate different budgets for different iteration counts', () => {
-      const mockIo = {} as SocketIOServer<ClientToServerEvents, ServerToClientEvents>;
-
-      const configs = [1, 2, 3, 4, 5];
-      const expectedCalls = [25, 30, 35, 40, 45]; // 20 + (n * 5)
-
-      configs.forEach((iterations, index) => {
-        const cap = new UnifiedCodeGenerationCapability('gpt-5-mini', mockIo, {
-          inputMode: 'naive',
-          planning: false,
-          compilerChecks: false,
-          buildingBlocks: false,
-          maxIterations: iterations,
-        });
-
-        expect((cap as any).maxToolCalls).toBe(expectedCalls[index]);
-      });
+      expect((cap as any).maxToolCalls).toBe(150);
     });
   });
 

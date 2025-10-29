@@ -47,10 +47,10 @@ export class UnifiedCodeGenerationCapability extends BaseCapability {
   ) {
     super(modelName, io);
     this.config = config;
-    // Derive tool call budget from maxIterations config
-    // Base budget of 20 calls + (maxIterations * 5) for error fixing
-    // iterations=1 → 25 calls, iterations=3 → 35 calls, iterations=5 → 45 calls
-    this.maxToolCalls = 20 + config.maxIterations * 5;
+    // Generous tool call budget to ensure complete app generation
+    // Complex apps with planning can require 80+ calls (backend + frontend + error fixing)
+    // Set to 150 to handle large applications without hitting limits mid-generation
+    this.maxToolCalls = 150;
   }
 
   getName(): string {
