@@ -1,4 +1,4 @@
-import type { ArchitecturePlan } from '@gen-fullstack/shared';
+import { TOOL_NAMES, type ArchitecturePlan } from '@gen-fullstack/shared';
 import { stepCountIs, streamText, tool } from 'ai';
 import { z } from 'zod';
 import { getErrorMessage } from '../lib/error-utils.js';
@@ -130,7 +130,6 @@ Call the planArchitecture tool with a complete plan covering:
 3. Client components (React)`;
 
       let plan: ArchitecturePlan | null = null;
-      let toolCallCount = 0;
 
       // Stream the LLM response
       const result = streamText({
@@ -140,21 +139,23 @@ Call the planArchitecture tool with a complete plan covering:
           { role: 'user', content: userPrompt },
         ],
         tools: {
-          planArchitecture: planArchitectureTool,
+          [TOOL_NAMES.PLAN_ARCHITECTURE]: planArchitectureTool,
         },
         toolChoice: {
           type: 'tool',
-          toolName: 'planArchitecture',
+          toolName: TOOL_NAMES.PLAN_ARCHITECTURE,
         },
         stopWhen: stepCountIs(1),
         abortSignal,
         onStepFinish: async (event) => {
-          // Process tool calls and capture plan
-          toolCallCount += await this.processToolCallEvent(event, sessionId, (toolName, output) => {
-            if (toolName === 'planArchitecture') {
-              plan = output as ArchitecturePlan;
+          // Capture plan directly without emitting tool calls to timeline
+          // The pipeline stage event (emitted by orchestrator) provides visibility
+          for (const toolCall of event.toolCalls) {
+            if (toolCall.toolName === TOOL_NAMES.PLAN_ARCHITECTURE) {
+              // The tool input contains the plan (the tool just returns what it receives)
+              plan = toolCall.input as ArchitecturePlan;
             }
-          });
+          }
 
           if (event.text?.trim()) {
             this.emitMessage('assistant', event.text, sessionId);
@@ -200,7 +201,7 @@ Call the planArchitecture tool with a complete plan covering:
         success: true,
         tokensUsed,
         cost,
-        toolCalls: toolCallCount,
+        toolCalls: 0, // Tool calls not emitted to timeline (pipeline stage provides visibility)
         contextUpdates: {
           plan: validatedPlan, // Store plan in context for code generation stage
         },
@@ -216,8 +217,6 @@ Call the planArchitecture tool with a complete plan covering:
         },
         'Planning capability failed',
       );
-
-      this.emitMessage('system', `✗ Planning failed: ${errorMessage}`, sessionId);
 
       return {
         success: false,

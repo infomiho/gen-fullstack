@@ -137,7 +137,7 @@ describe('PlanningCapability', () => {
       expect(result.contextUpdates?.plan).toEqual(mockPlan);
       expect(result.tokensUsed?.input).toBe(100);
       expect(result.tokensUsed?.output).toBe(200);
-      expect(result.toolCalls).toBe(1);
+      expect(result.toolCalls).toBe(0); // Tool calls not emitted (pipeline stage provides visibility)
     });
 
     it('fails if LLM does not call planArchitecture tool', async () => {
@@ -149,6 +149,7 @@ describe('PlanningCapability', () => {
         (async () => {
           if (onStepFinish) {
             await onStepFinish({
+              toolCalls: [], // No tool calls
               text: 'I will not create a plan.',
               finishReason: 'stop',
             });

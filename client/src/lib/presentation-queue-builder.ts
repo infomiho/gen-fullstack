@@ -1,4 +1,9 @@
-import type { LLMMessage, ToolCall, PipelineStageEvent } from '@gen-fullstack/shared';
+import {
+  TOOL_NAMES,
+  type LLMMessage,
+  type ToolCall,
+  type PipelineStageEvent,
+} from '@gen-fullstack/shared';
 import type { PresentationEvent } from '../stores/presentationStore';
 import {
   parseTemplateLoadingStage,
@@ -70,12 +75,12 @@ function processToolCallEvent(
   events: PresentationEvent[],
 ): number {
   switch (toolCall.name) {
-    case 'requestBlock': {
+    case TOOL_NAMES.REQUEST_BLOCK: {
       const parsed = parseBlockRequestTool(toolCall);
       if (parsed) events.push(parsed);
       return totalFileWrites;
     }
-    case 'writeFile': {
+    case TOOL_NAMES.WRITE_FILE: {
       const parsed = parseWriteFileTool(toolCall, totalFileWrites);
       events.push(...parsed);
       return totalFileWrites + 1;

@@ -1,4 +1,4 @@
-import type { ValidationError } from '@gen-fullstack/shared';
+import { TOOL_NAMES, type ValidationError } from '@gen-fullstack/shared';
 import { getErrorMessage } from '../lib/error-utils.js';
 import * as commandService from '../services/command.service.js';
 import type { CapabilityContext, CapabilityResult } from '../types/index.js';
@@ -117,7 +117,7 @@ export class ValidationCapability extends BaseCapability {
       // Validate Prisma schema
       const prismaErrors = await this.executeValidationStep(
         'validate-prisma',
-        'validatePrisma',
+        TOOL_NAMES.VALIDATE_PRISMA_SCHEMA,
         { path: `${sandboxDir}/prisma/schema.prisma` },
         sessionId,
         () => this.validatePrismaSchema(sessionId, sandboxDir),
@@ -128,7 +128,7 @@ export class ValidationCapability extends BaseCapability {
       // Validate TypeScript
       const tsErrors = await this.executeValidationStep(
         'validate-typescript',
-        'validateTypeScript',
+        TOOL_NAMES.VALIDATE_TYPESCRIPT,
         { clientPath: `${sandboxDir}/client`, serverPath: `${sandboxDir}/server` },
         sessionId,
         () => this.validateTypeScript(sessionId, sandboxDir),
@@ -156,8 +156,6 @@ export class ValidationCapability extends BaseCapability {
         },
         'Validation capability failed',
       );
-
-      this.emitMessage('system', `✗ Validation failed: ${errorMessage}`, sessionId);
 
       return {
         success: false,

@@ -1,3 +1,4 @@
+import { TOOL_NAMES } from '@gen-fullstack/shared';
 import {
   FileDown,
   FileUp,
@@ -38,15 +39,15 @@ export type ToolIconConfig = {
 export function getToolIcon(toolName: string, args?: Record<string, unknown>): ToolIconConfig {
   switch (toolName) {
     // File operations - Blue
-    case 'writeFile':
+    case TOOL_NAMES.WRITE_FILE:
       return { icon: FileDown, color: 'text-blue-600 dark:text-blue-400' };
-    case 'readFile':
+    case TOOL_NAMES.READ_FILE:
       return { icon: FileUp, color: 'text-blue-600 dark:text-blue-400' };
-    case 'getFileTree':
+    case TOOL_NAMES.GET_FILE_TREE:
       return { icon: FolderTree, color: 'text-blue-600 dark:text-blue-400' };
 
     // Command execution - Green
-    case 'executeCommand': {
+    case TOOL_NAMES.EXECUTE_COMMAND: {
       // Smart detection for npm/pnpm commands
       const cmd = args?.command as string;
       const icon = cmd?.startsWith('npm') || cmd?.startsWith('pnpm') ? Package : Terminal;
@@ -54,19 +55,19 @@ export function getToolIcon(toolName: string, args?: Record<string, unknown>): T
     }
 
     // Package management - Amber
-    case 'installNpmDep':
+    case TOOL_NAMES.INSTALL_NPM_DEP:
       return { icon: PackagePlus, color: 'text-amber-600 dark:text-amber-400' };
 
     // Architecture & planning - Amber
-    case 'requestBlock':
+    case TOOL_NAMES.REQUEST_BLOCK:
       return { icon: Box, color: 'text-amber-600 dark:text-amber-400' };
-    case 'planArchitecture':
+    case TOOL_NAMES.PLAN_ARCHITECTURE:
       return { icon: Layout, color: 'text-amber-600 dark:text-amber-400' };
 
     // Validation - Purple
-    case 'validatePrismaSchema':
+    case TOOL_NAMES.VALIDATE_PRISMA_SCHEMA:
       return { icon: Database, color: 'text-purple-600 dark:text-purple-400' };
-    case 'validateTypeScript':
+    case TOOL_NAMES.VALIDATE_TYPESCRIPT:
       return { icon: FileCheck, color: 'text-purple-600 dark:text-purple-400' };
 
     // Fallback - Gray

@@ -119,6 +119,12 @@ Tools available to the LLM, organized by capability configuration:
 **Building Block Tools** (available when `buildingBlocks: true`):
 - `requestBlock` - Copy pre-built reusable components
 
+**Tool Name Constants:**
+- All tool names are centralized in `shared/src/tool-names.ts` as `TOOL_NAMES` constants
+- Import from `@gen-fullstack/shared` to avoid hardcoding strings
+- Provides type safety and consistency across client and server
+- Example: `TOOL_NAMES.WRITE_FILE` instead of `'writeFile'`
+
 Tool definitions: `server/src/tools/index.ts`
 
 ### 5. Design System

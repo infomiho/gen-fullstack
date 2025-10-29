@@ -4,7 +4,12 @@
  * Shared utilities for rendering tool parameters and summaries across the app.
  */
 
-import type { ApiRoute, ClientComponent, DatabaseModel } from '@gen-fullstack/shared';
+import {
+  TOOL_NAMES,
+  type ApiRoute,
+  type ClientComponent,
+  type DatabaseModel,
+} from '@gen-fullstack/shared';
 import { PlanArchitectureDisplay } from '../components/PlanArchitectureDisplay';
 import { radius, spacing, typography } from './design-tokens';
 
@@ -68,13 +73,13 @@ function getInstallNpmDepSummary(args: Record<string, unknown>): string {
  * Mapping of tool names to their summary generator functions
  */
 const toolSummaryHandlers: Record<string, (args: Record<string, unknown>) => string> = {
-  writeFile: getWriteFileSummary,
-  readFile: getReadFileSummary,
-  getFileTree: getFileTreeSummary,
-  executeCommand: getExecuteCommandSummary,
-  requestBlock: getRequestBlockSummary,
-  planArchitecture: getPlanArchitectureSummary,
-  installNpmDep: getInstallNpmDepSummary,
+  [TOOL_NAMES.WRITE_FILE]: getWriteFileSummary,
+  [TOOL_NAMES.READ_FILE]: getReadFileSummary,
+  [TOOL_NAMES.GET_FILE_TREE]: getFileTreeSummary,
+  [TOOL_NAMES.EXECUTE_COMMAND]: getExecuteCommandSummary,
+  [TOOL_NAMES.REQUEST_BLOCK]: getRequestBlockSummary,
+  [TOOL_NAMES.PLAN_ARCHITECTURE]: getPlanArchitectureSummary,
+  [TOOL_NAMES.INSTALL_NPM_DEP]: getInstallNpmDepSummary,
 };
 
 /**
@@ -122,7 +127,7 @@ export function renderToolParameters(
   }
 
   // Custom formatting for writeFile
-  if (toolName === 'writeFile') {
+  if (toolName === TOOL_NAMES.WRITE_FILE) {
     const { path, content } = args as { path?: string; content?: string };
     return (
       <div className={`${typography.body} ${spacing.form}`}>
@@ -147,7 +152,7 @@ export function renderToolParameters(
   }
 
   // Custom formatting for readFile
-  if (toolName === 'readFile') {
+  if (toolName === TOOL_NAMES.READ_FILE) {
     const { path } = args as { path?: string };
     return (
       <div className={typography.body}>
@@ -158,7 +163,7 @@ export function renderToolParameters(
   }
 
   // Custom formatting for getFileTree
-  if (toolName === 'getFileTree') {
+  if (toolName === TOOL_NAMES.GET_FILE_TREE) {
     return (
       <div className={typography.body}>
         <div className="text-muted-foreground">Full tree</div>
@@ -167,7 +172,7 @@ export function renderToolParameters(
   }
 
   // Custom formatting for executeCommand
-  if (toolName === 'executeCommand') {
+  if (toolName === TOOL_NAMES.EXECUTE_COMMAND) {
     const { command } = args as { command?: string };
     return (
       <div className={typography.body}>
@@ -182,7 +187,7 @@ export function renderToolParameters(
   }
 
   // Custom formatting for planArchitecture
-  if (toolName === 'planArchitecture') {
+  if (toolName === TOOL_NAMES.PLAN_ARCHITECTURE) {
     const { databaseModels, apiRoutes, clientComponents } = args as {
       databaseModels?: DatabaseModel[];
       apiRoutes?: ApiRoute[];

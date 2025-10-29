@@ -12,6 +12,8 @@ import { MAX_FILE_SIZE } from './constants.js';
 export * from './capabilities.js';
 // Re-export constants
 export * from './constants.js';
+// Re-export tool names
+export * from './tool-names.js';
 
 // ============================================================================
 // Strategy Types
