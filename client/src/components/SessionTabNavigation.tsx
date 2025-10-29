@@ -5,7 +5,7 @@ import { focus, transitions, typography } from '../lib/design-tokens';
 
 export interface SessionTabNavigationProps {
   sessionId: string | undefined;
-  activeTab: 'timeline' | 'files' | 'preview';
+  activeTab: 'timeline' | 'files' | 'preview' | 'pipeline';
   messages: LLMMessage[];
   toolCalls: ToolCall[];
   files: FileUpdate[];
@@ -77,6 +77,17 @@ export function SessionTabNavigation({
             {appStatus?.status && appStatus.status !== 'stopped' && (
               <span className="ml-1 text-xs">({appStatus.status})</span>
             )}
+          </button>
+          <button
+            type="button"
+            className={`border-b-2 px-3 py-2 ${typography.label} ${transitions.colors} ${focus.ring} ${
+              activeTab === 'pipeline'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+            onClick={() => navigate(`/${sessionId}/pipeline`)}
+          >
+            Pipeline
           </button>
         </div>
 

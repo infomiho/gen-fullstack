@@ -7,6 +7,7 @@ import type {
   AppInfo,
   AppLog,
   FileUpdate,
+  CapabilityConfig,
 } from '@gen-fullstack/shared';
 import { Timeline } from './Timeline';
 import { ErrorBoundary as ErrorBoundaryComponent } from './ErrorBoundary';
@@ -15,10 +16,11 @@ import { AppPreview } from './AppPreview';
 import { LogViewer } from './LogViewer';
 import { ReplayControls } from './ReplayControls';
 import { TimelineScrubber } from './TimelineScrubber';
+import { PipelineVisualization } from './pipeline';
 import { padding, spacing } from '../lib/design-tokens';
 
 export interface SessionTabContentProps {
-  activeTab: 'timeline' | 'files' | 'preview';
+  activeTab: 'timeline' | 'files' | 'preview' | 'pipeline';
   sessionId: string | undefined;
   messages: LLMMessage[];
   toolCalls: ToolCall[];
@@ -29,6 +31,7 @@ export interface SessionTabContentProps {
   isReplayMode: boolean;
   appStatus: AppInfo | null;
   appLogs: AppLog[];
+  capabilityConfig?: CapabilityConfig;
   onSaveFile: (sessionId: string, path: string, content: string) => void;
 }
 
@@ -50,6 +53,7 @@ export function SessionTabContent({
   isReplayMode,
   appStatus,
   appLogs,
+  capabilityConfig,
   onSaveFile,
 }: SessionTabContentProps) {
   const previewContainerRef = useRef<HTMLDivElement>(null);
@@ -111,6 +115,29 @@ export function SessionTabContent({
         <div className={spacing.componentGap}>
           <LogViewer logs={appLogs} />
         </div>
+      </div>
+    );
+  }
+
+  if (activeTab === 'pipeline') {
+    // Pipeline requires capability config - show message if not available
+    if (!capabilityConfig) {
+      return (
+        <div className="flex h-full items-center justify-center">
+          <p className="text-sm text-muted-foreground">
+            Pipeline visualization not available (capability config missing)
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="h-full">
+        <PipelineVisualization
+          config={capabilityConfig}
+          isGenerating={isGenerating}
+          isReplayMode={isReplayMode}
+        />
       </div>
     );
   }
