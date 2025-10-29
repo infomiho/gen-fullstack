@@ -1,0 +1,16 @@
+Prisma schema loaded from server/src/lib/__tests__/fixtures/prisma-schemas/ambiguous-relation.prisma
+
+Error: Prisma schema validation - (validate wasm)
+Error code: P1012
+[1;91merror[0m: [1mError validating model "User": Ambiguous relation detected. The fields `writtenPosts` and `reviewedPosts` in model `User` both refer to `Post`. Please provide different relation names for them by adding `@relation(<name>).[0m
+  [1;94m-->[0m  [4mserver/src/lib/__tests__/fixtures/prisma-schemas/ambiguous-relation.prisma:14[0m
+[1;94m   | [0m
+[1;94m13 | [0m  name          String
+[1;94m14 | [0m  [1;91mwrittenPosts  Post[] // First relation[0m
+[1;94m15 | [0m  reviewedPosts Post[] // Second relation - ambiguous!
+[1;94m   | [0m
+
+Validation Error Count: 1
+[Context: validate]
+
+Prisma CLI Version : 6.18.0

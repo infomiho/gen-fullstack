@@ -3,6 +3,7 @@ import { getErrorMessage } from '../lib/error-utils.js';
 import * as commandService from '../services/command.service.js';
 import type { CapabilityContext, CapabilityResult } from '../types/index.js';
 import { BaseCapability } from './base.capability.js';
+import { parsePrismaErrors } from '../lib/prisma-error-parser.js';
 
 /**
  * Validation Capability
@@ -186,12 +187,11 @@ export class ValidationCapability extends BaseCapability {
       );
 
       if (result.exitCode === 0) {
-        return []; // No errors
+        return [];
       }
 
-      // Extract and parse error details
       const errorOutput = result.stderr || result.stdout;
-      const parsedErrors = this.parsePrismaErrors(errorOutput);
+      const parsedErrors = parsePrismaErrors(errorOutput);
 
       return parsedErrors.map((err) => ({
         type: 'prisma' as const,
@@ -212,57 +212,6 @@ export class ValidationCapability extends BaseCapability {
         },
       ];
     }
-  }
-
-  /**
-   * Parse Prisma validation errors into structured format
-   */
-  private parsePrismaErrors(output: string): Array<{
-    line?: number;
-    message: string;
-  }> {
-    const errors: Array<{ line?: number; message: string }> = [];
-
-    // Prisma error format varies, but often includes "Error:" or line numbers
-    // Example: "Error validating model \"User\": ..."
-    // Example: "  --> schema.prisma:12"
-
-    const lines = output.split('\n');
-    let currentError = '';
-    let currentLine: number | undefined;
-
-    for (const line of lines) {
-      // Check for line number indicators
-      const lineMatch = line.match(/-->\s+schema\.prisma:(\d+)/);
-      if (lineMatch) {
-        currentLine = parseInt(lineMatch[1], 10);
-        continue;
-      }
-
-      // Check for error messages
-      if (line.includes('Error') || line.trim().startsWith('×')) {
-        if (currentError) {
-          errors.push({ line: currentLine, message: currentError.trim() });
-          currentError = '';
-          currentLine = undefined;
-        }
-        currentError = line;
-      } else if (currentError && line.trim()) {
-        currentError += ` ${line.trim()}`;
-      }
-    }
-
-    // Add last error if exists
-    if (currentError) {
-      errors.push({ line: currentLine, message: currentError.trim() });
-    }
-
-    // If no structured errors found, treat whole output as one error
-    if (errors.length === 0 && output.trim()) {
-      errors.push({ message: output.trim() });
-    }
-
-    return errors;
   }
 
   // ============================================================================

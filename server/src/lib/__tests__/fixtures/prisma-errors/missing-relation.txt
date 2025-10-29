@@ -1,0 +1,16 @@
+Prisma schema loaded from server/src/lib/__tests__/fixtures/prisma-schemas/missing-relation.prisma
+
+Error: Prisma schema validation - (validate wasm)
+Error code: P1012
+[1;91merror[0m: [1mError validating field `posts` in model `User`: The relation field `posts` on model `User` is missing an opposite relation field on the model `Post`. Either run `prisma format` or add it manually.[0m
+  [1;94m-->[0m  [4mserver/src/lib/__tests__/fixtures/prisma-schemas/missing-relation.prisma:14[0m
+[1;94m   | [0m
+[1;94m13 | [0m  name  String
+[1;94m14 | [0m  [1;91mposts Post[] // Relation defined here[0m
+[1;94m15 | [0m}
+[1;94m   | [0m
+
+Validation Error Count: 1
+[Context: validate]
+
+Prisma CLI Version : 6.18.0

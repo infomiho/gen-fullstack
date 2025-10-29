@@ -1,0 +1,16 @@
+Prisma schema loaded from server/src/lib/__tests__/fixtures/prisma-schemas/one-to-one-without-unique.prisma
+
+Error: Prisma schema validation - (validate wasm)
+Error code: P1012
+[1;91merror[0m: [1mError parsing attribute "@relation": A one-to-one relation must use unique fields on the defining side. Either add an `@unique` attribute to the field `userId`, or change the relation to one-to-many.[0m
+  [1;94m-->[0m  [4mserver/src/lib/__tests__/fixtures/prisma-schemas/one-to-one-without-unique.prisma:21[0m
+[1;94m   | [0m
+[1;94m20 | [0m  userId Int    // Missing @unique for one-to-one!
+[1;94m21 | [0m  [1;91muser   User   @relation(fields: [userId], references: [id])[0m
+[1;94m22 | [0m}
+[1;94m   | [0m
+
+Validation Error Count: 1
+[Context: validate]
+
+Prisma CLI Version : 6.18.0

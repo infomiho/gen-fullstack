@@ -1,0 +1,22 @@
+// Schema with one-to-one relation missing @unique constraint
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id      Int      @id @default(autoincrement())
+  name    String
+  profile Profile?
+}
+
+model Profile {
+  id     Int    @id @default(autoincrement())
+  bio    String
+  userId Int    // Missing @unique for one-to-one!
+  user   User   @relation(fields: [userId], references: [id])
+}

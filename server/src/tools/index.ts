@@ -9,6 +9,7 @@ import * as commandService from '../services/command.service.js';
 import * as filesystemService from '../services/filesystem.service.js';
 import { requestBlock } from './request-block.tool.js';
 import { extractToolContext, type ToolContext } from './tool-utils.js';
+import { parsePrismaErrors } from '../lib/prisma-error-parser.js';
 
 /**
  * Tool definitions for LLM-powered app generation
@@ -204,57 +205,6 @@ export const planArchitecture = tool({
 });
 
 /**
- * Parse Prisma validation errors into structured format
- */
-function parsePrismaErrors(output: string): Array<{
-  line?: number;
-  message: string;
-}> {
-  const errors: Array<{ line?: number; message: string }> = [];
-
-  // Prisma error format varies, but often includes "Error:" or line numbers
-  // Example: "Error validating model \"User\": ..."
-  // Example: "  --> schema.prisma:12"
-
-  const lines = output.split('\n');
-  let currentError = '';
-  let currentLine: number | undefined;
-
-  for (const line of lines) {
-    // Check for line number indicators
-    const lineMatch = line.match(/-->\s+schema\.prisma:(\d+)/);
-    if (lineMatch) {
-      currentLine = parseInt(lineMatch[1], 10);
-      continue;
-    }
-
-    // Check for error messages
-    if (line.includes('Error') || line.trim().startsWith('×')) {
-      if (currentError) {
-        errors.push({ line: currentLine, message: currentError.trim() });
-        currentError = '';
-        currentLine = undefined;
-      }
-      currentError = line;
-    } else if (currentError && line.trim()) {
-      currentError += ` ${line.trim()}`;
-    }
-  }
-
-  // Add last error if exists
-  if (currentError) {
-    errors.push({ line: currentLine, message: currentError.trim() });
-  }
-
-  // If no structured errors found, treat whole output as one error
-  if (errors.length === 0 && output.trim()) {
-    errors.push({ message: output.trim() });
-  }
-
-  return errors;
-}
-
-/**
  * Validate Prisma schema for syntax and semantic errors
  *
  * Runs `npx prisma validate` to check the schema before generating the client.
@@ -273,31 +223,38 @@ export const validatePrismaSchema = tool({
     const { sessionId, io } = extractToolContext(context);
 
     try {
-      // Run prisma validate
       const validateResult = await commandService.executeCommand(sessionId, 'npx prisma validate');
 
       if (validateResult.exitCode === 0) {
         emitPersistedMessage(sessionId, io, 'system', '✓ Prisma schema validation passed');
         return 'Schema is valid. You can now run "npx prisma generate" to create the Prisma client.';
-      } else {
-        // Extract and parse error details
-        const errorOutput = validateResult.stderr || validateResult.stdout;
-        const parsedErrors = parsePrismaErrors(errorOutput);
-        const errorCount = parsedErrors.length;
-
-        const formattedErrors = parsedErrors
-          .map((e) => (e.line ? `Line ${e.line}: ${e.message}` : e.message))
-          .join('\n\n');
-
-        emitPersistedMessage(
-          sessionId,
-          io,
-          'system',
-          `✗ Prisma schema validation failed (${errorCount} errors)`,
-        );
-
-        return `Schema validation failed (${errorCount} errors). Fix these:\n\n${formattedErrors}`;
       }
+
+      const errorOutput = validateResult.stderr || validateResult.stdout;
+      const parsedErrors = parsePrismaErrors(errorOutput);
+      const errorCount = parsedErrors.length;
+
+      const formattedErrors = parsedErrors
+        .map((e) => {
+          let errorStr = e.message;
+          if (e.location) {
+            errorStr += `\nLocation: ${e.location}`;
+          }
+          if (e.context && e.context.length > 0) {
+            errorStr += `\nCode:\n${e.context.join('\n')}`;
+          }
+          return errorStr;
+        })
+        .join('\n\n');
+
+      emitPersistedMessage(
+        sessionId,
+        io,
+        'system',
+        `✗ Prisma schema validation failed (${errorCount} errors)`,
+      );
+
+      return `Schema validation failed (${errorCount} errors). Fix these:\n\n${formattedErrors}`;
     } catch (error) {
       const errorMsg =
         error instanceof Error ? error.message : 'Unknown error during Prisma validation';

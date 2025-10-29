@@ -1,0 +1,21 @@
+Prisma schema loaded from server/src/lib/__tests__/fixtures/prisma-schemas/invalid-field-type.prisma
+
+Error: Prisma schema validation - (validate wasm)
+Error code: P1012
+[1;91merror[0m: [1mType "InvalidType" is neither a built-in type, nor refers to another model, composite type, or enum.[0m
+  [1;94m-->[0m  [4mserver/src/lib/__tests__/fixtures/prisma-schemas/invalid-field-type.prisma:14[0m
+[1;94m   | [0m
+[1;94m13 | [0m  name     String
+[1;94m14 | [0m  age      [1;91mInvalidType[0m // Invalid type!
+[1;94m   | [0m
+[1;91merror[0m: [1mType "AnotherBad" is neither a built-in type, nor refers to another model, composite type, or enum.[0m
+  [1;94m-->[0m  [4mserver/src/lib/__tests__/fixtures/prisma-schemas/invalid-field-type.prisma:15[0m
+[1;94m   | [0m
+[1;94m14 | [0m  age      InvalidType // Invalid type!
+[1;94m15 | [0m  email    [1;91mAnotherBad[0m  // Another invalid type
+[1;94m   | [0m
+
+Validation Error Count: 2
+[Context: validate]
+
+Prisma CLI Version : 6.18.0

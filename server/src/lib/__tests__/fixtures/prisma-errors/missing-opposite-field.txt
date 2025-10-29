@@ -1,0 +1,16 @@
+Prisma schema loaded from server/src/lib/__tests__/fixtures/prisma-schemas/missing-opposite-field.prisma
+
+Error: Prisma schema validation - (validate wasm)
+Error code: P1012
+[1;91merror[0m: [1mError validating field `post` in model `Comment`: The relation field `post` on model `Comment` is missing an opposite relation field on the model `Post`. Either run `prisma format` or add it manually.[0m
+  [1;94m-->[0m  [4mserver/src/lib/__tests__/fixtures/prisma-schemas/missing-opposite-field.prisma:29[0m
+[1;94m   | [0m
+[1;94m28 | [0m  postId Int
+[1;94m29 | [0m  [1;91mpost   Post @relation(fields: [postId], references: [id])[0m
+[1;94m30 | [0m  // Post model doesn't have comments field - missing opposite
+[1;94m   | [0m
+
+Validation Error Count: 1
+[Context: validate]
+
+Prisma CLI Version : 6.18.0

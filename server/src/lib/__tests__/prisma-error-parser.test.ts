@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { parsePrismaErrors } from '../prisma-error-parser.js';
 
 describe('Prisma Error Parser', () => {
@@ -21,11 +23,13 @@ Validation Error Count: 1
       const errors = parsePrismaErrors(stderr);
 
       expect(errors).toHaveLength(1);
-      expect(errors[0]).toContain('Error parsing attribute "@relation"');
-      expect(errors[0]).toContain('Location: schema.prisma:18');
-      expect(errors[0]).toContain('17 |');
-      expect(errors[0]).toContain('18 |');
-      expect(errors[0]).not.toContain('\x1b['); // ANSI codes stripped
+      expect(errors[0].message).toContain('Error parsing attribute "@relation"');
+      expect(errors[0].line).toBe(18);
+      expect(errors[0].location).toBe('schema.prisma:18');
+      expect(errors[0].context).toHaveLength(3);
+      expect(errors[0].context?.[0]).toContain('17 |');
+      expect(errors[0].context?.[1]).toContain('18 |');
+      expect(errors[0].message).not.toContain('\x1b['); // ANSI codes stripped
     });
 
     it('should parse multiple errors', () => {
@@ -50,10 +54,12 @@ Validation Error Count: 2
       const errors = parsePrismaErrors(stderr);
 
       expect(errors).toHaveLength(2);
-      expect(errors[0]).toContain('Invalid field type in model User');
-      expect(errors[0]).toContain('Location: schema.prisma:5');
-      expect(errors[1]).toContain('Missing required field in model Post');
-      expect(errors[1]).toContain('Location: schema.prisma:12');
+      expect(errors[0].message).toContain('Invalid field type in model User');
+      expect(errors[0].line).toBe(5);
+      expect(errors[0].location).toBe('schema.prisma:5');
+      expect(errors[1].message).toContain('Missing required field in model Post');
+      expect(errors[1].line).toBe(12);
+      expect(errors[1].location).toBe('schema.prisma:12');
     });
 
     it('should strip ANSI color codes', () => {
@@ -65,8 +71,10 @@ error: \x1b[1;91mError with colors\x1b[0m
       const errors = parsePrismaErrors(stderr);
 
       expect(errors).toHaveLength(1);
-      expect(errors[0]).toBe('Error with colors\nLocation: schema.prisma:10');
-      expect(errors[0]).not.toContain('\x1b[');
+      expect(errors[0].message).toBe('Error with colors');
+      expect(errors[0].line).toBe(10);
+      expect(errors[0].location).toBe('schema.prisma:10');
+      expect(errors[0].message).not.toContain('\x1b[');
     });
 
     it('should handle errors without location', () => {
@@ -77,7 +85,9 @@ error: General schema error without specific location
       const errors = parsePrismaErrors(stderr);
 
       expect(errors).toHaveLength(1);
-      expect(errors[0]).toBe('General schema error without specific location');
+      expect(errors[0].message).toBe('General schema error without specific location');
+      expect(errors[0].line).toBeUndefined();
+      expect(errors[0].location).toBeUndefined();
     });
 
     it('should handle errors without context lines', () => {
@@ -89,7 +99,10 @@ error: Error with location but no context
       const errors = parsePrismaErrors(stderr);
 
       expect(errors).toHaveLength(1);
-      expect(errors[0]).toBe('Error with location but no context\nLocation: schema.prisma:5');
+      expect(errors[0].message).toBe('Error with location but no context');
+      expect(errors[0].line).toBe(5);
+      expect(errors[0].location).toBe('schema.prisma:5');
+      expect(errors[0].context).toEqual([]);
     });
 
     it('should return cleaned stderr as fallback if no structured errors', () => {
@@ -98,8 +111,10 @@ error: Error with location but no context
       const errors = parsePrismaErrors(stderr);
 
       expect(errors).toHaveLength(1);
-      expect(errors[0]).toBe('Some unstructured error output');
-      expect(errors[0]).not.toContain('\x1b[');
+      expect(errors[0].message).toBe('Some unstructured error output');
+      expect(errors[0].message).not.toContain('\x1b[');
+      expect(errors[0].line).toBeUndefined();
+      expect(errors[0].location).toBeUndefined();
     });
 
     it('should handle empty stderr', () => {
@@ -134,16 +149,100 @@ Prisma CLI Version : 6.17.1
       const errors = parsePrismaErrors(stderr);
 
       expect(errors).toHaveLength(1);
-      expect(errors[0]).toContain('Error parsing attribute "@relation"');
-      expect(errors[0]).toContain('A one-to-one relation must use unique fields');
-      expect(errors[0]).toContain('Location: schema.prisma:18');
-      expect(errors[0]).toContain('Code:');
-      expect(errors[0]).toContain('17 |');
-      expect(errors[0]).toContain('18 |');
-      expect(errors[0]).toContain('userId Int');
-      expect(errors[0]).not.toContain('\x1b['); // No ANSI codes
-      expect(errors[0]).not.toContain('Error code: P1012'); // Header info excluded
-      expect(errors[0]).not.toContain('Validation Error Count'); // Footer info excluded
+      expect(errors[0].message).toContain('Error parsing attribute "@relation"');
+      expect(errors[0].message).toContain('A one-to-one relation must use unique fields');
+      expect(errors[0].line).toBe(18);
+      expect(errors[0].location).toBe('schema.prisma:18');
+      expect(errors[0].context).toBeDefined();
+      expect(errors[0].context).toHaveLength(3);
+      expect(errors[0].context?.[0]).toContain('17 |');
+      expect(errors[0].context?.[1]).toContain('18 |');
+      expect(errors[0].context?.[0]).toContain('userId Int');
+      expect(errors[0].message).not.toContain('\x1b['); // No ANSI codes
+      expect(errors[0].message).not.toContain('Error code: P1012'); // Header info excluded
+      expect(errors[0].message).not.toContain('Validation Error Count'); // Footer info excluded
+    });
+  });
+
+  describe('Real Prisma CLI output fixtures', () => {
+    const fixturesDir = join(__dirname, 'fixtures', 'prisma-errors');
+
+    it('should parse missing-relation error', () => {
+      const output = readFileSync(join(fixturesDir, 'missing-relation.txt'), 'utf-8');
+      const errors = parsePrismaErrors(output);
+
+      expect(errors).toHaveLength(1);
+      expect(errors[0].message).toContain('missing an opposite relation field');
+      expect(errors[0].line).toBe(14);
+      expect(errors[0].location).toContain('missing-relation.prisma:14');
+    });
+
+    it('should parse ambiguous-relation error', () => {
+      const output = readFileSync(join(fixturesDir, 'ambiguous-relation.txt'), 'utf-8');
+      const errors = parsePrismaErrors(output);
+
+      expect(errors).toHaveLength(1);
+      expect(errors[0].message).toContain('Ambiguous relation detected');
+      expect(errors[0].message).toContain('writtenPosts');
+      expect(errors[0].message).toContain('reviewedPosts');
+      expect(errors[0].line).toBe(14);
+    });
+
+    it('should parse multiple invalid-field-type errors', () => {
+      const output = readFileSync(join(fixturesDir, 'invalid-field-type.txt'), 'utf-8');
+      const errors = parsePrismaErrors(output);
+
+      // Should find exactly 2 distinct errors
+      expect(errors).toHaveLength(2);
+
+      // Should find InvalidType error
+      expect(errors.some((e) => e.message.includes('InvalidType'))).toBe(true);
+      expect(errors.some((e) => e.line === 14)).toBe(true);
+
+      // Should find AnotherBad error
+      expect(errors.some((e) => e.message.includes('AnotherBad'))).toBe(true);
+      expect(errors.some((e) => e.line === 15)).toBe(true);
+    });
+
+    it('should parse multiple syntax errors', () => {
+      const output = readFileSync(join(fixturesDir, 'syntax-error.txt'), 'utf-8');
+      const errors = parsePrismaErrors(output);
+
+      // Should find exactly 3 distinct errors
+      expect(errors).toHaveLength(3);
+
+      // Should find "not a valid field" error
+      expect(errors.some((e) => e.message.includes('not a valid field'))).toBe(true);
+
+      // Should find "already defined" error
+      expect(errors.some((e) => e.message.includes('already defined'))).toBe(true);
+
+      // Should find "at most one field" error
+      expect(errors.some((e) => e.message.includes('At most one field'))).toBe(true);
+
+      // All should have line numbers
+      expect(errors.every((e) => e.line !== undefined)).toBe(true);
+    });
+
+    it('should parse missing-opposite-field error', () => {
+      const output = readFileSync(join(fixturesDir, 'missing-opposite-field.txt'), 'utf-8');
+      const errors = parsePrismaErrors(output);
+
+      expect(errors).toHaveLength(1);
+      expect(errors[0].message).toContain('missing an opposite relation field');
+      expect(errors[0].line).toBe(29);
+    });
+
+    it('should parse one-to-one-without-unique error', () => {
+      const output = readFileSync(join(fixturesDir, 'one-to-one-without-unique.txt'), 'utf-8');
+      const errors = parsePrismaErrors(output);
+
+      expect(errors).toHaveLength(1);
+      expect(errors[0].message).toContain('one-to-one relation must use unique fields');
+      expect(errors[0].message).toContain('@unique');
+      expect(errors[0].line).toBe(21);
+      expect(errors[0].context).toBeDefined();
+      expect(errors[0].context!.length).toBeGreaterThan(0);
     });
   });
 });
