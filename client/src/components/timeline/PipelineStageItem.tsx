@@ -52,39 +52,44 @@ function getStageName(type: PipelineStageEvent['type']): string {
 }
 
 /**
+ * Get planning stage summary
+ */
+function getPlanningSummary(data: PipelineStageEvent['data']): string {
+  if (!data?.plan) return 'Generating architectural plan...';
+
+  const { databaseModels = [], apiRoutes = [], clientComponents = [] } = data.plan;
+  return `${databaseModels.length} models, ${apiRoutes.length} routes, ${clientComponents.length} components`;
+}
+
+/**
+ * Get validation stage summary
+ */
+function getValidationSummary(data: PipelineStageEvent['data']): string {
+  if (!data?.validationErrors) return 'Running Prisma + TypeScript checks...';
+
+  const errorCount = data.validationErrors.length;
+  if (errorCount === 0) return '✓ No errors found';
+
+  const iteration = data.iteration;
+  const suffix = iteration ? ` (Retry ${iteration}/${data.maxIterations ?? 3})` : '';
+  return `⚠️ Found ${errorCount} error${errorCount === 1 ? '' : 's'}${suffix}`;
+}
+
+/**
  * Get stage summary for timeline card
  */
 function getStageSummary(stage: PipelineStageEvent): string {
-  if (stage.status === 'failed') {
-    return `Failed`;
-  }
+  if (stage.status === 'failed') return 'Failed';
 
   switch (stage.type) {
-    case 'planning': {
-      if (stage.data?.plan) {
-        const { databaseModels = [], apiRoutes = [], clientComponents = [] } = stage.data.plan;
-        return `${databaseModels.length} models, ${apiRoutes.length} routes, ${clientComponents.length} components`;
-      }
-      return 'Generating architectural plan...';
-    }
-    case 'validation': {
-      if (stage.data?.validationErrors) {
-        const errorCount = stage.data.validationErrors.length;
-        if (errorCount === 0) {
-          return '✓ No errors found';
-        }
-        const iteration = stage.data.iteration;
-        const suffix = iteration ? ` (Retry ${iteration}/${stage.data.maxIterations ?? 3})` : '';
-        return `⚠️ Found ${errorCount} error${errorCount === 1 ? '' : 's'}${suffix}`;
-      }
-      return 'Running Prisma + TypeScript checks...';
-    }
-    case 'template_loading': {
+    case 'planning':
+      return getPlanningSummary(stage.data);
+    case 'validation':
+      return getValidationSummary(stage.data);
+    case 'template_loading':
       return stage.data?.templateName ? `Copied ${stage.data.templateName}` : 'Loading template...';
-    }
-    case 'completing': {
+    case 'completing':
       return stage.data?.summary || 'Finalizing generation...';
-    }
   }
 }
 
@@ -162,6 +167,76 @@ function renderStageContent(
 }
 
 /**
+ * Get status indicator (icon) for stage
+ */
+function getStatusIndicator(status: PipelineStageEvent['status']): string {
+  switch (status) {
+    case 'completed':
+      return '●';
+    case 'failed':
+      return '✕';
+    case 'started':
+      return '○';
+  }
+}
+
+/**
+ * Get status color class for stage indicator
+ */
+function getStatusColor(status: PipelineStageEvent['status']): string {
+  switch (status) {
+    case 'completed':
+      return 'text-green-600';
+    case 'failed':
+      return 'text-red-600';
+    case 'started':
+      return 'text-gray-500';
+  }
+}
+
+/**
+ * Get status label for accessibility
+ */
+function getStatusLabel(status: PipelineStageEvent['status']): string {
+  switch (status) {
+    case 'completed':
+      return 'Completed';
+    case 'failed':
+      return 'Failed';
+    case 'started':
+      return 'In progress';
+  }
+}
+
+/**
+ * Get detailed status text for modal
+ */
+function getDetailedStatusText(status: PipelineStageEvent['status']): string {
+  switch (status) {
+    case 'completed':
+      return 'Complete';
+    case 'failed':
+      return 'Failed';
+    case 'started':
+      return 'Running';
+  }
+}
+
+/**
+ * Get detailed status color class for modal
+ */
+function getDetailedStatusColor(status: PipelineStageEvent['status']): string {
+  switch (status) {
+    case 'completed':
+      return 'text-green-700 dark:text-green-400';
+    case 'failed':
+      return 'text-red-700 dark:text-red-400';
+    case 'started':
+      return 'text-yellow-700 dark:text-yellow-400';
+  }
+}
+
+/**
  * PipelineStageItem component - displays a pipeline stage in the timeline
  *
  * Shows stage name, status, and summary. Clicking opens a dialog with
@@ -190,22 +265,10 @@ export function PipelineStageItem({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <output
-                className={`${typography.caption} ${
-                  stage.status === 'completed'
-                    ? 'text-green-600'
-                    : stage.status === 'failed'
-                      ? 'text-red-600'
-                      : 'text-gray-500'
-                }`}
-                aria-label={
-                  stage.status === 'completed'
-                    ? 'Completed'
-                    : stage.status === 'failed'
-                      ? 'Failed'
-                      : 'In progress'
-                }
+                className={`${typography.caption} ${getStatusColor(stage.status)}`}
+                aria-label={getStatusLabel(stage.status)}
               >
-                {stage.status === 'completed' ? '●' : stage.status === 'failed' ? '✕' : '○'}
+                {getStatusIndicator(stage.status)}
               </output>
               <span className={`${typography.label} text-foreground`}>SYSTEM</span>
               <span className={`${typography.mono} text-foreground font-medium`}>
@@ -252,20 +315,8 @@ export function PipelineStageItem({
           <div className={spacing.controls}>
             <div className={`flex items-center gap-2 ${typography.body}`}>
               <span className="text-muted-foreground">Status:</span>
-              <span
-                className={`font-medium ${
-                  stage.status === 'failed'
-                    ? 'text-red-700 dark:text-red-400'
-                    : stage.status === 'completed'
-                      ? 'text-green-700 dark:text-green-400'
-                      : 'text-yellow-700 dark:text-yellow-400'
-                }`}
-              >
-                {stage.status === 'failed'
-                  ? 'Failed'
-                  : stage.status === 'completed'
-                    ? 'Complete'
-                    : 'Running'}
+              <span className={`font-medium ${getDetailedStatusColor(stage.status)}`}>
+                {getDetailedStatusText(stage.status)}
               </span>
             </div>
 

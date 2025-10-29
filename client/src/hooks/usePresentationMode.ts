@@ -26,6 +26,46 @@ interface KeyCommand {
 }
 
 /**
+ * Check if event target is an input element where we should ignore keyboard shortcuts
+ */
+function shouldIgnoreEvent(event: KeyboardEvent): boolean {
+  return event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement;
+}
+
+/**
+ * Check if a command can be executed based on its requirements
+ */
+function canExecuteCommand(
+  command: KeyCommand,
+  context: { isEnabled: boolean; isAutoPlaying: boolean },
+): boolean {
+  if (command.requiresEnabled && !context.isEnabled) return false;
+  if (command.requiresPaused && context.isAutoPlaying) return false;
+  return true;
+}
+
+/**
+ * Find and execute matching keyboard command
+ */
+function executeMatchingCommand(
+  event: KeyboardEvent,
+  commands: KeyCommand[],
+  context: { isEnabled: boolean; isAutoPlaying: boolean },
+): boolean {
+  for (const command of commands) {
+    if (!command.keys.includes(event.key)) continue;
+    if (!canExecuteCommand(command, context)) continue;
+
+    const handled = command.handler(event, context);
+    if (handled) {
+      event.preventDefault();
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Hook for managing presentation mode keyboard shortcuts
  *
  * Keyboard shortcuts:
@@ -114,28 +154,10 @@ export function usePresentationMode() {
     ];
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      // Ignore if user is typing in an input
-      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
-        return;
-      }
+      if (shouldIgnoreEvent(event)) return;
 
       const context = { isEnabled, isAutoPlaying };
-
-      // Find matching command
-      for (const command of keyCommands) {
-        if (!command.keys.includes(event.key)) continue;
-
-        // Check requirements
-        if (command.requiresEnabled && !isEnabled) continue;
-        if (command.requiresPaused && isAutoPlaying) continue;
-
-        // Execute handler
-        const handled = command.handler(event, context);
-        if (handled) {
-          event.preventDefault();
-          return;
-        }
-      }
+      executeMatchingCommand(event, keyCommands, context);
     };
 
     window.addEventListener('keydown', handleKeyDown);
