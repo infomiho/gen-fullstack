@@ -69,8 +69,10 @@ export function FileWorkspace({ files, onSaveFile }: FileWorkspaceProps) {
       <PanelGroup direction="horizontal" className="h-full">
         {/* File tree panel */}
         <Panel defaultSize={20} minSize={15} maxSize={40}>
-          <div className="h-full border-r overflow-y-auto px-4 py-6">
-            <FileTree files={files} selectedFile={selectedFile} onSelectFile={handleSelectFile} />
+          <div className="h-full border-r overflow-y-auto">
+            <div className="px-4 py-6">
+              <FileTree files={files} selectedFile={selectedFile} onSelectFile={handleSelectFile} />
+            </div>
           </div>
         </Panel>
 

@@ -91,7 +91,7 @@ export function SessionTabContent({
 
   if (activeTab === 'files') {
     return (
-      <div className="h-full">
+      <div className="h-full overflow-hidden">
         <FileWorkspace
           files={files}
           onSaveFile={(path, content) => {
