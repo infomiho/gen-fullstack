@@ -3,8 +3,6 @@ import {
   FileDown,
   FileUp,
   FolderTree,
-  Terminal,
-  Package,
   Box,
   Layout,
   Database,
@@ -24,19 +22,16 @@ export type ToolIconConfig = {
 
 /**
  * Returns the appropriate icon and color for a given tool name.
- * Provides smart detection for executeCommand based on command content.
  *
  * Color categories:
  * - Blue: File operations (writeFile, readFile, getFileTree)
- * - Green: Commands (executeCommand)
  * - Purple: Validation (validatePrismaSchema, validateTypeScript)
  * - Amber: Architecture/Planning (planArchitecture, requestBlock, installNpmDep)
  *
  * @param toolName - The name of the tool (e.g., 'writeFile', 'readFile')
- * @param args - Optional tool arguments for smart detection
  * @returns Object with icon component and color class
  */
-export function getToolIcon(toolName: string, args?: Record<string, unknown>): ToolIconConfig {
+export function getToolIcon(toolName: string): ToolIconConfig {
   switch (toolName) {
     // File operations - Blue
     case TOOL_NAMES.WRITE_FILE:
@@ -45,14 +40,6 @@ export function getToolIcon(toolName: string, args?: Record<string, unknown>): T
       return { icon: FileUp, color: 'text-blue-600 dark:text-blue-400' };
     case TOOL_NAMES.GET_FILE_TREE:
       return { icon: FolderTree, color: 'text-blue-600 dark:text-blue-400' };
-
-    // Command execution - Green
-    case TOOL_NAMES.EXECUTE_COMMAND: {
-      // Smart detection for npm/pnpm commands
-      const cmd = args?.command as string;
-      const icon = cmd?.startsWith('npm') || cmd?.startsWith('pnpm') ? Package : Terminal;
-      return { icon, color: 'text-green-600 dark:text-green-400' };
-    }
 
     // Package management - Amber
     case TOOL_NAMES.INSTALL_NPM_DEP:

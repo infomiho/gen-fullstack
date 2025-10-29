@@ -33,16 +33,6 @@ describe('tool-utils', () => {
       expect(result).toBe('Getting file tree');
     });
 
-    it('formats executeCommand summary', () => {
-      const result = getToolSummary('executeCommand', { command: 'npm install' });
-      expect(result).toBe('npm install');
-    });
-
-    it('formats executeCommand with unknown command', () => {
-      const result = getToolSummary('executeCommand', {});
-      expect(result).toBe('unknown command');
-    });
-
     it('formats requestBlock summary', () => {
       const result = getToolSummary('requestBlock', { blockId: 'auth-password' });
       expect(result).toBe('Asking for auth-password');
@@ -59,7 +49,7 @@ describe('tool-utils', () => {
         apiRoutes: [{}, {}, {}],
         clientComponents: [{}],
       });
-      expect(result).toBe('Planning: 2 models, 3 routes, 1 components');
+      expect(result).toBe('Planning: 2 models, 3 API routes, 1 components');
     });
 
     it('formats planArchitecture with only models', () => {
@@ -77,7 +67,7 @@ describe('tool-utils', () => {
         apiRoutes: [{}, {}],
         clientComponents: [],
       });
-      expect(result).toBe('Planning: 2 routes');
+      expect(result).toBe('Planning: 2 API routes');
     });
 
     it('formats planArchitecture with only components', () => {
@@ -95,7 +85,17 @@ describe('tool-utils', () => {
         apiRoutes: [{}],
         clientComponents: [],
       });
-      expect(result).toBe('Planning: 1 models, 1 routes');
+      expect(result).toBe('Planning: 1 models, 1 API routes');
+    });
+
+    it('formats planArchitecture with client routes', () => {
+      const result = getToolSummary('planArchitecture', {
+        databaseModels: [{}],
+        apiRoutes: [{}, {}],
+        clientRoutes: [{}, {}, {}],
+        clientComponents: [{}],
+      });
+      expect(result).toBe('Planning: 1 models, 2 API routes, 3 client routes, 1 components');
     });
 
     it('formats planArchitecture with empty arrays', () => {

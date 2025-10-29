@@ -8,6 +8,7 @@ import {
   TOOL_NAMES,
   type ApiRoute,
   type ClientComponent,
+  type ClientRoute,
   type DatabaseModel,
 } from '@gen-fullstack/shared';
 import { PlanArchitectureDisplay } from '../components/PlanArchitectureDisplay';
@@ -30,25 +31,22 @@ function getFileTreeSummary(): string {
   return 'Getting file tree';
 }
 
-function getExecuteCommandSummary(args: Record<string, unknown>): string {
-  const { command } = args as { command?: string };
-  return command || 'unknown command';
-}
-
 function getRequestBlockSummary(args: Record<string, unknown>): string {
   const { blockId } = args as { blockId?: string };
   return `Asking for ${blockId || 'unknown block'}`;
 }
 
 function getPlanArchitectureSummary(args: Record<string, unknown>): string {
-  const { databaseModels, apiRoutes, clientComponents } = args as {
+  const { databaseModels, apiRoutes, clientRoutes, clientComponents } = args as {
     databaseModels?: Array<unknown>;
     apiRoutes?: Array<unknown>;
+    clientRoutes?: Array<unknown>;
     clientComponents?: Array<unknown>;
   };
   const parts = [
     databaseModels?.length && `${databaseModels.length} models`,
-    apiRoutes?.length && `${apiRoutes.length} routes`,
+    apiRoutes?.length && `${apiRoutes.length} API routes`,
+    clientRoutes?.length && `${clientRoutes.length} client routes`,
     clientComponents?.length && `${clientComponents.length} components`,
   ].filter(Boolean);
   return `Planning: ${parts.join(', ')}`;
@@ -76,7 +74,6 @@ const toolSummaryHandlers: Record<string, (args: Record<string, unknown>) => str
   [TOOL_NAMES.WRITE_FILE]: getWriteFileSummary,
   [TOOL_NAMES.READ_FILE]: getReadFileSummary,
   [TOOL_NAMES.GET_FILE_TREE]: getFileTreeSummary,
-  [TOOL_NAMES.EXECUTE_COMMAND]: getExecuteCommandSummary,
   [TOOL_NAMES.REQUEST_BLOCK]: getRequestBlockSummary,
   [TOOL_NAMES.PLAN_ARCHITECTURE]: getPlanArchitectureSummary,
   [TOOL_NAMES.INSTALL_NPM_DEP]: getInstallNpmDepSummary,
@@ -171,26 +168,12 @@ export function renderToolParameters(
     );
   }
 
-  // Custom formatting for executeCommand
-  if (toolName === TOOL_NAMES.EXECUTE_COMMAND) {
-    const { command } = args as { command?: string };
-    return (
-      <div className={typography.body}>
-        <div className="text-muted-foreground mb-1">command:</div>
-        <pre
-          className={`bg-muted p-3 ${radius.sm} border border-border overflow-x-auto ${typography.mono} text-foreground`}
-        >
-          {command || 'unknown'}
-        </pre>
-      </div>
-    );
-  }
-
   // Custom formatting for planArchitecture
   if (toolName === TOOL_NAMES.PLAN_ARCHITECTURE) {
-    const { databaseModels, apiRoutes, clientComponents } = args as {
+    const { databaseModels, apiRoutes, clientRoutes, clientComponents } = args as {
       databaseModels?: DatabaseModel[];
       apiRoutes?: ApiRoute[];
+      clientRoutes?: ClientRoute[];
       clientComponents?: ClientComponent[];
     };
 
@@ -198,6 +181,7 @@ export function renderToolParameters(
       <PlanArchitectureDisplay
         databaseModels={databaseModels}
         apiRoutes={apiRoutes}
+        clientRoutes={clientRoutes}
         clientComponents={clientComponents}
         toolId={toolId}
         isSectionExpanded={isSectionExpanded}

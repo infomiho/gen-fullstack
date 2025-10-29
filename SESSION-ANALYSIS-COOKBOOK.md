@@ -388,9 +388,10 @@ EOF
 
 **What to check**:
 - ✅ **writeFile**: Check file paths and content being written
-- ✅ **executeCommand**: Look for npm install, prisma generate, npm run dev
-- ✅ **listFiles**: Check if LLM is exploring the directory structure
 - ✅ **readFile**: See what files LLM is reading (debugging itself?)
+- ✅ **getFileTree**: Check if LLM is exploring the directory structure
+- ✅ **validateTypeScript/validatePrismaSchema**: Check validation results (if enabled)
+- ℹ️ **executeCommand** (deprecated): Old sessions may have this; command execution now happens in Docker phases
 
 ---
 

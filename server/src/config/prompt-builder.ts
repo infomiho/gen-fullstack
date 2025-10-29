@@ -366,7 +366,8 @@ export function buildUserPrompt(
 Use writeFile, readFile, and other available tools to:
 1. Implement the database models in prisma/schema.prisma
 2. Implement the API routes in server/src/routes/
-3. Implement the client components in client/src/
+3. Implement the client routes in client/src/App.tsx
+4. Implement the client components in client/src/
 
 Work systematically through each part of the plan. Call tools to read existing files and write new implementations.`,
     );
@@ -406,6 +407,13 @@ function formatApiRoute(route: NonNullable<ArchitecturePlan['apiRoutes']>[0]): s
 }
 
 /**
+ * Format a client route into string lines
+ */
+function formatClientRoute(route: NonNullable<ArchitecturePlan['clientRoutes']>[0]): string[] {
+  return [`- ${route.path} → ${route.componentName}`, `  ${route.description}`];
+}
+
+/**
  * Format a client component into string lines
  */
 function formatClientComponent(
@@ -438,6 +446,7 @@ function formatArchitecturalPlan(plan: ArchitecturePlan): string {
     'ARCHITECTURAL PLAN:',
     ...formatPlanSection('Database Models', plan.databaseModels, formatDatabaseModel),
     ...formatPlanSection('API Routes', plan.apiRoutes, formatApiRoute),
+    ...formatPlanSection('Client Routes', plan.clientRoutes, formatClientRoute),
     ...formatPlanSection('Client Components', plan.clientComponents, formatClientComponent),
   ];
 

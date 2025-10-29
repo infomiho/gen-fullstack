@@ -209,7 +209,6 @@ AVAILABLE TOOLS:
 - readFile: Read file contents to understand context
 - writeFile: Write corrected file contents
 - getFileTree: List project structure if needed
-- executeCommand: Run allowed commands (npm install, etc.)
 
 WORKFLOW:
 1. Read the affected files to understand the current code
@@ -341,8 +340,8 @@ REFERENTIAL ACTIONS GUIDE:
 - Default if not specified: onDelete: Restrict, onUpdate: Cascade
 
 AFTER FIXING PRISMA SCHEMA:
-Always run "npx prisma generate" with executeCommand to regenerate @prisma/client types.
-This updates TypeScript types to match your new schema.`;
+The system will automatically run "npx prisma generate" to regenerate @prisma/client types.
+This happens in the build phase and updates TypeScript types to match your new schema.`;
   }
 
   /**

@@ -162,8 +162,8 @@ export const MixedTools: Story = {
       },
       {
         id: 'tool-exec',
-        name: 'executeCommand',
-        args: { command: 'npm install' },
+        name: 'validateTypeScript',
+        args: { target: 'both' },
         timestamp: Date.now() - 4000,
       },
       {
@@ -191,8 +191,8 @@ export const MixedTools: Story = {
       },
       {
         id: 'result-tool-exec',
-        toolName: 'executeCommand',
-        result: 'added 234 packages in 3s',
+        toolName: 'validateTypeScript',
+        result: 'All TypeScript checks passed for both. No type errors found.',
         timestamp: Date.now() - 3500,
       },
       {

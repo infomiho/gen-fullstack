@@ -4,14 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as databaseService from '../../services/database.service.js';
 import * as filesystemService from '../../services/filesystem.service.js';
 import * as commandService from '../../services/command.service.js';
-import {
-  executeCommand,
-  getFileTree,
-  installNpmDep,
-  readFile,
-  validateTypeScript,
-  writeFile,
-} from '../index.js';
+import { getFileTree, installNpmDep, readFile, validateTypeScript, writeFile } from '../index.js';
 
 describe('Tools', () => {
   const sessionId = 'test-session-123';
@@ -146,73 +139,6 @@ describe('Tools', () => {
       );
 
       expect(result).toContain('Empty project directory');
-    });
-  });
-
-  describe('executeCommand tool', () => {
-    it('should execute whitelisted commands', async () => {
-      const result = await executeCommand.execute?.(
-        { command: 'echo "Hello from test"', reason: 'Testing command execution' },
-        context as any,
-      );
-
-      expect(result).toContain('Hello from test');
-    });
-
-    it('should execute pwd command', async () => {
-      const result = await executeCommand.execute?.(
-        { command: 'pwd', reason: 'Testing pwd command' },
-        context as any,
-      );
-
-      expect(result).toContain(sandboxPath);
-    });
-
-    it('should reject non-whitelisted commands', async () => {
-      await expect(
-        executeCommand.execute?.(
-          { command: 'rm -rf /', reason: 'Testing security' },
-          context as any,
-        ),
-      ).rejects.toThrow('not whitelisted');
-    });
-
-    it('should reject command chaining with &&', async () => {
-      await expect(
-        executeCommand.execute?.(
-          { command: 'echo "test" && rm file.txt', reason: 'Testing security' },
-          context as any,
-        ),
-      ).rejects.toThrow('chaining');
-    });
-
-    it('should reject command chaining with ||', async () => {
-      await expect(
-        executeCommand.execute?.(
-          { command: 'echo "test" || echo "fail"', reason: 'Testing security' },
-          context as any,
-        ),
-      ).rejects.toThrow('chaining');
-    });
-
-    it('should reject command chaining with ;', async () => {
-      await expect(
-        executeCommand.execute?.(
-          { command: 'echo "test"; echo "another"', reason: 'Testing security' },
-          context as any,
-        ),
-      ).rejects.toThrow('chaining');
-    });
-
-    it('should handle command errors gracefully', async () => {
-      const result = await executeCommand.execute?.(
-        { command: 'ls nonexistent-file-xyz.txt', reason: 'Testing error handling' },
-        context as any,
-      );
-
-      // executeCommand returns formatted results, doesn't throw
-      expect(result).toContain('failed');
-      expect(result).toContain('exit code');
     });
   });
 
@@ -646,7 +572,6 @@ describe('getToolsForCapability', () => {
       expect(filteredTools).toHaveProperty('writeFile');
       expect(filteredTools).toHaveProperty('readFile');
       expect(filteredTools).toHaveProperty('getFileTree');
-      expect(filteredTools).toHaveProperty('executeCommand');
       expect(filteredTools).toHaveProperty('planArchitecture');
       expect(filteredTools).toHaveProperty('installNpmDep');
       expect(filteredTools).toHaveProperty('validatePrismaSchema');
@@ -672,7 +597,6 @@ describe('getToolsForCapability', () => {
       expect(filteredTools).toHaveProperty('writeFile');
       expect(filteredTools).toHaveProperty('readFile');
       expect(filteredTools).toHaveProperty('getFileTree');
-      expect(filteredTools).toHaveProperty('executeCommand');
 
       // Should include installNpmDep (inputMode: 'template')
       expect(filteredTools).toHaveProperty('installNpmDep');
@@ -683,8 +607,8 @@ describe('getToolsForCapability', () => {
       expect(filteredTools).not.toHaveProperty('validatePrismaSchema');
       expect(filteredTools).not.toHaveProperty('validateTypeScript');
 
-      // Should have 5 tools (4 base + 1 template)
-      expect(Object.keys(filteredTools).length).toBe(5);
+      // Should have 4 tools (3 base + 1 template)
+      expect(Object.keys(filteredTools).length).toBe(4);
     });
   });
 
@@ -702,7 +626,6 @@ describe('getToolsForCapability', () => {
       expect(filteredTools).toHaveProperty('writeFile');
       expect(filteredTools).toHaveProperty('readFile');
       expect(filteredTools).toHaveProperty('getFileTree');
-      expect(filteredTools).toHaveProperty('executeCommand');
 
       // Should include requestBlock (buildingBlocks enabled)
       expect(filteredTools).toHaveProperty('requestBlock');
@@ -713,8 +636,8 @@ describe('getToolsForCapability', () => {
       expect(filteredTools).not.toHaveProperty('validatePrismaSchema');
       expect(filteredTools).not.toHaveProperty('validateTypeScript');
 
-      // Should have 5 tools (4 base + 1 building block)
-      expect(Object.keys(filteredTools).length).toBe(5);
+      // Should have 4 tools (3 base + 1 building block)
+      expect(Object.keys(filteredTools).length).toBe(4);
     });
   });
 
@@ -732,7 +655,6 @@ describe('getToolsForCapability', () => {
       expect(filteredTools).toHaveProperty('writeFile');
       expect(filteredTools).toHaveProperty('readFile');
       expect(filteredTools).toHaveProperty('getFileTree');
-      expect(filteredTools).toHaveProperty('executeCommand');
 
       // Should include validation tools
       expect(filteredTools).toHaveProperty('validatePrismaSchema');
@@ -743,8 +665,8 @@ describe('getToolsForCapability', () => {
       expect(filteredTools).not.toHaveProperty('installNpmDep');
       expect(filteredTools).not.toHaveProperty('requestBlock');
 
-      // Should have 6 tools (4 base + 2 compiler check)
-      expect(Object.keys(filteredTools).length).toBe(6);
+      // Should have 5 tools (3 base + 2 compiler check)
+      expect(Object.keys(filteredTools).length).toBe(5);
     });
   });
 
@@ -762,7 +684,6 @@ describe('getToolsForCapability', () => {
       expect(filteredTools).toHaveProperty('writeFile');
       expect(filteredTools).toHaveProperty('readFile');
       expect(filteredTools).toHaveProperty('getFileTree');
-      expect(filteredTools).toHaveProperty('executeCommand');
 
       // Should include planArchitecture
       expect(filteredTools).toHaveProperty('planArchitecture');
@@ -773,8 +694,8 @@ describe('getToolsForCapability', () => {
       expect(filteredTools).not.toHaveProperty('validatePrismaSchema');
       expect(filteredTools).not.toHaveProperty('validateTypeScript');
 
-      // Should have 5 tools (4 base + 1 plan)
-      expect(Object.keys(filteredTools).length).toBe(5);
+      // Should have 4 tools (3 base + 1 plan)
+      expect(Object.keys(filteredTools).length).toBe(4);
     });
   });
 
@@ -792,7 +713,6 @@ describe('getToolsForCapability', () => {
       expect(filteredTools).toHaveProperty('writeFile');
       expect(filteredTools).toHaveProperty('readFile');
       expect(filteredTools).toHaveProperty('getFileTree');
-      expect(filteredTools).toHaveProperty('executeCommand');
 
       // Should NOT include any capability-specific tools
       expect(filteredTools).not.toHaveProperty('planArchitecture');
@@ -801,8 +721,8 @@ describe('getToolsForCapability', () => {
       expect(filteredTools).not.toHaveProperty('validatePrismaSchema');
       expect(filteredTools).not.toHaveProperty('validateTypeScript');
 
-      // Should only have 4 base tools
-      expect(Object.keys(filteredTools).length).toBe(4);
+      // Should only have 3 base tools
+      expect(Object.keys(filteredTools).length).toBe(3);
     });
   });
 
@@ -829,8 +749,8 @@ describe('getToolsForCapability', () => {
       expect(Object.keys(tools1).sort()).toEqual(Object.keys(tools5).sort());
 
       // Verify they both have only base tools
-      expect(Object.keys(tools1).length).toBe(4);
-      expect(Object.keys(tools5).length).toBe(4);
+      expect(Object.keys(tools1).length).toBe(3);
+      expect(Object.keys(tools5).length).toBe(3);
     });
 
     it('should not affect tool composition even with capabilities enabled', () => {

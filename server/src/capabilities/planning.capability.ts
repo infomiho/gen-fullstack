@@ -52,7 +52,7 @@ export class PlanningCapability extends BaseCapability {
       // Define the planning tool that the LLM will use to structure the plan
       const planArchitectureTool = tool({
         description:
-          'Create an architectural plan for the application (database models, API routes, components). Use this to design the application structure before implementation.',
+          'Create an architectural plan for the application (database models, API routes, client routes, components). Use this to design the application structure before implementation.',
         inputSchema: z.object({
           databaseModels: z
             .array(
@@ -77,6 +77,16 @@ export class PlanningCapability extends BaseCapability {
               }),
             )
             .describe('RESTful API endpoints'),
+          clientRoutes: z
+            .array(
+              z.object({
+                path: z.string().describe('Route path (e.g., "/", "/repos", "/repos/:id")'),
+                componentName: z.string().describe('Component name (e.g., "HomePage", "RepoPage")'),
+                description: z.string().describe('What this route displays'),
+              }),
+            )
+            .optional()
+            .describe('Client routes mapping URL paths to page components'),
           clientComponents: z
             .array(
               z.object({
@@ -90,11 +100,12 @@ export class PlanningCapability extends BaseCapability {
             )
             .describe('React components to create'),
         }),
-        execute: async ({ databaseModels, apiRoutes, clientComponents }) => {
+        execute: async ({ databaseModels, apiRoutes, clientRoutes, clientComponents }) => {
           // Tool validates that the LLM provided structured plan data
           return {
             databaseModels,
             apiRoutes,
+            clientRoutes,
             clientComponents,
           };
         },
@@ -114,9 +125,13 @@ IMPORTANT INSTRUCTIONS:
 1. **Call the planArchitecture tool EXACTLY ONCE** with a complete plan
 2. Design database models with proper Prisma field syntax
 3. Design RESTful API endpoints that follow REST conventions
-4. Design React components with clear responsibilities
-5. Ensure the plan is coherent and all pieces work together
-6. After calling the tool, respond with a brief summary of the plan
+4. **Design client routes** - Map URL paths to page components:
+   - Define routes users can navigate to
+   - Use route parameters that match your API endpoints (e.g., :id, :repoId)
+   - Include a catchall route (*) for 404 pages
+5. Design React components with clear responsibilities
+6. Ensure the plan is coherent and all pieces work together
+7. After calling the tool, respond with a brief summary of the plan
 
 Do NOT write any code - just create the architectural plan.`;
 
@@ -127,7 +142,8 @@ ${prompt}
 Call the planArchitecture tool with a complete plan covering:
 1. Database models (Prisma schema)
 2. API routes (RESTful endpoints)
-3. Client components (React)`;
+3. Client routes (URL paths mapped to page components)
+4. Client components (React)`;
 
       let plan: ArchitecturePlan | null = null;
 
@@ -193,7 +209,7 @@ Call the planArchitecture tool with a complete plan covering:
 
       this.emitMessage(
         'assistant',
-        `✓ Plan created with ${validatedPlan.databaseModels?.length ?? 0} models, ${validatedPlan.apiRoutes?.length ?? 0} routes, ${validatedPlan.clientComponents?.length ?? 0} components`,
+        `✓ Plan created with ${validatedPlan.databaseModels?.length ?? 0} models, ${validatedPlan.apiRoutes?.length ?? 0} API routes, ${validatedPlan.clientRoutes?.length ?? 0} client routes, ${validatedPlan.clientComponents?.length ?? 0} components`,
         sessionId,
       );
 

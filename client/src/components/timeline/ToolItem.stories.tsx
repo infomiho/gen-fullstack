@@ -56,29 +56,27 @@ export const AllToolTypes: Story = {
         }}
       />
 
-      {/* Commands */}
+      {/* Package Management */}
       <ToolItem
         {...args}
         tool={{
           ...args.tool,
-          name: 'executeCommand',
-          args: { command: 'npm install react react-dom' },
+          name: 'installNpmDep',
+          args: {
+            target: 'client',
+            dependencies: { react: '^19.0.0', 'react-dom': '^19.0.0' },
+          },
         }}
       />
       <ToolItem
         {...args}
         tool={{
           ...args.tool,
-          name: 'executeCommand',
-          args: { command: 'pnpm add @radix-ui/react-dialog' },
-        }}
-      />
-      <ToolItem
-        {...args}
-        tool={{
-          ...args.tool,
-          name: 'executeCommand',
-          args: { command: 'ls -la' },
+          name: 'installNpmDep',
+          args: {
+            target: 'server',
+            devDependencies: { '@types/node': '^20.0.0' },
+          },
         }}
       />
 
@@ -151,8 +149,8 @@ export const Running: Story = {
   args: {
     tool: {
       id: '1',
-      name: 'executeCommand',
-      args: { command: 'npm install' },
+      name: 'validateTypeScript',
+      args: { target: 'both' },
       isComplete: false,
       timestamp: Date.now(),
     },

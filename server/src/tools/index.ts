@@ -13,8 +13,9 @@ import { extractToolContext, type ToolContext } from './tool-utils.js';
 /**
  * Tool definitions for LLM-powered app generation
  *
- * These tools allow the LLM to interact with the filesystem and execute commands
- * within a sandboxed environment for each session.
+ * These tools allow the LLM to interact with the filesystem within a sandboxed
+ * environment for each session. Command execution (npm install, prisma generate, etc.)
+ * is handled by explicit phases in the Docker service, not via LLM tool calls.
  */
 
 /**
@@ -137,35 +138,6 @@ export const getFileTree = tool({
 });
 
 /**
- * Execute a shell command
- *
- * Runs a whitelisted command in the project directory.
- * Useful for installing dependencies, building, or running tests.
- */
-export const executeCommand = tool({
-  description: `Execute a shell command in the project directory.
-Allowed commands: ${commandService.getAllowedCommands().join(', ')}.
-Use this to install packages (npm install), run builds (npm build), or execute the app.`,
-  inputSchema: z.object({
-    command: z
-      .string()
-      .describe('Command to execute (e.g., "npm install", "npm dev", "npm build")'),
-    reason: z
-      .string()
-      .min(10)
-      .max(200)
-      .describe(
-        'Brief explanation of why you need to execute this command and what it will accomplish (10-200 characters)',
-      ),
-  }),
-  execute: async ({ command }, { experimental_context: context }) => {
-    const { sessionId } = extractToolContext(context);
-    const result = await commandService.executeCommand(sessionId, command);
-    return commandService.formatCommandResult(result);
-  },
-});
-
-/**
  * Plan the application architecture before implementation
  *
  * Use this tool to create a structured plan with database schema,
@@ -173,7 +145,7 @@ Use this to install packages (npm install), run builds (npm build), or execute t
  */
 export const planArchitecture = tool({
   description:
-    'Create an architectural plan for the application (database models, API routes, components). Use this before implementing to ensure a well-structured app.\n\nIMPORTANT - ID Types: Use String for IDs from external APIs/services. External IDs can be large numbers, UUIDs, or custom formats. Use Int only for internal auto-increment IDs.',
+    'Create an architectural plan for the application (database models, API routes, client routes, components). Use this before implementing to ensure a well-structured app.\n\nIMPORTANT - ID Types: Use String for IDs from external APIs/services. External IDs can be large numbers, UUIDs, or custom formats. Use Int only for internal auto-increment IDs.',
   inputSchema: z.object({
     databaseModels: z
       .array(
@@ -198,6 +170,16 @@ export const planArchitecture = tool({
         }),
       )
       .describe('RESTful API endpoints'),
+    clientRoutes: z
+      .array(
+        z.object({
+          path: z.string().describe('Route path (e.g., "/", "/repos", "/repos/:id")'),
+          componentName: z.string().describe('Component name (e.g., "HomePage", "RepoPage")'),
+          description: z.string().describe('What this route displays'),
+        }),
+      )
+      .optional()
+      .describe('Client routes mapping URL paths to page components'),
     clientComponents: z
       .array(
         z.object({
@@ -213,10 +195,11 @@ export const planArchitecture = tool({
       .max(200)
       .describe('Why you are creating this plan and what problem it solves (10-200 characters)'),
   }),
-  execute: async ({ databaseModels, apiRoutes, clientComponents }) => {
+  execute: async ({ databaseModels, apiRoutes, clientRoutes, clientComponents }) => {
     // Tool validates that the LLM provided structured plan data
     // No longer emits verbose plan to timeline - LLM has the plan context already
-    return `Plan created successfully with ${databaseModels.length} database models, ${apiRoutes.length} API routes, and ${clientComponents.length} client components. Proceed with implementation following this structure.`;
+    const routeCount = clientRoutes?.length ?? 0;
+    return `Plan created successfully with ${databaseModels.length} database models, ${apiRoutes.length} API routes, ${routeCount} client routes, and ${clientComponents.length} client components. Proceed with implementation following this structure.`;
   },
 });
 
@@ -671,23 +654,24 @@ Example:
 /**
  * Base tools - always available regardless of configuration
  *
- * These tools provide fundamental file system and command execution capabilities
- * that are needed in all generation modes:
+ * These tools provide fundamental file system capabilities that are needed
+ * in all generation modes:
  * - writeFile: Create or update files in the session workspace
  * - readFile: Read existing file contents
  * - getFileTree: List complete project structure
- * - executeCommand: Execute whitelisted shell commands
+ *
+ * Note: Command execution (npm install, prisma generate, etc.) happens in
+ * explicit phases controlled by the Docker service, not via LLM tool calls.
  *
  * @example
  * // Base tools are included in all capability configurations
  * const tools = getToolsForCapability({ inputMode: 'naive', ... });
- * // tools always includes: writeFile, readFile, getFileTree, executeCommand
+ * // tools always includes: writeFile, readFile, getFileTree
  */
 export const baseTools = {
   writeFile,
   readFile,
   getFileTree,
-  executeCommand,
 };
 
 /**
@@ -783,7 +767,7 @@ export const tools = {
  * Get tools composed by capability configuration
  *
  * Composes tool groups based on enabled capabilities:
- * - Base tools: always included (writeFile, readFile, getFileTree, executeCommand)
+ * - Base tools: always included (writeFile, readFile, getFileTree)
  * - Plan tools: included when planning is enabled
  * - Template tools: included when inputMode is 'template'
  * - Compiler check tools: included when compilerChecks is enabled

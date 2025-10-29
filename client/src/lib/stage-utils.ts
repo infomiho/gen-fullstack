@@ -53,8 +53,13 @@ export function getStageName(type: PipelineStageEvent['type']): string {
 function getPlanningSummary(data: PipelineStageEvent['data']): string {
   if (!data?.plan) return 'Generating architectural plan...';
 
-  const { databaseModels = [], apiRoutes = [], clientComponents = [] } = data.plan;
-  return `${databaseModels.length} models, ${apiRoutes.length} routes, ${clientComponents.length} components`;
+  const {
+    databaseModels = [],
+    apiRoutes = [],
+    clientRoutes = [],
+    clientComponents = [],
+  } = data.plan;
+  return `${databaseModels.length} models, ${apiRoutes.length} API routes, ${clientRoutes.length} client routes, ${clientComponents.length} components`;
 }
 
 /**

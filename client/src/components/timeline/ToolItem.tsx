@@ -60,7 +60,7 @@ export function ToolItem({
   onToggleSection,
 }: ToolItemProps) {
   const colors = roleColors.tool;
-  const { icon: ToolIcon, color: iconColor } = getToolIcon(tool.name, tool.args);
+  const { icon: ToolIcon, color: iconColor } = getToolIcon(tool.name);
 
   return (
     <Dialog.Root open={isOpen} onOpenChange={onOpenChange}>

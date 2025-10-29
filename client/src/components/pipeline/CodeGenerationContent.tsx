@@ -14,8 +14,8 @@ export function CodeGenerationContent({ status }: CodeGenerationContentProps) {
     <div className={`${typography.body}`}>
       <div className="text-foreground mb-2">
         {status === 'started'
-          ? 'The LLM is generating code using the available tools (writeFile, readFile, executeCommand, etc.).'
-          : 'Code generation completed. The LLM has written all necessary files and executed required commands.'}
+          ? 'The LLM is generating code using the available tools (writeFile, readFile, getFileTree, etc.).'
+          : 'Code generation completed. The LLM has written all necessary files.'}
       </div>
       <div className="text-muted-foreground text-sm">
         Check the timeline below for detailed tool calls and LLM messages.

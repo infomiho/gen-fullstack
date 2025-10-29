@@ -46,10 +46,11 @@ The system uses a unified orchestrator pattern for code generation:
 - Handles error recovery and timeout management
 
 **Capability System** (`server/src/capabilities/`):
-- **BaseCapability**: Core file system operations (read, write, getFileTree, executeCommand)
+- **BaseCapability**: Core file system operations (read, write, getFileTree)
 - **UnifiedCodeGenerationCapability**: Main generation logic with composable features
 - **TemplateCapability**: Template-specific operations (npm dependencies)
 - Tools are filtered based on capability configuration (naive vs template, planning, compiler checks, building blocks)
+- Command execution (npm install, prisma generate, etc.) happens in explicit Docker phases, not via LLM tools
 
 **Prompt Builder** (`server/src/config/prompt-builder.ts`):
 - Constructs system prompts based on capability configuration
@@ -104,7 +105,8 @@ Tools available to the LLM, organized by capability configuration:
 - `readFile` - Read file contents
 - `writeFile` - Create/update files
 - `getFileTree` - List directory contents and file structure
-- `executeCommand` - Run shell commands
+
+**Note**: Command execution (npm install, prisma generate, npm run dev) is handled by explicit phases in the Docker service, not via LLM tool calls. This ensures reliable execution and proper sequencing.
 
 **Planning Tools** (available when `planning: true`):
 - `planArchitecture` - Generate architectural plan (database schema, API endpoints, components)

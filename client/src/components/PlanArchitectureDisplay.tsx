@@ -7,15 +7,16 @@
 
 import * as Collapsible from '@radix-ui/react-collapsible';
 import { ChevronDown } from 'lucide-react';
-import type { ApiRoute, ClientComponent, DatabaseModel } from '@gen-fullstack/shared';
+import type { ApiRoute, ClientComponent, ClientRoute, DatabaseModel } from '@gen-fullstack/shared';
 import { radius, spacing, typography } from '../lib/design-tokens';
 
 // Re-export types for convenience
-export type { ApiRoute, ClientComponent, DatabaseModel };
+export type { ApiRoute, ClientComponent, ClientRoute, DatabaseModel };
 
 export interface PlanArchitectureDisplayProps {
   databaseModels?: DatabaseModel[];
   apiRoutes?: ApiRoute[];
+  clientRoutes?: ClientRoute[];
   clientComponents?: ClientComponent[];
   /** Tool ID for state management (optional, enables controlled mode) */
   toolId?: string;
@@ -28,6 +29,7 @@ export interface PlanArchitectureDisplayProps {
 export function PlanArchitectureDisplay({
   databaseModels,
   apiRoutes,
+  clientRoutes,
   clientComponents,
   toolId,
   isSectionExpanded,
@@ -151,6 +153,37 @@ export function PlanArchitectureDisplay({
                     </div>
                     <div className="text-muted-foreground text-sm">{route.description}</div>
                   </div>
+                </div>
+              ))}
+            </div>
+          </Collapsible.Content>
+        </Collapsible.Root>
+      )}
+
+      {/* Client Routes Section */}
+      {clientRoutes && clientRoutes.length > 0 && (
+        <Collapsible.Root {...getSectionState('clientRoutes')} className="mb-4">
+          <Collapsible.Trigger
+            className="flex items-center gap-2 w-full group"
+            aria-label={`Toggle client routes section (${clientRoutes.length} routes)`}
+          >
+            <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform group-data-[state=closed]:-rotate-90" />
+            <div className={`${typography.label} text-foreground`}>
+              🗺️ Client Routes ({clientRoutes.length})
+            </div>
+          </Collapsible.Trigger>
+          <Collapsible.Content className="mt-2">
+            <div className={`${spacing.list}`}>
+              {clientRoutes.map((route) => (
+                <div key={route.path} className="mb-2 last:mb-0">
+                  <div className="flex gap-3 items-center">
+                    <div className={`${typography.mono} text-foreground font-medium`}>
+                      {route.path}
+                    </div>
+                    <div className="text-muted-foreground">→</div>
+                    <div className={`${typography.mono} text-blue-500`}>{route.componentName}</div>
+                  </div>
+                  <div className="text-muted-foreground text-sm ml-4">{route.description}</div>
                 </div>
               ))}
             </div>

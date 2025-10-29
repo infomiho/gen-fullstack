@@ -185,11 +185,21 @@ export interface ClientComponent {
 }
 
 /**
+ * Client route definition for architecture planning
+ */
+export interface ClientRoute {
+  path: string;
+  componentName: string;
+  description: string;
+}
+
+/**
  * Complete architecture plan from planArchitecture tool
  */
 export interface ArchitecturePlan {
   databaseModels?: DatabaseModel[];
   apiRoutes?: ApiRoute[];
+  clientRoutes?: ClientRoute[];
   clientComponents?: ClientComponent[];
 }
 

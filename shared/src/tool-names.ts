@@ -16,7 +16,6 @@ export const TOOL_NAMES = {
   WRITE_FILE: 'writeFile',
   READ_FILE: 'readFile',
   GET_FILE_TREE: 'getFileTree',
-  EXECUTE_COMMAND: 'executeCommand',
 
   // Planning tools (available when planning: true)
   PLAN_ARCHITECTURE: 'planArchitecture',
@@ -42,12 +41,7 @@ export type ToolName = (typeof TOOL_NAMES)[keyof typeof TOOL_NAMES];
  * Tool categories for documentation and organization
  */
 export const TOOL_CATEGORIES = {
-  base: [
-    TOOL_NAMES.WRITE_FILE,
-    TOOL_NAMES.READ_FILE,
-    TOOL_NAMES.GET_FILE_TREE,
-    TOOL_NAMES.EXECUTE_COMMAND,
-  ],
+  base: [TOOL_NAMES.WRITE_FILE, TOOL_NAMES.READ_FILE, TOOL_NAMES.GET_FILE_TREE],
   planning: [TOOL_NAMES.PLAN_ARCHITECTURE],
   template: [TOOL_NAMES.INSTALL_NPM_DEP],
   compilerChecks: [TOOL_NAMES.VALIDATE_PRISMA_SCHEMA, TOOL_NAMES.VALIDATE_TYPESCRIPT],

@@ -98,7 +98,32 @@ describe('stage-utils', () => {
             },
           },
         };
-        expect(getStageSummary(stage)).toBe('1 models, 1 routes, 1 components');
+        expect(getStageSummary(stage)).toBe(
+          '1 models, 1 API routes, 0 client routes, 1 components',
+        );
+      });
+
+      it('should show client route counts when plan includes routes', () => {
+        const stage: PipelineStageEvent = {
+          id: '1',
+          type: 'planning',
+          status: 'completed',
+          timestamp: Date.now(),
+          data: {
+            plan: {
+              databaseModels: [{ name: 'User', fields: [] }],
+              apiRoutes: [{ method: 'GET', path: '/api/users', description: 'Get users' }],
+              clientRoutes: [
+                { path: '/', componentName: 'HomePage', description: 'Home' },
+                { path: '/users', componentName: 'UserListPage', description: 'Users list' },
+              ],
+              clientComponents: [{ name: 'UserList', purpose: 'Display users' }],
+            },
+          },
+        };
+        expect(getStageSummary(stage)).toBe(
+          '1 models, 1 API routes, 2 client routes, 1 components',
+        );
       });
     });
 

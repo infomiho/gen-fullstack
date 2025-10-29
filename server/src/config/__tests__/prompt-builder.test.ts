@@ -292,6 +292,31 @@ describe('Prompt Builder', () => {
       expect(prompt).toContain('Build a todo app');
     });
 
+    it('should include client routes in architectural plan', () => {
+      const plan: ArchitecturePlan = {
+        databaseModels: [{ name: 'Todo', fields: ['title String'] }],
+        apiRoutes: [{ method: 'GET', path: '/api/todos', description: 'Get all todos' }],
+        clientRoutes: [
+          { path: '/', componentName: 'HomePage', description: 'Home page' },
+          { path: '/todos', componentName: 'TodoListPage', description: 'Todo list' },
+          { path: '/todos/:id', componentName: 'TodoDetailPage', description: 'Todo details' },
+          { path: '*', componentName: 'NotFoundPage', description: '404 page' },
+        ],
+        clientComponents: [{ name: 'TodoItem', purpose: 'Display a todo item' }],
+      };
+
+      const prompt = buildUserPrompt('Build a todo app', plan);
+
+      expect(prompt).toContain('ARCHITECTURAL PLAN:');
+      expect(prompt).toContain('Client Routes:');
+      expect(prompt).toContain('/ → HomePage');
+      expect(prompt).toContain('Home page');
+      expect(prompt).toContain('/todos → TodoListPage');
+      expect(prompt).toContain('Todo list');
+      expect(prompt).toContain('/todos/:id → TodoDetailPage');
+      expect(prompt).toContain('* → NotFoundPage');
+    });
+
     it('should order plan before requirements', () => {
       const plan: ArchitecturePlan = {
         databaseModels: [{ name: 'Model', fields: ['field String'] }],

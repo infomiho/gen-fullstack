@@ -126,21 +126,6 @@ describe('ToolItem', () => {
 
       expect(screen.getByText('readFile')).toBeInTheDocument();
     });
-
-    it('renders executeCommand tool', () => {
-      const tool: ToolExecution = {
-        id: 'tool-3',
-        name: 'executeCommand',
-        args: { command: 'npm install' },
-        isComplete: false,
-        timestamp: Date.now(),
-      };
-      const onOpenChange = vi.fn();
-      render(<ToolItem tool={tool} isOpen={false} onOpenChange={onOpenChange} />);
-
-      expect(screen.getByText('executeCommand')).toBeInTheDocument();
-      expect(screen.getByText('running...')).toBeInTheDocument();
-    });
   });
 
   describe('Timestamp display', () => {
