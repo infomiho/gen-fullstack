@@ -40,79 +40,71 @@ export class PlanningCapability extends BaseCapability {
     }
   }
 
-  async execute(context: CapabilityContext): Promise<CapabilityResult> {
-    this.validateContext(context);
+  private createPlanArchitectureTool() {
+    return tool({
+      description:
+        'Create an architectural plan for the application (database models, API routes, client routes, components). Use this to design the application structure before implementation.',
+      inputSchema: z.object({
+        databaseModels: z
+          .array(
+            z.object({
+              name: z.string().describe('Model name (e.g., "User", "Post")'),
+              fields: z
+                .array(z.string())
+                .describe('Field definitions (e.g., "id String @id", "email String @unique")'),
+              relations: z
+                .array(z.string())
+                .optional()
+                .describe('Relationships to other models (e.g., "posts Post[]")'),
+            }),
+          )
+          .describe('Prisma database models'),
+        apiRoutes: z
+          .array(
+            z.object({
+              method: z.enum(['GET', 'POST', 'PUT', 'DELETE', 'PATCH']).describe('HTTP method'),
+              path: z.string().describe('API endpoint path (e.g., "/api/users")'),
+              description: z.string().describe('What this endpoint does'),
+            }),
+          )
+          .describe('RESTful API endpoints'),
+        clientRoutes: z
+          .array(
+            z.object({
+              path: z.string().describe('Route path (e.g., "/", "/repos", "/repos/:id")'),
+              componentName: z.string().describe('Component name (e.g., "HomePage", "RepoPage")'),
+              description: z.string().describe('What this route displays'),
+            }),
+          )
+          .optional()
+          .describe('Client routes mapping URL paths to page components'),
+        clientComponents: z
+          .array(
+            z.object({
+              name: z.string().describe('Component name (e.g., "LoginForm", "UserList")'),
+              purpose: z.string().describe('What this component does'),
+              key_features: z
+                .array(z.string())
+                .optional()
+                .describe('Key features or functionality'),
+            }),
+          )
+          .describe('React components to create'),
+      }),
+      execute: async ({ databaseModels, apiRoutes, clientRoutes, clientComponents }) => {
+        // Tool validates that the LLM provided structured plan data
+        return {
+          databaseModels,
+          apiRoutes,
+          clientRoutes,
+          clientComponents,
+        };
+      },
+    });
+  }
 
-    const { sessionId, prompt, abortSignal } = context;
-    const startTime = Date.now();
-
-    try {
-      this.emitMessage('assistant', 'Creating architectural plan...', sessionId);
-
-      // Define the planning tool that the LLM will use to structure the plan
-      const planArchitectureTool = tool({
-        description:
-          'Create an architectural plan for the application (database models, API routes, client routes, components). Use this to design the application structure before implementation.',
-        inputSchema: z.object({
-          databaseModels: z
-            .array(
-              z.object({
-                name: z.string().describe('Model name (e.g., "User", "Post")'),
-                fields: z
-                  .array(z.string())
-                  .describe('Field definitions (e.g., "id String @id", "email String @unique")'),
-                relations: z
-                  .array(z.string())
-                  .optional()
-                  .describe('Relationships to other models (e.g., "posts Post[]")'),
-              }),
-            )
-            .describe('Prisma database models'),
-          apiRoutes: z
-            .array(
-              z.object({
-                method: z.enum(['GET', 'POST', 'PUT', 'DELETE', 'PATCH']).describe('HTTP method'),
-                path: z.string().describe('API endpoint path (e.g., "/api/users")'),
-                description: z.string().describe('What this endpoint does'),
-              }),
-            )
-            .describe('RESTful API endpoints'),
-          clientRoutes: z
-            .array(
-              z.object({
-                path: z.string().describe('Route path (e.g., "/", "/repos", "/repos/:id")'),
-                componentName: z.string().describe('Component name (e.g., "HomePage", "RepoPage")'),
-                description: z.string().describe('What this route displays'),
-              }),
-            )
-            .optional()
-            .describe('Client routes mapping URL paths to page components'),
-          clientComponents: z
-            .array(
-              z.object({
-                name: z.string().describe('Component name (e.g., "LoginForm", "UserList")'),
-                purpose: z.string().describe('What this component does'),
-                key_features: z
-                  .array(z.string())
-                  .optional()
-                  .describe('Key features or functionality'),
-              }),
-            )
-            .describe('React components to create'),
-        }),
-        execute: async ({ databaseModels, apiRoutes, clientRoutes, clientComponents }) => {
-          // Tool validates that the LLM provided structured plan data
-          return {
-            databaseModels,
-            apiRoutes,
-            clientRoutes,
-            clientComponents,
-          };
-        },
-      });
-
-      // Build system prompt for planning
-      const systemPrompt = `You are an expert full-stack application architect.
+  private buildPrompts(userPrompt: string): { systemPrompt: string; userMessage: string } {
+    const systemPrompt = `You are an expert full-stack application architect.
 
 Your task is to create a detailed architectural plan for a full-stack application based on user requirements.
 
@@ -135,15 +127,46 @@ IMPORTANT INSTRUCTIONS:
 
 Do NOT write any code - just create the architectural plan.`;
 
-      const userPrompt = `Create an architectural plan for this application:
+    const userMessage = `Create an architectural plan for this application:
 
-${prompt}
+${userPrompt}
 
 Call the planArchitecture tool with a complete plan covering:
 1. Database models (Prisma schema)
 2. API routes (RESTful endpoints)
 3. Client routes (URL paths mapped to page components)
 4. Client components (React)`;
+
+    return { systemPrompt, userMessage };
+  }
+
+  private validatePlan(plan: ArchitecturePlan | null): ArchitecturePlan {
+    if (!plan) {
+      throw new Error('LLM did not create a plan (planArchitecture tool was not called)');
+    }
+
+    const hasModels = plan.databaseModels && plan.databaseModels.length > 0;
+    const hasRoutes = plan.apiRoutes && plan.apiRoutes.length > 0;
+    const hasComponents = plan.clientComponents && plan.clientComponents.length > 0;
+
+    if (!hasModels && !hasRoutes && !hasComponents) {
+      throw new Error('Plan is empty (no models, routes, or components defined)');
+    }
+
+    return plan;
+  }
+
+  async execute(context: CapabilityContext): Promise<CapabilityResult> {
+    this.validateContext(context);
+
+    const { sessionId, prompt, abortSignal } = context;
+    const startTime = Date.now();
+
+    try {
+      this.emitMessage('assistant', 'Creating architectural plan...', sessionId);
+
+      const planArchitectureTool = this.createPlanArchitectureTool();
+      const { systemPrompt, userMessage } = this.buildPrompts(prompt);
 
       let plan: ArchitecturePlan | null = null;
 
@@ -152,7 +175,7 @@ Call the planArchitecture tool with a complete plan covering:
         model: this.model,
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
+          { role: 'user', content: userMessage },
         ],
         tools: {
           [TOOL_NAMES.PLAN_ARCHITECTURE]: planArchitectureTool,
@@ -186,21 +209,8 @@ Call the planArchitecture tool with a complete plan covering:
 
       const usage = await result.usage;
 
-      if (!plan) {
-        throw new Error('LLM did not create a plan (planArchitecture tool was not called)');
-      }
+      const validatedPlan = this.validatePlan(plan);
 
-      // TypeScript type narrowing - plan is guaranteed to be ArchitecturePlan here
-      const validatedPlan: ArchitecturePlan = plan;
-
-      const hasModels = validatedPlan.databaseModels && validatedPlan.databaseModels.length > 0;
-      const hasRoutes = validatedPlan.apiRoutes && validatedPlan.apiRoutes.length > 0;
-      const hasComponents =
-        validatedPlan.clientComponents && validatedPlan.clientComponents.length > 0;
-
-      if (!hasModels && !hasRoutes && !hasComponents) {
-        throw new Error('Plan is empty (no models, routes, or components defined)');
-      }
       const tokensUsed = {
         input: usage.inputTokens ?? 0,
         output: usage.outputTokens ?? 0,

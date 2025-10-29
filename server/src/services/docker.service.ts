@@ -161,6 +161,47 @@ export class DockerService extends EventEmitter {
   }
 
   /**
+   * Execute a command in a container with timeout and error handling
+   */
+  private async executeContainerCommand(
+    sessionId: string,
+    container: Container,
+    cmd: string[],
+    timeout: number,
+    commandName: string,
+    displayCommand?: string,
+    env?: string[],
+  ): Promise<void> {
+    this.logManager.emitLog(sessionId, 'command', displayCommand || cmd.join(' '));
+
+    const exec = await container.exec({
+      Cmd: cmd,
+      AttachStdout: true,
+      AttachStderr: true,
+      WorkingDir: '/app',
+      ...(env && { Env: env }),
+    });
+
+    const stream = await exec.start({ Detach: false, Tty: false });
+    const cleanupStream = this.processExecStream(sessionId, stream);
+
+    try {
+      await this.executeWithTimeout(stream, timeout, commandName);
+
+      const inspect = await exec.inspect();
+      const exitCode = inspect.ExitCode ?? 0;
+
+      if (exitCode !== 0) {
+        const errorMsg = `${commandName} failed with exit code ${exitCode}`;
+        this.logManager.emitLog(sessionId, 'system', errorMsg);
+        throw new Error(errorMsg);
+      }
+    } finally {
+      cleanupStream();
+    }
+  }
+
+  /**
    * Create a configured state machine actor for a container
    *
    * The machine orchestrates the container lifecycle, but delegates actual
@@ -224,123 +265,41 @@ export class DockerService extends EventEmitter {
             throw new Error(`Container not found: ${input.sessionId}`);
           }
 
-          let cleanupStream: (() => void) | undefined;
+          // Step 1: npm install
+          this.logManager.emitLog(input.sessionId, 'system', 'Installing dependencies...');
+          await this.executeContainerCommand(
+            input.sessionId,
+            input.container,
+            [...NPM_COMMANDS.install.cmd],
+            TIMEOUTS.install,
+            'npm install',
+            NPM_COMMANDS.install.display,
+          );
+          this.logManager.emitLog(input.sessionId, 'system', 'Dependencies installed');
 
-          try {
-            // Step 1: npm install
-            this.logManager.emitLog(input.sessionId, 'system', 'Installing dependencies...');
-            this.logManager.emitLog(input.sessionId, 'command', NPM_COMMANDS.install.display);
+          // Step 2: Prisma generate
+          this.logManager.emitLog(input.sessionId, 'system', 'Generating Prisma client...');
+          await this.executeContainerCommand(
+            input.sessionId,
+            input.container,
+            ['npx', 'prisma', 'generate'],
+            TIMEOUTS.prismaGenerate,
+            'prisma generate',
+          );
+          this.logManager.emitLog(input.sessionId, 'system', 'Prisma client generated');
 
-            const installExec = await input.container.exec({
-              Cmd: [...NPM_COMMANDS.install.cmd],
-              AttachStdout: true,
-              AttachStderr: true,
-              WorkingDir: '/app',
-            });
-
-            const installStream = await installExec.start({ Detach: false, Tty: false });
-            cleanupStream = this.processExecStream(input.sessionId, installStream);
-
-            await this.executeWithTimeout(installStream, TIMEOUTS.install, 'npm install');
-
-            // Check exit code
-            const installInspect = await installExec.inspect();
-            const installExitCode = installInspect.ExitCode ?? 0;
-            if (installExitCode !== 0) {
-              const errorMsg = `npm install failed with exit code ${installExitCode}`;
-              this.logManager.emitLog(input.sessionId, 'system', errorMsg);
-              throw new Error(errorMsg);
-            }
-
-            if (cleanupStream) {
-              cleanupStream();
-              cleanupStream = undefined;
-            }
-
-            this.logManager.emitLog(input.sessionId, 'system', 'Dependencies installed');
-
-            // Step 2: Prisma generate
-            this.logManager.emitLog(input.sessionId, 'system', 'Generating Prisma client...');
-            this.logManager.emitLog(input.sessionId, 'command', 'npx prisma generate');
-
-            const generateExec = await input.container.exec({
-              Cmd: ['npx', 'prisma', 'generate'],
-              AttachStdout: true,
-              AttachStderr: true,
-              WorkingDir: '/app',
-            });
-
-            const generateStream = await generateExec.start({ Detach: false, Tty: false });
-            cleanupStream = this.processExecStream(input.sessionId, generateStream);
-
-            await this.executeWithTimeout(
-              generateStream,
-              TIMEOUTS.prismaGenerate,
-              'prisma generate',
-            );
-
-            // Check exit code
-            const generateInspect = await generateExec.inspect();
-            const generateExitCode = generateInspect.ExitCode ?? 0;
-            if (generateExitCode !== 0) {
-              const errorMsg = `prisma generate failed with exit code ${generateExitCode}`;
-              this.logManager.emitLog(input.sessionId, 'system', errorMsg);
-              throw new Error(errorMsg);
-            }
-
-            if (cleanupStream) {
-              cleanupStream();
-              cleanupStream = undefined;
-            }
-
-            this.logManager.emitLog(input.sessionId, 'system', 'Prisma client generated');
-
-            // Step 3: Database migrations
-            this.logManager.emitLog(input.sessionId, 'system', 'Running database migrations...');
-            this.logManager.emitLog(
-              input.sessionId,
-              'command',
-              'npx prisma migrate dev --name init',
-            );
-
-            const migrateExec = await input.container.exec({
-              Cmd: ['npx', 'prisma', 'migrate', 'dev', '--name', 'init'],
-              AttachStdout: true,
-              AttachStderr: true,
-              WorkingDir: '/app',
-              Env: ['DATABASE_URL=file:./dev.db'],
-            });
-
-            const migrateStream = await migrateExec.start({ Detach: false, Tty: false });
-            cleanupStream = this.processExecStream(input.sessionId, migrateStream);
-
-            await this.executeWithTimeout(
-              migrateStream,
-              TIMEOUTS.prismaMigrate,
-              'prisma migrate dev',
-            );
-
-            // Check exit code
-            const migrateInspect = await migrateExec.inspect();
-            const migrateExitCode = migrateInspect.ExitCode ?? 0;
-            if (migrateExitCode !== 0) {
-              const errorMsg = `prisma migrate dev failed with exit code ${migrateExitCode}`;
-              this.logManager.emitLog(input.sessionId, 'system', errorMsg);
-              throw new Error(errorMsg);
-            }
-
-            if (cleanupStream) {
-              cleanupStream();
-              cleanupStream = undefined;
-            }
-
-            this.logManager.emitLog(input.sessionId, 'system', 'Database migrations complete');
-          } catch (error) {
-            if (cleanupStream) {
-              cleanupStream();
-            }
-            throw error;
-          }
+          // Step 3: Database migrations
+          this.logManager.emitLog(input.sessionId, 'system', 'Running database migrations...');
+          await this.executeContainerCommand(
+            input.sessionId,
+            input.container,
+            ['npx', 'prisma', 'migrate', 'dev', '--name', 'init'],
+            TIMEOUTS.prismaMigrate,
+            'prisma migrate dev',
+            undefined,
+            ['DATABASE_URL=file:./dev.db'],
+          );
+          this.logManager.emitLog(input.sessionId, 'system', 'Database migrations complete');
         },
         startDevServer: async (input) => {
           // Reuse existing dev server start logic

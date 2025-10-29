@@ -242,7 +242,7 @@ Prisma CLI Version : 6.17.1
       expect(errors[0].message).toContain('@unique');
       expect(errors[0].line).toBe(21);
       expect(errors[0].context).toBeDefined();
-      expect(errors[0].context!.length).toBeGreaterThan(0);
+      expect(errors[0].context?.length).toBeGreaterThan(0);
     });
   });
 });

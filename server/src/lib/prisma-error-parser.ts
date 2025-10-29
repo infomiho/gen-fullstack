@@ -137,7 +137,6 @@ function parseErrorBlock(lines: string[], startIndex: number): PrismaError | nul
  * @param stderr - Standard error output from Prisma CLI
  * @returns Array of structured Prisma errors
  */
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Parser needs to iterate through lines and build structured errors
 export function parsePrismaErrors(stderr: string): PrismaError[] {
   const errors: PrismaError[] = [];
   const lines = stderr.split('\n');
