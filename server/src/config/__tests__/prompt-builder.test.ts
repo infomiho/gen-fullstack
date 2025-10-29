@@ -73,7 +73,7 @@ describe('Prompt Builder', () => {
         maxIterations: 3,
       });
 
-      expect(prompt).toContain('BUILDING BLOCKS:');
+      expect(prompt).toContain('BUILDING BLOCKS - USE THESE FIRST:');
       expect(prompt).not.toContain('TEMPLATE INPUT MODE:');
       expect(prompt).not.toContain('ARCHITECTURAL PLANNING:');
       expect(prompt).not.toContain('VALIDATION TOOLS:');
@@ -108,7 +108,7 @@ describe('Prompt Builder', () => {
       // Planning and compilerChecks are now separate pipeline stages
       expect(prompt).toContain('TEMPLATE INPUT MODE:');
       expect(prompt).not.toContain('ARCHITECTURAL PLANNING:'); // Separate stage
-      expect(prompt).toContain('BUILDING BLOCKS:');
+      expect(prompt).toContain('BUILDING BLOCKS - USE THESE FIRST:');
       expect(prompt).not.toContain('VALIDATION TOOLS:'); // Separate stage
     });
 
@@ -123,7 +123,7 @@ describe('Prompt Builder', () => {
 
       // Get positions of active addons (Phase B)
       const templatePos = prompt.indexOf('TEMPLATE INPUT MODE:');
-      const blocksPos = prompt.indexOf('BUILDING BLOCKS:');
+      const blocksPos = prompt.indexOf('BUILDING BLOCKS - USE THESE FIRST:');
 
       // Verify order: base → template → blocks (planning/validation are separate stages)
       expect(templatePos).toBeGreaterThan(0);

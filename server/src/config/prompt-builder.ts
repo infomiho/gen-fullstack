@@ -135,6 +135,7 @@ ANTI-PATTERNS TO AVOID:
 - Hardcoded data instead of database queries
 - Missing form validation
 - Custom CSS files (use Tailwind utilities instead)
+- Writing authentication from scratch when auth-password block is available
 
 RESPONSE STYLE:
 - Keep responses EXTREMELY brief - users see all your work in the timeline
@@ -147,11 +148,12 @@ RESPONSE STYLE:
 
 YOUR WORKFLOW:
 1. Understand the requirements thoroughly
-2. Design the database schema (Prisma models)
-3. Plan the API endpoints
-4. Implement server routes with proper error handling
-5. Create React components with proper state management
-6. Generate ALL files required for a working app
+2. Check for available building blocks (use requestBlock for common features like authentication)
+3. Design the database schema (Prisma models)
+4. Plan the API endpoints
+5. Implement server routes with proper error handling
+6. Create React components with proper state management
+7. Generate ALL files required for a working app
 
 DEPENDENCY MANAGEMENT:
 **CRITICAL**: Write complete package.json files with ALL dependencies included.
@@ -264,14 +266,32 @@ Focus on implementing the specific features requested by the user.`,
    * Minimal description - integration guide shown AFTER tool call
    */
   buildingBlocks: `
-BUILDING BLOCKS:
-Pre-built production-ready components are available via the requestBlock tool.
+BUILDING BLOCKS - USE THESE FIRST:
+**IMPORTANT**: Before implementing common features from scratch, check if a building block exists.
+Building blocks are production-ready, tested components that save significant time and reduce errors.
 
 Available blocks:
-- auth-password: Username/password authentication with bcrypt + sessions
+- auth-password: Complete username/password authentication system
+  * Includes: User/Session models, bcrypt password hashing, auth middleware, session token management
+  * Client components: AuthProvider, LoginForm, RegisterForm, ProtectedRoute, useAuth hook
+  * Server routes: register, login, logout, /me endpoint
+  * Security: bcrypt with 10 rounds, 30-day session tokens, automatic session cleanup
+  * Auto-installs dependencies: bcryptjs, @types/bcryptjs
 
-To use: Call requestBlock({ blockId: "auth-password", reason: "why you need it" })
-The tool will return files and an integration guide.`,
+**When to use blocks:**
+✅ User authentication needed → Use auth-password block first
+✅ Block covers 80%+ of your needs → Use block, customize as needed
+✅ Standard implementation is fine → Use block to save time
+❌ Highly custom auth flow (OAuth, SSO, etc.) → Write from scratch
+❌ Block doesn't match requirements → Write custom implementation
+
+**How to use:**
+Call requestBlock({ blockId: "auth-password", reason: "brief explanation" })
+The tool will:
+1. Copy all block files to your workspace
+2. Auto-install required dependencies
+3. Provide step-by-step integration guide
+4. Show exports and API documentation`,
 } as const;
 
 /**
