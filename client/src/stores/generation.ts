@@ -11,6 +11,7 @@ import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 import { truncateArray } from '../lib/array-utils.js';
+import type { Store } from '../lib/store-utils.js';
 
 /**
  * Generation Store
@@ -65,7 +66,7 @@ interface GenerationActions {
   prepareForSession: (sessionId: string) => void;
 }
 
-type GenerationStore = GenerationState & GenerationActions;
+type GenerationStore = Store<GenerationState, GenerationActions>;
 
 const initialState: GenerationState = {
   messages: [],

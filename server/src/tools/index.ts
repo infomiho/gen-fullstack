@@ -4,10 +4,11 @@ import type { CapabilityConfig } from '@gen-fullstack/shared';
 import { checkFileSafety } from '../lib/file-safety.js';
 import { databaseLogger, commandLogger } from '../lib/logger.js';
 import { emitPersistedMessage } from '../lib/message-utils.js';
+import type { TypeScriptError } from '../lib/typescript-error-parser.js';
 import * as commandService from '../services/command.service.js';
 import * as filesystemService from '../services/filesystem.service.js';
 import { requestBlock } from './request-block.tool.js';
-import { extractToolContext } from './tool-utils.js';
+import { extractToolContext, type ToolContext } from './tool-utils.js';
 
 /**
  * Tool definitions for LLM-powered app generation
@@ -15,11 +16,6 @@ import { extractToolContext } from './tool-utils.js';
  * These tools allow the LLM to interact with the filesystem and execute commands
  * within a sandboxed environment for each session.
  */
-
-/**
- * Tool execution context type
- */
-type ToolContext = ReturnType<typeof extractToolContext>;
 
 /**
  * Write content to a file
@@ -326,17 +322,6 @@ export const validatePrismaSchema = tool({
     }
   },
 });
-
-/**
- * TypeScript compiler error structure
- */
-type TypeScriptError = {
-  file: string;
-  line: number;
-  column: number;
-  code: string;
-  message: string;
-};
 
 /**
  * Parse TypeScript compiler errors into structured format

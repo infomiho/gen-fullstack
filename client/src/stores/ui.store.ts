@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
+import type { Store } from '../lib/store-utils.js';
 
 /**
  * UI Store
@@ -22,7 +23,7 @@ interface UIActions {
   resetSidebarCollapse: () => void;
 }
 
-type UIStore = UIState & UIActions;
+type UIStore = Store<UIState, UIActions>;
 
 const initialState: UIState = {
   sidebarCollapsed: {

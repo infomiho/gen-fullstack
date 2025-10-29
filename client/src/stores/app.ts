@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 import { truncateArray } from '../lib/array-utils.js';
+import type { Store } from '../lib/store-utils.js';
 
 /**
  * App Execution Store
@@ -34,7 +35,7 @@ interface AppActions {
   prepareForSession: (sessionId: string) => void;
 }
 
-type AppStore = AppState & AppActions;
+type AppStore = Store<AppState, AppActions>;
 
 const initialState: AppState = {
   appStatus: null,

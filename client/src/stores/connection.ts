@@ -1,6 +1,7 @@
 import type { Socket } from 'socket.io-client';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
+import type { Store } from '../lib/store-utils.js';
 
 /**
  * Connection Store
@@ -20,7 +21,7 @@ interface ConnectionActions {
   setConnected: (value: boolean) => void;
 }
 
-type ConnectionStore = ConnectionState & ConnectionActions;
+type ConnectionStore = Store<ConnectionState, ConnectionActions>;
 
 const initialState: ConnectionState = {
   socket: null,

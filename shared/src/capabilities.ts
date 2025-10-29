@@ -129,10 +129,15 @@ export interface CapabilityContext {
  * This type restricts which context fields capabilities can modify,
  * preventing accidental corruption of critical fields like sessionId or abortSignal.
  */
-export type AllowedContextUpdates = Pick<
-  CapabilityContext,
-  'plan' | 'templateFiles' | 'validationErrors' | 'errorFixAttempts'
->;
+const ALLOWED_CONTEXT_KEYS = [
+  'plan',
+  'templateFiles',
+  'validationErrors',
+  'errorFixAttempts',
+] as const;
+
+export type AllowedContextKey = (typeof ALLOWED_CONTEXT_KEYS)[number];
+export type AllowedContextUpdates = Pick<CapabilityContext, AllowedContextKey>;
 
 // ============================================================================
 // Capability Results
