@@ -4,10 +4,12 @@ import { ErrorBoundary } from '../ErrorBoundary';
 import { GenerationStartOverlay } from './overlays/GenerationStartOverlay';
 import { TemplateLoadingOverlay } from './overlays/TemplateLoadingOverlay';
 import { PlanningOverlay } from './overlays/PlanningOverlay';
+import { CodeGenerationOverlay } from './overlays/CodeGenerationOverlay';
 import { BlockRequestOverlay } from './overlays/BlockRequestOverlay';
 import { ToolCallHUD } from './overlays/ToolCallHUD';
 import { ComboMilestoneOverlay } from './overlays/ComboMilestoneOverlay';
 import { ValidationOverlay } from './overlays/ValidationOverlay';
+import { ErrorFixingOverlay } from './overlays/ErrorFixingOverlay';
 import { FileCreatedOverlay } from './overlays/FileCreatedOverlay';
 import { ErrorOverlay } from './overlays/ErrorOverlay';
 import { VictoryOverlay } from './overlays/VictoryOverlay';
@@ -59,12 +61,14 @@ export function PresentationMode() {
           {currentOverlay === 'generation-start' && <GenerationStartOverlay key="start" />}
           {currentOverlay === 'template-loading' && <TemplateLoadingOverlay key="template" />}
           {currentOverlay === 'planning' && <PlanningOverlay key="planning" />}
+          {currentOverlay === 'code-generation' && <CodeGenerationOverlay key="code-gen" />}
           {currentOverlay === 'block-request' && <BlockRequestOverlay key="block" />}
           {currentOverlay === 'tool-hud' && <ToolCallHUD key="hud" />}
           {currentOverlay === 'combo-milestone' && <ComboMilestoneOverlay key="combo" />}
           {(currentOverlay === 'validation-prisma' ||
             currentOverlay === 'validation-typescript' ||
             currentOverlay === 'validation-result') && <ValidationOverlay key="validation" />}
+          {currentOverlay === 'error-fixing' && <ErrorFixingOverlay key="fixing" />}
           {currentOverlay === 'file-created' && <FileCreatedOverlay key="file" />}
           {currentOverlay === 'error-ko' && <ErrorOverlay key="error" />}
           {currentOverlay === 'victory' && <VictoryOverlay key="victory" />}

@@ -7,12 +7,14 @@ export type PresentationOverlay =
   | 'generation-start' // "READY... FIGHT!"
   | 'template-loading' // Template mode notification
   | 'planning' // Architecture planning
+  | 'code-generation' // Code generation phase
   | 'block-request' // Building block request
   | 'tool-hud' // Live tool call display
   | 'combo-milestone' // Combo achievement (5x, 10x, 20x+)
   | 'validation-prisma' // Prisma schema validation
   | 'validation-typescript' // TypeScript validation
   | 'validation-result' // Validation result (pass/fail)
+  | 'error-fixing' // Error fixing phase
   | 'file-created' // Achievement toast (deprecated - use combo-milestone)
   | 'error-ko' // "K.O." screen
   | 'victory'; // Final stats
@@ -27,6 +29,8 @@ export interface PresentationOverlayData {
   };
   blockName?: string;
   validationResult?: { passed: boolean; errorCount?: number; iteration?: number };
+  iteration?: number; // For error-fixing overlay
+  errorCount?: number; // For error-fixing overlay
   comboMilestone?: number;
   toolCall?: { name: string; file?: string };
   stats?: PresentationStats;
@@ -42,6 +46,7 @@ export type PresentationEvent =
   | { type: 'none'; duration: number }
   | { type: 'generation-start'; duration: number }
   | { type: 'template-loading'; duration: number }
+  | { type: 'code-generation'; duration: number }
   | { type: 'validation-prisma'; duration: number }
   | { type: 'validation-typescript'; duration: number }
   | { type: 'error-ko'; duration: number }
@@ -57,6 +62,11 @@ export type PresentationEvent =
       type: 'validation-result';
       duration: number;
       data: { validationResult: { passed: boolean; errorCount?: number; iteration?: number } };
+    }
+  | {
+      type: 'error-fixing';
+      duration: number;
+      data?: { iteration?: number; errorCount?: number };
     }
   | { type: 'combo-milestone'; duration: number; data: { comboMilestone: number } }
   | { type: 'file-created'; duration: number; data: { fileName: string } }

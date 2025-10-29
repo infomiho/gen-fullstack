@@ -46,21 +46,6 @@ export function TemplateLoadingOverlay() {
             gap: '2rem',
           }}
         >
-          {/* Central Icon */}
-          <motion.div
-            initial={{ scale: 0, rotate: -180 }}
-            animate={{ scale: 1, rotate: 0 }}
-            transition={{ type: 'spring', bounce: 0.5, duration: 0.8 }}
-            style={{
-              fontSize: '8rem',
-              fontFamily: presentationTokens.fonts.heroFamily,
-              color: presentationTokens.colors.neonCyan,
-              textShadow: presentationTokens.colors.textShadowStrong,
-            }}
-          >
-            ▲
-          </motion.div>
-
           {/* "LOADING TEMPLATE" Title */}
           <motion.div
             initial={{ scale: 0.5, opacity: 0 }}
