@@ -2,6 +2,9 @@ import { PrismaClient } from '@prisma/client';
 import cors from 'cors';
 import express from 'express';
 
+// fetch() is globally available - use for all HTTP requests
+// Example: const res = await fetch('https://api.example.com/data');
+
 const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;

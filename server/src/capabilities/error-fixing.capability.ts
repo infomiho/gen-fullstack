@@ -224,6 +224,13 @@ Focus ONLY on fixing the reported errors. Do NOT add new features or refactor un
   private getTypeScriptErrorFixingGuidance(): string {
     return `## FIXING TYPESCRIPT ERRORS
 
+ENVIRONMENT:
+- Node.js 18+ with native fetch (global, no import needed)
+- Server tsconfig includes "DOM" lib for fetch types
+- Project uses "type": "module" (ES modules)
+
+${this.getCommonErrorPatterns()}
+
 CRITICAL - ES MODULE IMPORTS:
 This project uses "type": "module" in package.json. Many npm packages (jsonwebtoken, bcryptjs, etc.)
 are CommonJS modules that require DEFAULT imports, NOT namespace imports:
@@ -268,6 +275,35 @@ VALIDATION WORKFLOW:
 - Write the corrected file
 - System will re-validate automatically (do NOT call validation tools yourself)
 - If you see the same errors again, your fix didn't work - try a different approach`;
+  }
+
+  private getCommonErrorPatterns(): string {
+    return `## COMMON ERROR PATTERNS
+
+TS2307 "Cannot find module 'node-fetch'" OR TS2304 "Cannot find name 'fetch'":
+→ fetch is global in Node.js 18+ - don't import it
+→ Fix: Remove import, use fetch directly
+→ If types missing: Add "DOM" to server/tsconfig.json lib array
+
+Example fix:
+  ❌ import fetch from 'node-fetch';  // Delete this
+  ✅ const res = await fetch(url);    // Just use it
+
+TS2307 "Cannot find module './pages/SomePage'":
+→ File doesn't exist
+→ Fix: Create the file with default export
+
+TS2322 "Type X not assignable to Type Y":
+→ TypeScript type mismatch
+→ Fix: Provide expected type, cast if needed, or restructure
+→ For Prisma: import { Prisma } from '@prisma/client'
+
+GENERAL APPROACH:
+1. Read error carefully - what's it asking for?
+2. Read code context - what's the intent?
+3. Fix root cause, not symptoms
+4. Verify it works at runtime, not just compilation
+`;
   }
 
   private getPrismaErrorFixingGuidance(): string {

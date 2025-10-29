@@ -36,7 +36,7 @@ REQUIRED FILES:
 
 3. server/:
    - package.json (name: "server", type: "module", dev script uses tsx)
-   - tsconfig.json (strict mode, ES modules)
+   - tsconfig.json (strict mode, ES modules, "DOM" in lib for fetch types)
    - src/index.ts (Express app with automatic async error handling)
    - src/routes/ (API route modules)
 
@@ -49,6 +49,38 @@ SERVER DEV SCRIPT:
 
 4. prisma/:
    - schema.prisma (datasource db, generator client, models)
+
+SERVER HTTP REQUESTS:
+Node.js has native fetch - use it for all 3rd party API calls:
+
+GET request:
+  const res = await fetch('https://api.github.com/users/octocat');
+  if (!res.ok) throw new Error(\`HTTP \${res.status}\`);
+  const user = await res.json();
+
+POST with JSON:
+  const res = await fetch('https://api.example.com/users', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: 'Alice', email: 'alice@example.com' })
+  });
+  const created = await res.json();
+
+With authentication:
+  const res = await fetch('https://api.stripe.com/v1/charges', {
+    headers: {
+      'Authorization': \`Bearer \${process.env.STRIPE_KEY}\`,
+      'Content-Type': 'application/json'
+    },
+    method: 'POST',
+    body: JSON.stringify({ amount: 2000, currency: 'usd' })
+  });
+
+CRITICAL:
+- fetch() is global - never import it
+- Always check res.ok before parsing
+- Server tsconfig must include "DOM" in lib for types
+- Use try/catch for network errors
 
 API COMMUNICATION:
 **CRITICAL**: Client MUST use /api prefix for ALL server API calls.
