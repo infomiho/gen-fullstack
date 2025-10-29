@@ -1,4 +1,4 @@
-import type { LanguageModel } from 'ai';
+import type { LanguageModel, TypedToolCall, TypedToolResult, TypedToolError, ToolSet } from 'ai';
 import type { Server as SocketIOServer } from 'socket.io';
 import { createLogger } from '../lib/logger.js';
 import { emitPersistedMessage, resetMessageTracking } from '../lib/message-utils.js';
@@ -228,8 +228,15 @@ export abstract class BaseCapability {
    * @returns Handler function for AI SDK onStepFinish callback
    */
   protected createOnStepFinishHandler(sessionId: string) {
-    // biome-ignore lint/suspicious/noExplicitAny: AI SDK onStepFinish callback types are not strictly typed
-    return ({ toolCalls, toolResults }: { toolCalls: any[]; toolResults: any[] }) => {
+    return ({
+      toolCalls,
+      toolResults,
+      toolErrors,
+    }: {
+      toolCalls: Array<TypedToolCall<ToolSet>>;
+      toolResults: Array<TypedToolResult<ToolSet>>;
+      toolErrors?: Array<TypedToolError<ToolSet>>;
+    }) => {
       // Emit tool calls with all data
       for (const toolCall of toolCalls) {
         const toolInput = toToolInput(toolCall.input);
@@ -238,29 +245,35 @@ export abstract class BaseCapability {
         this.emitToolCall(toolCall.toolCallId, toolCall.toolName, toolInput, sessionId, reason);
       }
 
-      // Emit tool results (including errors)
+      // Emit tool results (success cases)
       for (const toolResult of toolResults) {
-        // Check if this is an error result
-        // AI SDK 5.0+ includes error in toolResult.error field when tool execution fails
-        // The error object may have a 'message' property or be a primitive value
-        const isError = toolResult.error !== undefined;
-        const result = isError
-          ? formatToolError(toolResult.error)
-          : toToolResult(toolResult.output);
+        const result = toToolResult(toolResult.output);
+        this.emitToolResult(toolResult.toolCallId, toolResult.toolName, result, sessionId, false);
+      }
 
-        // Log tool errors for debugging
-        if (isError) {
+      // Emit tool errors (failure cases)
+      if (toolErrors) {
+        for (const toolError of toolErrors) {
+          const errorMessage = formatToolError(toolError.error);
+
+          // Log tool errors for debugging
           this.logger.warn(
             {
-              toolCallId: toolResult.toolCallId,
-              toolName: toolResult.toolName,
-              error: toolResult.error,
+              toolCallId: toolError.toolCallId,
+              toolName: toolError.toolName,
+              error: toolError.error,
             },
             'Tool execution failed',
           );
-        }
 
-        this.emitToolResult(toolResult.toolCallId, toolResult.toolName, result, sessionId, isError);
+          this.emitToolResult(
+            toolError.toolCallId,
+            toolError.toolName,
+            errorMessage,
+            sessionId,
+            true,
+          );
+        }
       }
 
       // Reset message tracking after step completes, before next step begins.

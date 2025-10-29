@@ -47,10 +47,13 @@ describe('BaseCapability - Error Handling', () => {
 
       handler({
         toolCalls: [{ toolCallId: 'tc-1', toolName: 'writeFile', input: { path: 'test.txt' } }],
-        toolResults: [
+        toolResults: [],
+        toolErrors: [
           {
+            type: 'tool-error',
             toolCallId: 'tc-1',
             toolName: 'writeFile',
+            input: { path: 'test.txt' },
             error: { message: 'File not found' },
           },
         ],
@@ -62,6 +65,7 @@ describe('BaseCapability - Error Handling', () => {
         'tool_result',
         expect.objectContaining({
           result: 'Error: File not found',
+          isError: true,
         }),
       );
     });
@@ -71,10 +75,13 @@ describe('BaseCapability - Error Handling', () => {
 
       handler({
         toolCalls: [],
-        toolResults: [
+        toolResults: [],
+        toolErrors: [
           {
+            type: 'tool-error',
             toolCallId: 'tc-2',
             toolName: 'executeCommand',
+            input: {},
             error: 'Command failed with exit code 1',
           },
         ],
@@ -84,6 +91,7 @@ describe('BaseCapability - Error Handling', () => {
         'tool_result',
         expect.objectContaining({
           result: 'Error: Command failed with exit code 1',
+          isError: true,
         }),
       );
     });
@@ -95,8 +103,10 @@ describe('BaseCapability - Error Handling', () => {
         toolCalls: [],
         toolResults: [
           {
+            type: 'tool-result',
             toolCallId: 'tc-3',
             toolName: 'readFile',
+            input: {},
             output: 'File contents here',
           },
         ],
@@ -106,6 +116,7 @@ describe('BaseCapability - Error Handling', () => {
         'tool_result',
         expect.objectContaining({
           result: 'File contents here',
+          isError: false,
         }),
       );
     });
@@ -115,10 +126,13 @@ describe('BaseCapability - Error Handling', () => {
 
       handler({
         toolCalls: [],
-        toolResults: [
+        toolResults: [],
+        toolErrors: [
           {
+            type: 'tool-error',
             toolCallId: 'tc-4',
             toolName: 'requestBlock',
+            input: {},
             error: { message: 'Error: Block not found' },
           },
         ],
@@ -128,6 +142,7 @@ describe('BaseCapability - Error Handling', () => {
         'tool_result',
         expect.objectContaining({
           result: 'Error: Block not found',
+          isError: true,
         }),
       );
     });
@@ -139,13 +154,19 @@ describe('BaseCapability - Error Handling', () => {
         toolCalls: [],
         toolResults: [
           {
+            type: 'tool-result',
             toolCallId: 'tc-5',
             toolName: 'writeFile',
+            input: {},
             output: 'Successfully wrote 100 bytes',
           },
+        ],
+        toolErrors: [
           {
+            type: 'tool-error',
             toolCallId: 'tc-6',
             toolName: 'readFile',
+            input: {},
             error: { message: 'Permission denied' },
           },
         ],
@@ -161,6 +182,7 @@ describe('BaseCapability - Error Handling', () => {
         expect.objectContaining({
           toolName: 'writeFile',
           result: 'Successfully wrote 100 bytes',
+          isError: false,
         }),
       );
 
@@ -171,6 +193,7 @@ describe('BaseCapability - Error Handling', () => {
         expect.objectContaining({
           toolName: 'readFile',
           result: 'Error: Permission denied',
+          isError: true,
         }),
       );
     });
@@ -181,10 +204,13 @@ describe('BaseCapability - Error Handling', () => {
 
       handler({
         toolCalls: [],
-        toolResults: [
+        toolResults: [],
+        toolErrors: [
           {
+            type: 'tool-error',
             toolCallId: 'tc-7',
             toolName: 'executeCommand',
+            input: {},
             error: { message: 'Command not found' },
           },
         ],
@@ -208,8 +234,10 @@ describe('BaseCapability - Error Handling', () => {
         toolCalls: [],
         toolResults: [
           {
+            type: 'tool-result',
             toolCallId: 'tc-8',
             toolName: 'getFileTree',
+            input: {},
             output:
               '.\n├── 📄 file1.txt\n└── 📄 file2.js\n\n2 files, 0 directories\n(excluded: node_modules, dist, .git, coverage, .cache, etc.)',
           },

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import {
   data,
   isRouteErrorResponse,
@@ -20,13 +20,14 @@ import { Timeline } from '../components/Timeline';
 import { TimelineScrubber } from '../components/TimelineScrubber';
 import { useToast } from '../components/ToastProvider';
 import { useSessionData } from '../hooks/useSessionData';
+import { useSessionWebSocket } from '../hooks/useSessionWebSocket';
+import { usePresentationQueue } from '../hooks/usePresentationQueue';
 // Presentation Mode - Single import point (can be removed to disable presentation features)
 import {
   PresentationMode,
   PresentationToggle,
   usePresentationMode,
   usePresentationPlayback,
-  buildPresentationQueue,
   usePresentationStore,
 } from '../components/presentation';
 import { useSessionRevalidation } from '../hooks/useSessionRevalidation';
@@ -139,53 +140,6 @@ function getActiveTab(tab: string | undefined) {
 }
 
 /**
- * Helper: Subscribe to session WebSocket events
- * Returns whether the subscription is active (as state to trigger re-renders)
- */
-function useSessionSubscription(
-  socket: ReturnType<typeof useWebSocket>['socket'],
-  sessionId: string | undefined,
-): boolean {
-  const [isSubscribed, setIsSubscribed] = useState(false);
-
-  useEffect(() => {
-    if (!socket || !sessionId) {
-      setIsSubscribed(false);
-      return;
-    }
-
-    const subscribeToSession = () => {
-      setIsSubscribed(true);
-      socket.emit('subscribe_to_session', { sessionId });
-      socket.emit('get_app_status', { sessionId });
-    };
-
-    if (socket.connected) {
-      subscribeToSession();
-    }
-
-    const handleReconnect = () => {
-      subscribeToSession();
-    };
-
-    const handleDisconnect = () => {
-      setIsSubscribed(false);
-    };
-
-    socket.on('connect', handleReconnect);
-    socket.on('disconnect', handleDisconnect);
-
-    return () => {
-      socket.off('connect', handleReconnect);
-      socket.off('disconnect', handleDisconnect);
-      setIsSubscribed(false);
-    };
-  }, [socket, sessionId]);
-
-  return isSubscribed;
-}
-
-/**
  * Helper: Show disconnection toast
  */
 function useDisconnectionToast(
@@ -210,7 +164,6 @@ function useDisconnectionToast(
  * If the session is still active (status === 'generating'), it connects to WebSocket
  * for real-time updates and merges them with the persisted data.
  */
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Main page component handles multiple concerns (routing, data loading, replay mode)
 function SessionPage() {
   const { sessionId, tab } = useParams<{ sessionId: string; tab?: string }>();
   const navigate = useNavigate();
@@ -283,7 +236,7 @@ function SessionPage() {
   }, [activeTab]);
 
   // Subscribe to session WebSocket events and get subscription status
-  const isSubscribed = useSessionSubscription(socket, sessionId);
+  const isSubscribed = useSessionWebSocket(socket, sessionId);
 
   // Determine if session is actively generating
   const isActiveSession = socket
@@ -325,27 +278,17 @@ function SessionPage() {
 
   // Load presentation queue when entering presentation mode
   const isEnabled = usePresentationStore((state) => state.isEnabled);
-  const previouslyEnabledRef = useRef(false);
-
-  useEffect(() => {
-    // Only build queue when first entering presentation mode
-    if (isEnabled && !previouslyEnabledRef.current) {
-      // IMPORTANT: Use persistedData directly, not the derived messages/toolCalls/pipelineStages
-      // The derived variables use replayData when in replay mode, but presentation mode
-      // needs the FULL session data regardless of replay state
-      const queue = buildPresentationQueue(
-        persistedData.messages,
-        persistedData.toolCalls,
-        persistedData.pipelineStages,
-        sessionData.session.durationMs,
-      );
-
-      // Set the capability config for overlays to use
-      usePresentationStore.getState().setCurrentConfig(capabilityConfig || null);
-      usePresentationStore.getState().loadPresentationQueue(queue);
-    }
-    previouslyEnabledRef.current = isEnabled;
-  }, [isEnabled, persistedData, capabilityConfig, sessionData.session.durationMs]);
+  // IMPORTANT: Use persistedData directly, not the derived messages/toolCalls/pipelineStages
+  // The derived variables use replayData when in replay mode, but presentation mode
+  // needs the FULL session data regardless of replay state
+  usePresentationQueue(
+    isEnabled,
+    persistedData.messages,
+    persistedData.toolCalls,
+    persistedData.pipelineStages,
+    capabilityConfig,
+    sessionData.session.durationMs,
+  );
 
   // Handle presentation playback (auto-advance through overlays)
   usePresentationPlayback();

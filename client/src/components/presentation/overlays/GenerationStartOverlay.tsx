@@ -1,7 +1,9 @@
 import { motion } from 'motion/react';
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import { presentationTokens } from '../../../lib/presentation-tokens';
 import { usePresentationStore } from '../../../stores/presentationStore';
+import { useAnimationPhases } from '../../../hooks/useAnimationPhases';
+import { useLoadingProgress } from '../../../hooks/useLoadingProgress';
 
 /**
  * GenerationStartOverlay: Simulation Loading and Power-Up Selection
@@ -12,60 +14,22 @@ import { usePresentationStore } from '../../../stores/presentationStore';
  * 3. "READY..." appears (0.5s)
  * 4. "VIBE CODE" appears with screen shake (0.5s)
  */
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Complex multi-phase animation sequence that is easier to understand as a single function
 export function GenerationStartOverlay() {
   const { currentConfig } = usePresentationStore();
-  const [phase, setPhase] = useState<'loading' | 'ready' | 'fight' | 'config'>('loading');
-  const [loadingProgress, setLoadingProgress] = useState(0);
 
-  useEffect(() => {
-    const timers: NodeJS.Timeout[] = [];
+  // Define animation phases with durations
+  const phases = useMemo(
+    () => [
+      { phase: 'loading' as const, duration: 2000 }, // Loading simulation
+      { phase: 'config' as const, duration: 3000 }, // Power-ups display
+      { phase: 'ready' as const, duration: presentationTokens.timing.readyDuration }, // READY
+      { phase: 'fight' as const, duration: 500 }, // VIBE CODE
+    ],
+    [],
+  );
 
-    // Animate loading progress bar
-    const progressInterval = setInterval(() => {
-      setLoadingProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(progressInterval);
-          return 100;
-        }
-        return prev + 5; // Increment by 5% every 100ms = 2 seconds total
-      });
-    }, 100);
-
-    // Phase 1: Loading simulation (2000ms)
-    timers.push(
-      setTimeout(() => {
-        clearInterval(progressInterval);
-        setPhase('config');
-      }, 2000),
-    );
-
-    // Phase 2: Config/Power-ups (3000ms)
-    timers.push(
-      setTimeout(() => {
-        setPhase('ready');
-      }, 2000 + 3000),
-    );
-
-    // Phase 3: READY (500ms)
-    timers.push(
-      setTimeout(
-        () => {
-          setPhase('fight');
-        },
-        2000 + 3000 + presentationTokens.timing.readyDuration,
-      ),
-    );
-
-    // Phase 4: FIGHT! (500ms) - ends after this
-
-    // Note: Final transition to next overlay handled by presentation playback system
-
-    return () => {
-      timers.forEach(clearTimeout);
-      clearInterval(progressInterval);
-    };
-  }, []);
+  const phase = useAnimationPhases(phases);
+  const loadingProgress = useLoadingProgress(2000); // 2 second loading animation
 
   return (
     <motion.div
@@ -137,7 +101,7 @@ export function GenerationStartOverlay() {
               marginTop: '2rem',
             }}
           >
-            {Math.round(loadingProgress)}%
+            {loadingProgress}%
           </motion.div>
         </div>
       )}
