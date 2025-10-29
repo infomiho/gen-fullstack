@@ -29,6 +29,9 @@ export const TOOL_NAMES = {
 
   // Building block tools (available when buildingBlocks: true)
   REQUEST_BLOCK: 'requestBlock',
+
+  // Pipeline tools (internal, not LLM tools - used for timeline visualization)
+  INSTALL_DEPENDENCIES: 'installDependencies',
 } as const;
 
 /**

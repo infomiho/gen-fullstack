@@ -9,6 +9,7 @@ import {
   FileCheck,
   PackagePlus,
   Wrench,
+  Package,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -25,6 +26,7 @@ export type ToolIconConfig = {
  *
  * Color categories:
  * - Blue: File operations (writeFile, readFile, getFileTree)
+ * - Green: Pipeline operations (installDependencies)
  * - Purple: Validation (validatePrismaSchema, validateTypeScript)
  * - Amber: Architecture/Planning (planArchitecture, requestBlock, installNpmDep)
  *
@@ -40,6 +42,10 @@ export function getToolIcon(toolName: string): ToolIconConfig {
       return { icon: FileUp, color: 'text-blue-600 dark:text-blue-400' };
     case TOOL_NAMES.GET_FILE_TREE:
       return { icon: FolderTree, color: 'text-blue-600 dark:text-blue-400' };
+
+    // Pipeline operations - Green
+    case TOOL_NAMES.INSTALL_DEPENDENCIES:
+      return { icon: Package, color: 'text-green-600 dark:text-green-400' };
 
     // Package management - Amber
     case TOOL_NAMES.INSTALL_NPM_DEP:

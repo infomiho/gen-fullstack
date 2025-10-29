@@ -67,6 +67,11 @@ function getInstallNpmDepSummary(args: Record<string, unknown>): string {
   return `Installing to ${target || 'unknown'}: ${parts.join(', ')}`;
 }
 
+function getInstallDependenciesSummary(args: Record<string, unknown>): string {
+  const { path } = args as { path?: string };
+  return `Installing dependencies in ${path || 'unknown'}`;
+}
+
 /**
  * Mapping of tool names to their summary generator functions
  */
@@ -77,6 +82,7 @@ const toolSummaryHandlers: Record<string, (args: Record<string, unknown>) => str
   [TOOL_NAMES.REQUEST_BLOCK]: getRequestBlockSummary,
   [TOOL_NAMES.PLAN_ARCHITECTURE]: getPlanArchitectureSummary,
   [TOOL_NAMES.INSTALL_NPM_DEP]: getInstallNpmDepSummary,
+  [TOOL_NAMES.INSTALL_DEPENDENCIES]: getInstallDependenciesSummary,
 };
 
 /**
@@ -164,6 +170,21 @@ export function renderToolParameters(
     return (
       <div className={typography.body}>
         <div className="text-muted-foreground">Full tree</div>
+      </div>
+    );
+  }
+
+  // Custom formatting for installDependencies
+  if (toolName === TOOL_NAMES.INSTALL_DEPENDENCIES) {
+    const { path } = args as { path?: string };
+    return (
+      <div className={typography.body}>
+        <div className="text-muted-foreground mb-1">Running npm install in:</div>
+        <pre
+          className={`bg-muted p-3 ${radius.sm} border border-border overflow-x-auto ${typography.mono} text-foreground`}
+        >
+          {path || 'unknown'}
+        </pre>
       </div>
     );
   }
