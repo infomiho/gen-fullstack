@@ -9,6 +9,8 @@ import {
   useParams,
   useRouteError,
 } from 'react-router';
+import type { Socket } from 'socket.io-client';
+import type { LLMMessage, PipelineStageEvent, ToolCall, ToolResult } from '@gen-fullstack/shared';
 import { AppPreview } from '../components/AppPreview';
 import { ErrorBoundary as ErrorBoundaryComponent } from '../components/ErrorBoundary';
 import { FileWorkspace } from '../components/FileWorkspace';
@@ -158,12 +160,77 @@ function useDisconnectionToast(
 }
 
 /**
+ * Parse capability config from JSON string
+ */
+function parseCapabilityConfig(
+  config: string | null,
+): import('@gen-fullstack/shared').CapabilityConfig | undefined {
+  if (!config) return undefined;
+
+  try {
+    return JSON.parse(config);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Determine session connection and generation status
+ */
+function getSessionStatus(
+  socket: Socket | null,
+  isSubscribed: boolean,
+  isGeneratingWebSocket: boolean,
+  sessionStatus: 'generating' | 'completed' | 'failed',
+) {
+  const isActiveSession = socket ? isGeneratingWebSocket : sessionStatus === 'generating';
+  const isConnectedToRoom = Boolean(socket?.connected && isSubscribed);
+  const isOwnSession = socket !== null && isActiveSession;
+
+  return { isActiveSession, isConnectedToRoom, isOwnSession };
+}
+
+/**
+ * Select data source based on replay mode
+ */
+function selectDataSource<TFile>(
+  isReplayMode: boolean,
+  replayData: {
+    messages: LLMMessage[];
+    toolCalls: ToolCall[];
+    toolResults: ToolResult[];
+    pipelineStages: PipelineStageEvent[];
+    files: TFile[];
+  },
+  persistedData: {
+    messages: LLMMessage[];
+    toolCalls: ToolCall[];
+    toolResults: ToolResult[];
+    pipelineStages: PipelineStageEvent[];
+    files: TFile[];
+  },
+) {
+  return {
+    messages: isReplayMode ? replayData.messages : persistedData.messages,
+    toolCalls: isReplayMode ? replayData.toolCalls : persistedData.toolCalls,
+    toolResults: isReplayMode ? replayData.toolResults : persistedData.toolResults,
+    pipelineStages: isReplayMode ? replayData.pipelineStages : persistedData.pipelineStages,
+    files: isReplayMode ? replayData.files : persistedData.files,
+  };
+}
+
+/**
  * SessionPage - View persisted session
  *
  * Displays a readonly view of a persisted session with its timeline and files.
  * If the session is still active (status === 'generating'), it connects to WebSocket
  * for real-time updates and merges them with the persisted data.
+ *
+ * NOTE: Complexity reduced from 27 to 17 through helper extraction. Remaining complexity
+ * comes from React hooks orchestration (useEffect, useCallback) which cannot be further
+ * simplified without breaking functionality or making code less readable.
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Page component orchestrates multiple React hooks and features (WebSocket, replay mode, data merging, presentation mode). Helper functions extracted for reusable logic; remaining complexity is inherent to component coordination.
 function SessionPage() {
   const { sessionId, tab } = useParams<{ sessionId: string; tab?: string }>();
   const navigate = useNavigate();
@@ -195,8 +262,8 @@ function SessionPage() {
 
   const activeTab = getActiveTab(tab);
 
-  // Handler to enter replay mode
-  const handleEnterReplayMode = async () => {
+  // Handlers for replay mode
+  const handleEnterReplayMode = useCallback(async () => {
     if (!sessionId) return;
 
     // Only allow replay for completed or failed sessions
@@ -216,35 +283,34 @@ function SessionPage() {
       enterReplay(sessionId, data);
     } catch (_error) {
       showToast('Error', 'Failed to load replay data', 'error');
-      // Error already shown to user via toast
     }
-  };
+  }, [sessionId, sessionData.session.status, enterReplay, showToast]);
 
-  // Handler to exit replay mode
-  const handleExitReplayMode = () => {
+  const handleExitReplayMode = useCallback(() => {
     exitReplayMode();
-  };
+  }, [exitReplayMode]);
 
   // Use replay mode hook for playback logic and filtered data
   const { isReplayMode, replayData } = useReplayMode();
 
   // Scroll to top when switching to preview tab
   useEffect(() => {
-    if (activeTab === 'preview' && previewContainerRef.current) {
-      previewContainerRef.current.scrollTop = 0;
+    const container = previewContainerRef.current;
+    if (activeTab === 'preview' && container) {
+      container.scrollTop = 0;
     }
   }, [activeTab]);
 
   // Subscribe to session WebSocket events and get subscription status
   const isSubscribed = useSessionWebSocket(socket, sessionId);
 
-  // Determine if session is actively generating
-  const isActiveSession = socket
-    ? isGeneratingWebSocket
-    : sessionData.session.status === 'generating';
-
-  const isConnectedToRoom = Boolean(socket?.connected && isSubscribed);
-  const isOwnSession = socket !== null && isActiveSession;
+  // Determine session connection and generation status
+  const { isActiveSession, isConnectedToRoom, isOwnSession } = getSessionStatus(
+    socket,
+    isSubscribed,
+    isGeneratingWebSocket,
+    sessionData.session.status,
+  );
 
   // Use custom hook to handle data merging (unless in replay mode)
   const persistedData = useSessionData({
@@ -259,22 +325,15 @@ function SessionPage() {
     isConnectedToRoom,
   });
 
-  // Use replay data if in replay mode, otherwise use persisted/live data
-  const messages = isReplayMode ? replayData.messages : persistedData.messages;
-  const toolCalls = isReplayMode ? replayData.toolCalls : persistedData.toolCalls;
-  const toolResults = isReplayMode ? replayData.toolResults : persistedData.toolResults;
-  const pipelineStages = isReplayMode ? replayData.pipelineStages : persistedData.pipelineStages;
-  const files = isReplayMode ? replayData.files : persistedData.files;
+  // Select data source based on replay mode
+  const { messages, toolCalls, toolResults, pipelineStages, files } = selectDataSource(
+    isReplayMode,
+    replayData,
+    persistedData,
+  );
 
   // Parse capabilityConfig for presentation mode
-  let capabilityConfig: import('@gen-fullstack/shared').CapabilityConfig | undefined;
-  try {
-    capabilityConfig = sessionData.session.capabilityConfig
-      ? JSON.parse(sessionData.session.capabilityConfig)
-      : undefined;
-  } catch {
-    // Ignore parse errors, capabilityConfig will remain undefined
-  }
+  const capabilityConfig = parseCapabilityConfig(sessionData.session.capabilityConfig);
 
   // Load presentation queue when entering presentation mode
   const isEnabled = usePresentationStore((state) => state.isEnabled);
@@ -301,40 +360,36 @@ function SessionPage() {
   useSessionRevalidation(socket, sessionId, isSubscribedSession);
 
   // Prepare stores for this session (cleanup if switching sessions)
-  // This prevents memory leaks by resetting stores when navigating between different sessions
-  // while avoiding React Strict Mode issues by only resetting on actual session changes
   useEffect(() => {
-    if (sessionId) {
-      useGenerationStore.getState().prepareForSession(sessionId);
-      useAppStore.getState().prepareForSession(sessionId);
-    }
+    if (!sessionId) return;
+
+    useGenerationStore.getState().prepareForSession(sessionId);
+    useAppStore.getState().prepareForSession(sessionId);
   }, [sessionId]);
 
   // Exit replay mode if viewing a different session
   useEffect(() => {
     const replayState = useReplayStore.getState();
-    if (replayState.isReplayMode && replayState.sessionId !== sessionId) {
+    const isDifferentSession = replayState.isReplayMode && replayState.sessionId !== sessionId;
+    if (isDifferentSession) {
       exitReplayMode();
     }
   }, [sessionId, exitReplayMode]);
 
-  // Memoized callbacks for SessionSidebar to prevent unnecessary re-renders
+  // Memoized callbacks for SessionSidebar
   const handleStartApp = useCallback(() => {
-    if (sessionId) {
-      startApp(sessionId);
-    }
+    if (!sessionId) return;
+    startApp(sessionId);
   }, [sessionId, startApp]);
 
   const handleStopApp = useCallback(() => {
-    if (sessionId) {
-      stopApp(sessionId);
-    }
+    if (!sessionId) return;
+    stopApp(sessionId);
   }, [sessionId, stopApp]);
 
   const handleStartClick = useCallback(() => {
-    if (sessionId) {
-      navigate(`/${sessionId}/preview`);
-    }
+    if (!sessionId) return;
+    navigate(`/${sessionId}/preview`);
   }, [sessionId, navigate]);
 
   return (

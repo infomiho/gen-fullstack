@@ -9,6 +9,103 @@ import {
 } from './presentation-event-parsers';
 
 /**
+ * Timeline event type for unified processing
+ */
+type TimelineEvent =
+  | { type: 'stage'; timestamp: number; stage: PipelineStageEvent }
+  | { type: 'toolCall'; timestamp: number; toolCall: ToolCall };
+
+/**
+ * Create unified timeline from pipeline stages and tool calls
+ */
+function createTimelineEvents(
+  pipelineStages: PipelineStageEvent[],
+  toolCalls: ToolCall[],
+): TimelineEvent[] {
+  const events: TimelineEvent[] = [
+    ...pipelineStages.map((stage) => ({
+      type: 'stage' as const,
+      timestamp: stage.timestamp,
+      stage,
+    })),
+    ...toolCalls.map((toolCall) => ({
+      type: 'toolCall' as const,
+      timestamp: toolCall.timestamp,
+      toolCall,
+    })),
+  ];
+
+  return events.sort((a, b) => a.timestamp - b.timestamp);
+}
+
+/**
+ * Process a pipeline stage event and add presentation events
+ */
+function processStageEvent(stage: PipelineStageEvent, events: PresentationEvent[]): void {
+  switch (stage.type) {
+    case 'template_loading': {
+      const parsed = parseTemplateLoadingStage(stage);
+      if (parsed) events.push(parsed);
+      break;
+    }
+    case 'planning': {
+      const parsed = parsePlanningStage(stage);
+      events.push(...parsed);
+      break;
+    }
+    case 'validation': {
+      const parsed = parseValidationStage(stage);
+      if (parsed) events.push(parsed);
+      break;
+    }
+  }
+}
+
+/**
+ * Process a tool call event and add presentation events
+ */
+function processToolCallEvent(
+  toolCall: ToolCall,
+  totalFileWrites: number,
+  events: PresentationEvent[],
+): number {
+  switch (toolCall.name) {
+    case 'requestBlock': {
+      const parsed = parseBlockRequestTool(toolCall);
+      if (parsed) events.push(parsed);
+      return totalFileWrites;
+    }
+    case 'writeFile': {
+      const parsed = parseWriteFileTool(toolCall, totalFileWrites);
+      events.push(...parsed);
+      return totalFileWrites + 1;
+    }
+    default:
+      return totalFileWrites;
+  }
+}
+
+/**
+ * Check if session ended with an error
+ */
+function hasErrorEnding(messages: LLMMessage[]): boolean {
+  const lastMessage = messages[messages.length - 1];
+  return lastMessage?.role === 'system' && lastMessage.content.includes('error');
+}
+
+/**
+ * Calculate session duration from messages or provided value
+ */
+function calculateSessionDuration(messages: LLMMessage[], providedDurationMs?: number): number {
+  if (providedDurationMs) return providedDurationMs / 1000;
+  if (messages.length === 0) return 0;
+
+  const firstTimestamp = messages[0].timestamp;
+  const lastTimestamp = messages[messages.length - 1].timestamp;
+  return (lastTimestamp - firstTimestamp) / 1000;
+}
+
+/**
  * Build presentation event queue from session timeline
  *
  * Parses ALL events upfront to create a showcase-ready sequence
@@ -36,90 +133,28 @@ export function buildPresentationQueue(
     duration: 6000, // 6 seconds - Loading simulation (2s) + Power-ups (3s) + READY (0.5s) + VIBE CODE (0.5s)
   });
 
-  // 2. Collect all timeline events with timestamps for chronological processing
-  type TimelineEvent =
-    | { type: 'stage'; timestamp: number; stage: PipelineStageEvent }
-    | { type: 'toolCall'; timestamp: number; toolCall: ToolCall };
-
-  const timelineEvents: TimelineEvent[] = [
-    ...pipelineStages.map((stage) => ({
-      type: 'stage' as const,
-      timestamp: stage.timestamp,
-      stage,
-    })),
-    ...toolCalls.map((toolCall) => ({
-      type: 'toolCall' as const,
-      timestamp: toolCall.timestamp,
-      toolCall,
-    })),
-  ];
-
-  // Sort by timestamp for chronological processing
-  timelineEvents.sort((a, b) => a.timestamp - b.timestamp);
+  // 2. Create unified timeline sorted by timestamp
+  const timelineEvents = createTimelineEvents(pipelineStages, toolCalls);
 
   // 3. Process events in chronological order
   let totalFileWrites = 0;
 
   for (const event of timelineEvents) {
     if (event.type === 'stage') {
-      const stage = event.stage;
-
-      switch (stage.type) {
-        case 'template_loading': {
-          const parsed = parseTemplateLoadingStage(stage);
-          if (parsed) events.push(parsed);
-          break;
-        }
-
-        case 'planning': {
-          const parsed = parsePlanningStage(stage);
-          events.push(...parsed);
-          break;
-        }
-
-        case 'validation': {
-          const parsed = parseValidationStage(stage);
-          if (parsed) events.push(parsed);
-          break;
-        }
-      }
-    } else if (event.type === 'toolCall') {
-      const toolCall = event.toolCall;
-
-      switch (toolCall.name) {
-        case 'requestBlock': {
-          const parsed = parseBlockRequestTool(toolCall);
-          if (parsed) events.push(parsed);
-          break;
-        }
-
-        case 'writeFile': {
-          const parsed = parseWriteFileTool(toolCall, totalFileWrites);
-          events.push(...parsed);
-          totalFileWrites++;
-          break;
-        }
-      }
+      processStageEvent(event.stage, events);
+    } else {
+      totalFileWrites = processToolCallEvent(event.toolCall, totalFileWrites, events);
     }
   }
 
-  // 4. Check for errors
-  const lastMessage = messages[messages.length - 1];
-  const hasError = lastMessage?.role === 'system' && lastMessage.content.includes('error');
-
-  if (hasError) {
+  // 4. Add error or victory ending
+  if (hasErrorEnding(messages)) {
     events.push({
       type: 'error-ko',
       duration: 4000, // 4 seconds - dramatic K.O.
     });
   } else {
-    // 5. Victory screen with stats
-    // Use provided session duration or calculate from timestamps
-    const sessionDuration = sessionDurationMs
-      ? sessionDurationMs / 1000
-      : messages.length > 0
-        ? (messages[messages.length - 1].timestamp - messages[0].timestamp) / 1000
-        : 0;
+    const sessionDuration = calculateSessionDuration(messages, sessionDurationMs);
 
     events.push({
       type: 'victory',

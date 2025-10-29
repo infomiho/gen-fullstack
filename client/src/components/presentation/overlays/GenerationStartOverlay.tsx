@@ -6,6 +6,120 @@ import { useAnimationPhases } from '../../../hooks/useAnimationPhases';
 import { useLoadingProgress } from '../../../hooks/useLoadingProgress';
 
 /**
+ * Props for PowerUpColumn component
+ */
+interface PowerUpColumnProps {
+  /** Column identifier/icon (e.g., □, △, ○) */
+  icon: string;
+  /** Column title */
+  title: string;
+  /** Whether this power-up is selected/enabled */
+  isSelected: boolean;
+  /** Base color for the column */
+  color: string;
+  /** Animation delay in seconds */
+  animationDelay: number;
+}
+
+/**
+ * Get colors for power-up column based on selection state
+ */
+function getPowerUpColors(baseColor: string, isSelected: boolean) {
+  return {
+    border: isSelected ? `${baseColor}CC` : `${baseColor}4D`, // CC = 80%, 4D = 30%
+    boxShadow: isSelected
+      ? `0 0 40px ${baseColor}99, inset 0 0 20px ${baseColor}1A` // 99 = 60%, 1A = 10%
+      : `0 0 10px ${baseColor}33`, // 33 = 20%
+    indicatorColor: isSelected
+      ? presentationTokens.colors.successGreen
+      : presentationTokens.colors.errorRed,
+    indicatorShadow: isSelected
+      ? '0 0 20px rgba(0, 255, 100, 0.6)'
+      : '0 0 20px rgba(255, 0, 0, 0.6)',
+    checkmark: isSelected ? '✓' : '✗',
+  };
+}
+
+/**
+ * PowerUpColumn: Reusable power-up selection column
+ */
+function PowerUpColumn({ icon, title, isSelected, color, animationDelay }: PowerUpColumnProps) {
+  const colors = getPowerUpColors(color, isSelected);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 50 }}
+      animate={{
+        opacity: 1,
+        y: 0,
+        scale: isSelected ? 1.05 : 0.95,
+      }}
+      transition={{
+        y: { delay: 0.5, duration: 0.4 },
+        opacity: { delay: 0.5, duration: 0.4 },
+        scale: { delay: animationDelay, duration: 0.3, ease: 'easeOut' },
+      }}
+      style={{
+        position: 'relative',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        padding: '2rem',
+        border: '4px solid',
+        borderColor: colors.border,
+        borderRadius: '12px',
+        backgroundColor: 'rgba(0, 0, 0, 0.3)',
+        width: '250px',
+        height: '350px',
+        boxShadow: colors.boxShadow,
+        willChange: 'transform, opacity',
+      }}
+    >
+      <div
+        style={{
+          fontSize: '8rem',
+          marginBottom: '1rem',
+          color,
+        }}
+      >
+        {icon}
+      </div>
+      <div
+        style={{
+          fontSize: '1.5rem',
+          fontFamily: presentationTokens.fonts.heroFamily,
+          color,
+          textAlign: 'center',
+        }}
+      >
+        {title}
+      </div>
+
+      {/* X or Checkmark Overlay */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.5 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: animationDelay, duration: 0.25, ease: 'easeOut' }}
+        style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          fontSize: '10rem',
+          fontFamily: presentationTokens.fonts.heroFamily,
+          color: colors.indicatorColor,
+          textShadow: colors.indicatorShadow,
+          zIndex: 10,
+          willChange: 'transform, opacity',
+        }}
+      >
+        {colors.checkmark}
+      </motion.div>
+    </motion.div>
+  );
+}
+
+/**
  * GenerationStartOverlay: Simulation Loading and Power-Up Selection
  *
  * Retro game-style generation start sequence:
@@ -179,246 +293,27 @@ export function GenerationStartOverlay() {
               justifyContent: 'center',
             }}
           >
-            {/* Column 1: Input Mode */}
-            <motion.div
-              initial={{ opacity: 0, y: 50 }}
-              animate={{
-                opacity: 1,
-                y: 0,
-                scale: currentConfig?.inputMode === 'template' ? 1.05 : 0.95,
-              }}
-              transition={{
-                y: { delay: 0.5, duration: 0.4 },
-                opacity: { delay: 0.5, duration: 0.4 },
-                scale: { delay: 1.2, duration: 0.3, ease: 'easeOut' },
-              }}
-              style={{
-                position: 'relative',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                padding: '2rem',
-                border: '4px solid',
-                borderColor:
-                  currentConfig?.inputMode === 'template'
-                    ? 'rgba(0, 255, 255, 0.8)'
-                    : 'rgba(0, 255, 255, 0.3)',
-                borderRadius: '12px',
-                backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                width: '250px',
-                height: '350px',
-                boxShadow:
-                  currentConfig?.inputMode === 'template'
-                    ? '0 0 40px rgba(0, 255, 255, 0.6), inset 0 0 20px rgba(0, 255, 255, 0.1)'
-                    : '0 0 10px rgba(0, 255, 255, 0.2)',
-                willChange: 'transform, opacity',
-              }}
-            >
-              <div
-                style={{
-                  fontSize: '8rem',
-                  marginBottom: '1rem',
-                  color: presentationTokens.colors.neonCyan,
-                }}
-              >
-                {/* Placeholder for character sprite */}□
-              </div>
-              <div
-                style={{
-                  fontSize: '1.5rem',
-                  fontFamily: presentationTokens.fonts.heroFamily,
-                  color: presentationTokens.colors.neonCyan,
-                  textAlign: 'center',
-                }}
-              >
-                TEMPLATE
-              </div>
-
-              {/* X or Checkmark Overlay */}
-              <motion.div
-                initial={{ opacity: 0, scale: 0.5 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 1.2, duration: 0.25, ease: 'easeOut' }}
-                style={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  fontSize: '10rem',
-                  fontFamily: presentationTokens.fonts.heroFamily,
-                  color:
-                    currentConfig?.inputMode === 'template'
-                      ? presentationTokens.colors.successGreen
-                      : presentationTokens.colors.errorRed,
-                  textShadow:
-                    currentConfig?.inputMode === 'template'
-                      ? '0 0 20px rgba(0, 255, 100, 0.6)'
-                      : '0 0 20px rgba(255, 0, 0, 0.6)',
-                  zIndex: 10,
-                  willChange: 'transform, opacity',
-                }}
-              >
-                {currentConfig?.inputMode === 'template' ? '✓' : '✗'}
-              </motion.div>
-            </motion.div>
-
-            {/* Column 2: Planning */}
-            <motion.div
-              initial={{ opacity: 0, y: 50 }}
-              animate={{
-                opacity: 1,
-                y: 0,
-                scale: currentConfig?.planning ? 1.05 : 0.95,
-              }}
-              transition={{
-                y: { delay: 0.5, duration: 0.4 },
-                opacity: { delay: 0.5, duration: 0.4 },
-                scale: { delay: 1.7, duration: 0.3, ease: 'easeOut' },
-              }}
-              style={{
-                position: 'relative',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                padding: '2rem',
-                border: '4px solid',
-                borderColor: currentConfig?.planning
-                  ? 'rgba(0, 255, 100, 0.8)'
-                  : 'rgba(0, 255, 100, 0.3)',
-                borderRadius: '12px',
-                backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                width: '250px',
-                height: '350px',
-                boxShadow: currentConfig?.planning
-                  ? '0 0 40px rgba(0, 255, 100, 0.6), inset 0 0 20px rgba(0, 255, 100, 0.1)'
-                  : '0 0 10px rgba(0, 255, 100, 0.2)',
-                willChange: 'transform, opacity',
-              }}
-            >
-              <div
-                style={{
-                  fontSize: '8rem',
-                  marginBottom: '1rem',
-                  color: presentationTokens.colors.successGreen,
-                }}
-              >
-                {/* Placeholder for character sprite */}△
-              </div>
-              <div
-                style={{
-                  fontSize: '1.5rem',
-                  fontFamily: presentationTokens.fonts.heroFamily,
-                  color: presentationTokens.colors.successGreen,
-                  textAlign: 'center',
-                }}
-              >
-                PLANNING
-              </div>
-
-              {/* X or Checkmark Overlay */}
-              <motion.div
-                initial={{ opacity: 0, scale: 0.5 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 1.7, duration: 0.25, ease: 'easeOut' }}
-                style={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  fontSize: '10rem',
-                  fontFamily: presentationTokens.fonts.heroFamily,
-                  color: currentConfig?.planning
-                    ? presentationTokens.colors.successGreen
-                    : presentationTokens.colors.errorRed,
-                  textShadow: currentConfig?.planning
-                    ? '0 0 20px rgba(0, 255, 100, 0.6)'
-                    : '0 0 20px rgba(255, 0, 0, 0.6)',
-                  zIndex: 10,
-                  willChange: 'transform, opacity',
-                }}
-              >
-                {currentConfig?.planning ? '✓' : '✗'}
-              </motion.div>
-            </motion.div>
-
-            {/* Column 3: Compiler Checks */}
-            <motion.div
-              initial={{ opacity: 0, y: 50 }}
-              animate={{
-                opacity: 1,
-                y: 0,
-                scale: currentConfig?.compilerChecks ? 1.05 : 0.95,
-              }}
-              transition={{
-                y: { delay: 0.5, duration: 0.4 },
-                opacity: { delay: 0.5, duration: 0.4 },
-                scale: { delay: 2.2, duration: 0.3, ease: 'easeOut' },
-              }}
-              style={{
-                position: 'relative',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                padding: '2rem',
-                border: '4px solid',
-                borderColor: currentConfig?.compilerChecks
-                  ? 'rgba(255, 255, 0, 0.8)'
-                  : 'rgba(255, 255, 0, 0.3)',
-                borderRadius: '12px',
-                backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                width: '250px',
-                height: '350px',
-                boxShadow: currentConfig?.compilerChecks
-                  ? '0 0 40px rgba(255, 255, 0, 0.6), inset 0 0 20px rgba(255, 255, 0, 0.1)'
-                  : '0 0 10px rgba(255, 255, 0, 0.2)',
-                willChange: 'transform, opacity',
-              }}
-            >
-              <div
-                style={{
-                  fontSize: '8rem',
-                  marginBottom: '1rem',
-                  color: presentationTokens.colors.neonYellow,
-                }}
-              >
-                {/* Placeholder for character sprite */}○
-              </div>
-              <div
-                style={{
-                  fontSize: '1.5rem',
-                  fontFamily: presentationTokens.fonts.heroFamily,
-                  color: presentationTokens.colors.neonYellow,
-                  textAlign: 'center',
-                }}
-              >
-                COMPILER
-              </div>
-
-              {/* X or Checkmark Overlay */}
-              <motion.div
-                initial={{ opacity: 0, scale: 0.5 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 2.2, duration: 0.25, ease: 'easeOut' }}
-                style={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  fontSize: '10rem',
-                  fontFamily: presentationTokens.fonts.heroFamily,
-                  color: currentConfig?.compilerChecks
-                    ? presentationTokens.colors.successGreen
-                    : presentationTokens.colors.errorRed,
-                  textShadow: currentConfig?.compilerChecks
-                    ? '0 0 20px rgba(0, 255, 100, 0.6)'
-                    : '0 0 20px rgba(255, 0, 0, 0.6)',
-                  zIndex: 10,
-                  willChange: 'transform, opacity',
-                }}
-              >
-                {currentConfig?.compilerChecks ? '✓' : '✗'}
-              </motion.div>
-            </motion.div>
+            <PowerUpColumn
+              icon="□"
+              title="TEMPLATE"
+              isSelected={currentConfig?.inputMode === 'template'}
+              color="rgba(0, 255, 255"
+              animationDelay={1.2}
+            />
+            <PowerUpColumn
+              icon="△"
+              title="PLANNING"
+              isSelected={currentConfig?.planning ?? false}
+              color="rgba(0, 255, 100"
+              animationDelay={1.7}
+            />
+            <PowerUpColumn
+              icon="○"
+              title="COMPILER"
+              isSelected={currentConfig?.compilerChecks ?? false}
+              color="rgba(255, 255, 0"
+              animationDelay={2.2}
+            />
           </div>
         </div>
       )}
