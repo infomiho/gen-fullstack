@@ -1,10 +1,17 @@
 import * as Dialog from '@radix-ui/react-dialog';
-import { CheckCircle, AlertTriangle, Package, Layers, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import type { PipelineStageEvent } from '@gen-fullstack/shared';
 import { focus, padding, radius, spacing, transitions, typography } from '../../lib/design-tokens';
 import { formatTimestamp } from '../../lib/time-utils';
-import { PlanArchitectureDisplay } from '../PlanArchitectureDisplay';
-import { ValidationErrorsDisplay } from '../ValidationErrorsDisplay';
+import {
+  getStageName,
+  getStageSummary,
+  getDetailedStatusText,
+  getDetailedStatusColor,
+} from '../../lib/stage-utils';
+import { StageIcon } from '../pipeline/StageIcon';
+import { StageStatusIndicator } from '../pipeline/StageStatusIndicator';
+import { StageContent } from '../pipeline/StageContent';
 
 export interface PipelineStageItemProps {
   /** The pipeline stage to display */
@@ -20,223 +27,6 @@ export interface PipelineStageItemProps {
 }
 
 /**
- * Get stage icon and color based on stage type
- */
-function getStageIcon(type: PipelineStageEvent['type']) {
-  switch (type) {
-    case 'planning':
-      return { icon: Layers, color: 'text-amber-500' };
-    case 'validation':
-      return { icon: AlertTriangle, color: 'text-purple-500' };
-    case 'template_loading':
-      return { icon: Package, color: 'text-blue-500' };
-    case 'completing':
-      return { icon: CheckCircle, color: 'text-green-500' };
-  }
-}
-
-/**
- * Get stage display name
- */
-function getStageName(type: PipelineStageEvent['type']): string {
-  switch (type) {
-    case 'planning':
-      return 'Planning Architecture';
-    case 'validation':
-      return 'Validation';
-    case 'template_loading':
-      return 'Template Loading';
-    case 'completing':
-      return 'Completing';
-  }
-}
-
-/**
- * Get planning stage summary
- */
-function getPlanningSummary(data: PipelineStageEvent['data']): string {
-  if (!data?.plan) return 'Generating architectural plan...';
-
-  const { databaseModels = [], apiRoutes = [], clientComponents = [] } = data.plan;
-  return `${databaseModels.length} models, ${apiRoutes.length} routes, ${clientComponents.length} components`;
-}
-
-/**
- * Get validation stage summary
- */
-function getValidationSummary(data: PipelineStageEvent['data']): string {
-  if (!data?.validationErrors) return 'Running Prisma + TypeScript checks...';
-
-  const errorCount = data.validationErrors.length;
-  if (errorCount === 0) return '✓ No errors found';
-
-  const iteration = data.iteration;
-  const suffix = iteration ? ` (Retry ${iteration}/${data.maxIterations ?? 3})` : '';
-  return `⚠️ Found ${errorCount} error${errorCount === 1 ? '' : 's'}${suffix}`;
-}
-
-/**
- * Get stage summary for timeline card
- */
-function getStageSummary(stage: PipelineStageEvent): string {
-  if (stage.status === 'failed') return 'Failed';
-
-  switch (stage.type) {
-    case 'planning':
-      return getPlanningSummary(stage.data);
-    case 'validation':
-      return getValidationSummary(stage.data);
-    case 'template_loading':
-      return stage.data?.templateName ? `Copied ${stage.data.templateName}` : 'Loading template...';
-    case 'completing':
-      return stage.data?.summary || 'Finalizing generation...';
-  }
-}
-
-/**
- * Render modal content based on stage type
- */
-function renderStageContent(
-  stage: PipelineStageEvent,
-  isSectionExpanded?: (id: string, section: string) => boolean,
-  onToggleSection?: (id: string, section: string) => void,
-) {
-  switch (stage.type) {
-    case 'planning': {
-      if (stage.data?.plan) {
-        return (
-          <PlanArchitectureDisplay
-            {...stage.data.plan}
-            toolId={stage.id}
-            isSectionExpanded={isSectionExpanded}
-            onToggleSection={onToggleSection}
-          />
-        );
-      }
-      return (
-        <div className={`${typography.body} text-muted-foreground`}>No plan data available</div>
-      );
-    }
-
-    case 'validation': {
-      if (stage.data?.validationErrors) {
-        return (
-          <ValidationErrorsDisplay
-            errors={stage.data.validationErrors}
-            stageId={stage.id}
-            isSectionExpanded={isSectionExpanded}
-            onToggleSection={onToggleSection}
-          />
-        );
-      }
-      return (
-        <div className={`${typography.body} text-muted-foreground`}>
-          No validation results available
-        </div>
-      );
-    }
-
-    case 'template_loading': {
-      return (
-        <div className={`${typography.body}`}>
-          <div className="mb-2">
-            <span className="text-muted-foreground">Template: </span>
-            <span className={`${typography.mono} text-foreground`}>
-              {stage.data?.templateName || 'Unknown'}
-            </span>
-          </div>
-          <div className="text-muted-foreground text-sm">
-            Template files have been copied to the sandbox and are ready for code generation.
-          </div>
-        </div>
-      );
-    }
-
-    case 'completing': {
-      return (
-        <div className={`${typography.body}`}>
-          {stage.data?.summary ? (
-            <div className="text-foreground">{stage.data.summary}</div>
-          ) : (
-            <div className="text-muted-foreground">Generation completed successfully.</div>
-          )}
-        </div>
-      );
-    }
-  }
-}
-
-/**
- * Get status indicator (icon) for stage
- */
-function getStatusIndicator(status: PipelineStageEvent['status']): string {
-  switch (status) {
-    case 'completed':
-      return '●';
-    case 'failed':
-      return '✕';
-    case 'started':
-      return '○';
-  }
-}
-
-/**
- * Get status color class for stage indicator
- */
-function getStatusColor(status: PipelineStageEvent['status']): string {
-  switch (status) {
-    case 'completed':
-      return 'text-green-600';
-    case 'failed':
-      return 'text-red-600';
-    case 'started':
-      return 'text-gray-500';
-  }
-}
-
-/**
- * Get status label for accessibility
- */
-function getStatusLabel(status: PipelineStageEvent['status']): string {
-  switch (status) {
-    case 'completed':
-      return 'Completed';
-    case 'failed':
-      return 'Failed';
-    case 'started':
-      return 'In progress';
-  }
-}
-
-/**
- * Get detailed status text for modal
- */
-function getDetailedStatusText(status: PipelineStageEvent['status']): string {
-  switch (status) {
-    case 'completed':
-      return 'Complete';
-    case 'failed':
-      return 'Failed';
-    case 'started':
-      return 'Running';
-  }
-}
-
-/**
- * Get detailed status color class for modal
- */
-function getDetailedStatusColor(status: PipelineStageEvent['status']): string {
-  switch (status) {
-    case 'completed':
-      return 'text-green-700 dark:text-green-400';
-    case 'failed':
-      return 'text-red-700 dark:text-red-400';
-    case 'started':
-      return 'text-yellow-700 dark:text-yellow-400';
-  }
-}
-
-/**
  * PipelineStageItem component - displays a pipeline stage in the timeline
  *
  * Shows stage name, status, and summary. Clicking opens a dialog with
@@ -249,7 +39,6 @@ export function PipelineStageItem({
   isSectionExpanded,
   onToggleSection,
 }: PipelineStageItemProps) {
-  const { icon: StageIcon, color: iconColor } = getStageIcon(stage.type);
   const systemColor = 'bg-gray-100 dark:bg-gray-900/30 border-gray-300 dark:border-gray-800';
 
   return (
@@ -260,16 +49,11 @@ export function PipelineStageItem({
           className={`w-full flex gap-3 ${radius.md} ${padding.card} ${systemColor} hover:border-border hover:bg-card ${transitions.colors} ${focus.ring} text-left`}
         >
           <div className="flex-shrink-0">
-            <StageIcon size={20} className={iconColor} />
+            <StageIcon type={stage.type} />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <output
-                className={`${typography.caption} ${getStatusColor(stage.status)}`}
-                aria-label={getStatusLabel(stage.status)}
-              >
-                {getStatusIndicator(stage.status)}
-              </output>
+              <StageStatusIndicator status={stage.status} />
               <span className={`${typography.label} text-foreground`}>SYSTEM</span>
               <span className={`${typography.mono} text-foreground font-medium`}>
                 {getStageName(stage.type)}
@@ -294,7 +78,7 @@ export function PipelineStageItem({
           className={`fixed left-1/2 top-1/2 z-50 w-full max-w-2xl max-h-[85vh] -translate-x-1/2 -translate-y-1/2 ${radius.md} border bg-card ${padding.panel} shadow-lg overflow-y-auto data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]`}
         >
           <Dialog.Title className={`${typography.label} text-lg mb-4 flex items-center gap-2`}>
-            <StageIcon size={20} className={iconColor} />
+            <StageIcon type={stage.type} />
             <span className={typography.mono}>{getStageName(stage.type)}</span>
             <span className="ml-2 px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs rounded">
               SYSTEM
@@ -322,7 +106,11 @@ export function PipelineStageItem({
 
             <div>
               <h3 className={`${typography.label} mb-2`}>Details</h3>
-              {renderStageContent(stage, isSectionExpanded, onToggleSection)}
+              <StageContent
+                stage={stage}
+                isSectionExpanded={isSectionExpanded}
+                onToggleSection={onToggleSection}
+              />
             </div>
           </div>
         </Dialog.Content>

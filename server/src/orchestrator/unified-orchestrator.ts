@@ -21,7 +21,11 @@ import type {
   ServerToClientEvents,
   ValidationError,
 } from '../types/index.js';
-import { DEFAULT_MAX_ITERATIONS } from '@gen-fullstack/shared';
+import {
+  DEFAULT_MAX_ITERATIONS,
+  type PipelineStageStatus,
+  type PipelineStageType,
+} from '@gen-fullstack/shared';
 import {
   createGenerationMachine,
   type GenerationMachineActor,
@@ -125,20 +129,22 @@ export class UnifiedOrchestrator {
    */
   private emitPipelineStage(
     sessionId: string,
-    type: 'planning' | 'validation' | 'template_loading' | 'completing',
-    status: 'started' | 'completed' | 'failed',
+    type: PipelineStageType,
+    status: PipelineStageStatus,
     data?: {
       plan?: ArchitecturePlan;
       validationErrors?: ValidationError[];
       iteration?: number;
       maxIterations?: number;
+      errorCount?: number;
       templateName?: string;
       summary?: string;
     },
   ): void {
-    // For validation stages with multiple iterations, use unique keys
+    // For validation and error_fixing stages with multiple iterations, use unique keys
     // Always default to iteration 1 if not specified (first attempt)
-    const stageKey = type === 'validation' ? `${type}-${data?.iteration ?? 1}` : type;
+    const stageKey =
+      type === 'validation' || type === 'error_fixing' ? `${type}-${data?.iteration ?? 1}` : type;
 
     // Get or create stable ID and timestamp for this stage
     let stageInfo = this.stageIds.get(stageKey);
@@ -318,6 +324,8 @@ export class UnifiedOrchestrator {
         codeGenerationActor: async (input: CodeGenerationInput): Promise<CodeGenerationOutput> => {
           this.logger.info({ sessionId: input.sessionId }, 'Starting code generation');
 
+          this.emitPipelineStage(input.sessionId, 'code_generation', 'started');
+
           const capability = new UnifiedCodeGenerationCapability(
             this.modelName,
             this.io,
@@ -354,7 +362,7 @@ export class UnifiedOrchestrator {
               },
               'Code generation failed (captured partial metrics)',
             );
-            // Throw error to transition to failed state, but metrics are preserved in output
+            this.emitPipelineStage(input.sessionId, 'code_generation', 'failed');
             throw new Error(result.error ?? 'Code generation failed');
           }
 
@@ -367,6 +375,8 @@ export class UnifiedOrchestrator {
             },
             'Code generation completed',
           );
+
+          this.emitPipelineStage(input.sessionId, 'code_generation', 'completed');
 
           return output;
         },
@@ -432,6 +442,12 @@ export class UnifiedOrchestrator {
             'Starting error fixing',
           );
 
+          this.emitPipelineStage(input.sessionId, 'error_fixing', 'started', {
+            iteration: input.errorFixAttempts + 1,
+            maxIterations: DEFAULT_MAX_ITERATIONS,
+            errorCount: input.validationErrors.length,
+          });
+
           const capability = new ErrorFixingCapability(this.modelName, this.io);
           const context: CapabilityContext = {
             sessionId: input.sessionId,
@@ -463,6 +479,7 @@ export class UnifiedOrchestrator {
               },
               'Error fixing failed (captured partial metrics)',
             );
+            this.emitPipelineStage(input.sessionId, 'error_fixing', 'failed');
             throw new Error(result.error ?? 'Error fixing failed');
           }
 
@@ -476,6 +493,12 @@ export class UnifiedOrchestrator {
             },
             'Error fixing completed',
           );
+
+          this.emitPipelineStage(input.sessionId, 'error_fixing', 'completed', {
+            iteration: input.errorFixAttempts + 1,
+            maxIterations: DEFAULT_MAX_ITERATIONS,
+            errorCount: input.validationErrors.length,
+          });
 
           return output;
         },

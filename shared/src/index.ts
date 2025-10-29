@@ -210,6 +210,22 @@ export interface ValidationError {
 // ============================================================================
 
 /**
+ * Pipeline stage types - represents machine-controlled orchestration stages
+ */
+export type PipelineStageType =
+  | 'planning'
+  | 'code_generation'
+  | 'validation'
+  | 'error_fixing'
+  | 'template_loading'
+  | 'completing';
+
+/**
+ * Pipeline stage status
+ */
+export type PipelineStageStatus = 'started' | 'completed' | 'failed';
+
+/**
  * Pipeline stage event emitted by the state machine to show
  * explicit orchestration stages in the UI timeline.
  *
@@ -220,9 +236,9 @@ export interface PipelineStageEvent {
   /** Unique ID for this stage event */
   id: string;
   /** Stage type - maps to state machine states */
-  type: 'planning' | 'validation' | 'template_loading' | 'completing';
+  type: PipelineStageType;
   /** Stage status */
-  status: 'started' | 'completed' | 'failed';
+  status: PipelineStageStatus;
   /** Unix timestamp in milliseconds */
   timestamp: number;
   /** Stage-specific data payload */
@@ -232,8 +248,11 @@ export interface PipelineStageEvent {
 
     // Validation stage
     validationErrors?: ValidationError[];
-    iteration?: number; // Retry count (1, 2, 3...) for error-fixing loops
+
+    // Validation and Error Fixing stages
+    iteration?: number; // Retry count (1, 2, 3...) for validation/error-fixing loops
     maxIterations?: number; // Max allowed iterations
+    errorCount?: number; // Number of errors being fixed
 
     // Template loading stage
     templateName?: string;

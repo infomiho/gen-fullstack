@@ -25,6 +25,7 @@ import {
   timelineItems,
 } from '../db/schema.js';
 import { databaseLogger } from '../lib/logger.js';
+import type { PipelineStageStatus, PipelineStageType } from '@gen-fullstack/shared';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -241,8 +242,8 @@ class DatabaseService {
   async upsertPipelineStage(
     sessionId: string,
     stageId: string,
-    stageType: 'planning' | 'validation' | 'template_loading' | 'completing',
-    stageStatus: 'started' | 'completed' | 'failed',
+    stageType: PipelineStageType,
+    stageStatus: PipelineStageStatus,
     timestamp: Date,
     stageData?: Record<string, unknown>,
   ): Promise<TimelineItem> {
