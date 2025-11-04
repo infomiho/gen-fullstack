@@ -50,14 +50,17 @@ export function StageNode(props: NodeProps) {
       return;
     }
 
+    // Capture startTimestamp to avoid non-null assertion
+    const startTimestamp = data.startTimestamp;
+
     // Update duration every second
     const interval = setInterval(() => {
-      const elapsed = Date.now() - data.startTimestamp!;
+      const elapsed = Date.now() - startTimestamp;
       setDuration(elapsed);
     }, 1000);
 
     // Set initial duration immediately
-    setDuration(Date.now() - data.startTimestamp);
+    setDuration(Date.now() - startTimestamp);
 
     return () => clearInterval(interval);
   }, [status, data.startTimestamp]);

@@ -19,9 +19,14 @@ import {
   useNodesState,
   useEdgesState,
   type NodeTypes,
+  type ReactFlowInstance,
 } from '@xyflow/react';
 import type { CapabilityConfig, PipelineStageEvent } from '@gen-fullstack/shared';
-import { buildPipelineNodes, type PipelineStageId } from '../../lib/pipeline-builder';
+import {
+  buildPipelineNodes,
+  type PipelineStageId,
+  type StageNodeData,
+} from '../../lib/pipeline-builder';
 import { LabelNode } from './LabelNode';
 import { StageNode } from './StageNode';
 import { useGenerationStore } from '../../stores/generation';
@@ -95,7 +100,7 @@ export function PipelineVisualization({
         // Only update stage nodes, not label nodes
         if (node.type !== 'stage') return node;
 
-        const stageId = (node.data as any).stageId as PipelineStageId;
+        const stageId = (node.data as unknown as StageNodeData).stageId;
         const status = getStageStatus(stageId, pipelineStages, isGenerating);
 
         // Find the latest event for this stage to get timestamp
@@ -115,7 +120,7 @@ export function PipelineVisualization({
   }, [pipelineStages, isGenerating, setNodes]);
 
   // Fit view on mount
-  const onInit = useCallback((reactFlowInstance: any) => {
+  const onInit = useCallback((reactFlowInstance: ReactFlowInstance) => {
     reactFlowInstance.fitView({ padding: 0.2 });
   }, []);
 
