@@ -1,0 +1,77 @@
+{
+  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "parallel": 3,
+  "cacheDirectory": ".nx/cache",
+  "targetDefaults": {
+    "build": {
+      "dependsOn": ["^build"],
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/**/*",
+        "!{projectRoot}/**/*.md",
+        "{workspaceRoot}/tsconfig.base.json"
+      ],
+      "outputs": ["{projectRoot}/dist"]
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck"],
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/**/*.ts",
+        "{projectRoot}/**/*.tsx",
+        "{projectRoot}/tsconfig.json",
+        "{workspaceRoot}/tsconfig.base.json"
+      ]
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "cache": true,
+      "inputs": ["{projectRoot}/**/*", "!{projectRoot}/**/*.md"],
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"]
+    },
+    "test:run": {
+      "dependsOn": ["^build"],
+      "cache": true,
+      "inputs": ["{projectRoot}/**/*", "!{projectRoot}/**/*.md"],
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"]
+    },
+    "lint": {
+      "cache": true,
+      "inputs": ["{projectRoot}/**/*", "{workspaceRoot}/biome.json"]
+    },
+    "lint:fix": {
+      "cache": true,
+      "inputs": ["{projectRoot}/**/*", "{workspaceRoot}/biome.json"]
+    },
+    "format": {
+      "cache": true,
+      "inputs": ["{projectRoot}/**/*", "{workspaceRoot}/biome.json"]
+    },
+    "format:check": {
+      "cache": true,
+      "inputs": ["{projectRoot}/**/*", "{workspaceRoot}/biome.json"]
+    },
+    "dev": {
+      "cache": false,
+      "continuous": true
+    },
+    "storybook": {
+      "cache": false,
+      "continuous": true
+    },
+    "db:generate": {
+      "cache": true,
+      "inputs": ["{projectRoot}/prisma/**/*", "{projectRoot}/.env"],
+      "outputs": ["{projectRoot}/node_modules/.prisma"]
+    }
+  },
+  "namedInputs": {
+    "default": ["{projectRoot}/**/*"],
+    "production": [
+      "default",
+      "!{projectRoot}/**/*.spec.ts",
+      "!{projectRoot}/**/*.test.ts",
+      "!{projectRoot}/**/__tests__/**"
+    ]
+  }
+}

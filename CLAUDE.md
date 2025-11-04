@@ -275,6 +275,20 @@ Use **flat top-level categories** for better visual organization in Storybook si
 - Use `satisfies` operator for type safety
 - When using custom `render` functions in stories, always provide minimal required `args` (e.g., `args: { id: "" }` for a component that requires `id`)
 
+## Monorepo & Build System
+
+This project uses **Nx** for monorepo management with **local caching only** (no Nx Cloud). Nx provides:
+- Fast task scheduling and parallelization
+- Intelligent build caching to avoid redundant work
+- Task pipeline management (e.g., build depends on dependencies being built first)
+
+**Key Nx configuration:**
+- `nx.json` - Main Nx configuration with task pipelines and caching rules
+- `.nx/cache` - Local cache directory (gitignored)
+- No cloud caching - all caching is local only
+
+All workspace commands use Nx under the hood via `nx run-many` to leverage caching and parallelization.
+
 ## Development Commands
 
 **IMPORTANT**: Always verify your current directory with `pwd` before running commands that depend on a specific folder location.
@@ -287,6 +301,7 @@ pwd
 pnpm install
 
 # Run both client and server in dev mode (from project root)
+# Uses Nx to run dev target for all projects in parallel
 pnpm dev
 
 # Run client only (from project root)
@@ -302,20 +317,32 @@ pnpm --filter client storybook
 cd client && pnpm storybook
 
 # Type check (from project root)
+# Uses Nx caching - second run will be instant if no files changed
 pnpm typecheck
 
 # Run tests
+# Uses Nx caching for faster test execution
 pnpm test
 
 # Format code
 pnpm format
 
 # Build for production
+# Uses Nx to build in correct order (dependencies first) with caching
 pnpm build
 
 # Clean up old generations (disk + database)
 cd server && pnpm exec tsx ../scripts/cleanup-generations.ts
+
+# Clean Nx cache
+pnpm clean  # Also removes .nx cache directory
 ```
+
+**Nx benefits in this project:**
+- **Cached builds**: Running `pnpm build` twice only rebuilds changed projects
+- **Cached tests**: Running `pnpm test` twice skips unchanged test files
+- **Task dependencies**: Build targets automatically wait for dependencies to build first
+- **Parallel execution**: Multiple projects run concurrently with `--parallel` flag
 
 ## What to Work On Next
 

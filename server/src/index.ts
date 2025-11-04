@@ -202,6 +202,22 @@ httpServer.listen(PORT, () => {
   serverLogger.info({ clientUrl: CLIENT_URL }, `Accepting connections from ${CLIENT_URL}`);
 });
 
+// Handle server startup errors
+httpServer.on('error', (err) => {
+  if ('code' in err && err.code === 'EADDRINUSE') {
+    serverLogger.error(
+      { error: err, port: PORT },
+      `Failed to start server: Port ${PORT} is already in use`,
+    );
+    serverLogger.error(
+      'Try stopping other processes using this port or set a different PORT in .env',
+    );
+  } else {
+    serverLogger.error({ error: err }, 'Failed to start server');
+  }
+  process.exit(1);
+});
+
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   serverLogger.info('SIGTERM signal received: closing servers');

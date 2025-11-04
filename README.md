@@ -67,55 +67,55 @@ pnpm dev:client
 
 3. Open http://localhost:5173 in your browser
 
-## Current Status
+## Features
 
-**Phase 1 Complete**: Basic harness setup ✅
+- **Full-Stack Generation**: Generate complete React + Express + Prisma applications from natural language prompts
+- **Real-Time Streaming**: WebSocket-based UI with live LLM responses and tool execution
+- **Docker Execution**: Secure, isolated execution of generated apps with automatic port mapping
+- **Session Persistence**: SQLite database stores all sessions, timeline events, and generated files
+- **Session Replay**: Replay any completed generation at 10x speed with full timeline reconstruction
+- **File Editor**: Edit generated files with CodeMirror syntax highlighting
+- **Presentation Mode**: Full-screen fighting game aesthetics for live demos and conferences
+- **Capability System**: Flexible generation modes with composable options
 
-- ✅ Monorepo structure with pnpm workspaces
-- ✅ Express 5 server with Socket.io WebSocket
-- ✅ React 19 dashboard with WebSocket connection
-- ✅ Basic prompt input and response display
-- ✅ Strategy selector UI
-- ✅ **All critical issues fixed** (see `CODE_REVIEW_FIXES.md`)
-  - Zod validation for WebSocket events
-  - Environment variable validation
-  - Graceful shutdown handling
-  - No race conditions
-  - Memory leak prevention
+## Generation Capabilities
 
-**Ready for Phase 2**: LLM Integration
+The system supports flexible capability configurations:
 
-- Implement OpenAI service with streaming
-- Add tool calling for file operations
-- Create generation state machine
-- Implement all 5 generation strategies
+### Input Modes (choose one):
+- **Naive** - Generate from scratch, write all files directly
+- **Template** - Start from pre-built full-stack template
 
-## Generation Strategies
+### Optional Features (can combine with any input mode):
+- **Planning** - Generate architectural plan before implementation
+- **Compiler Checks** - Validate with Prisma and TypeScript, iterate to fix errors
+- **Building Blocks** - Use higher-level reusable components
 
-The tool supports 5 different generation strategies:
-
-1. **Naive Approach** - Direct prompt to code
-2. **Plan First** - Generate high-level plan before coding
-3. **With Template** - Start with pre-built template
-4. **Compiler Checks** - Self-correct with TypeScript errors
-5. **Building Blocks** - Use higher-level components
+Examples: Naive + Planning, Template + Compiler Checks, or any combination you need.
 
 ## Development
+
+This project uses **Nx** for monorepo management with **local caching only** (no Nx Cloud). All commands leverage Nx's intelligent caching - running the same command twice will be instant if no files changed.
 
 ### Workspace Commands (from root)
 
 ```bash
-pnpm dev           # Run both server and client in parallel
-pnpm dev:server    # Run server only
-pnpm dev:client    # Run client only
-pnpm build         # Build both projects
-pnpm test          # Run all tests once
+pnpm dev           # Run both server and client in parallel (with Nx)
+pnpm dev:server    # Run server only (with Nx)
+pnpm dev:client    # Run client only (with Nx)
+pnpm build         # Build both projects (cached with Nx)
+pnpm test          # Run all tests once (cached with Nx)
 pnpm test:watch    # Run tests in watch mode
 pnpm test:ui       # Open Vitest UI for both projects
-pnpm typecheck     # Type check all workspaces
+pnpm typecheck     # Type check all workspaces (cached with Nx)
 pnpm format        # Format all workspaces
 pnpm lint          # Lint all workspaces
 ```
+
+**Nx benefits:**
+- 🚀 **Cached builds**: Second build is instant if no code changed
+- ⚡ **Parallel execution**: Multiple tasks run concurrently
+- 🔗 **Smart dependencies**: Builds dependencies first automatically
 
 ### Individual Package Commands
 
@@ -148,7 +148,7 @@ pnpm format        # Format code with Prettier
 ### Latest Versions (2025)
 - **Backend**: Node.js 22+, Express 5.0, Socket.io 4.8, TypeScript 5.9
 - **Frontend**: React 19.2, Vite 7.1, Tailwind CSS 4.1, TypeScript 5.9
-- **Package Manager**: pnpm 9+ with workspaces
+- **Monorepo**: pnpm 9+ workspaces + Nx 22 (local caching only)
 - **LLM**: Vercel AI SDK 5.0 with GPT-5-mini model
 - **Validation**: Zod 3.24
 - **Testing**: Vitest 3.2 with @testing-library/react 16
@@ -159,7 +159,7 @@ pnpm format        # Format code with Prettier
 - **Vite 7**: Next-gen build tool with Environment API
 - **Tailwind CSS 4**: Zero-config setup with automatic template discovery, 5x faster builds
 - **Vitest 3**: Fast unit testing with UI and coverage support
-- **pnpm Workspaces**: Efficient monorepo management
+- **Nx + pnpm**: Efficient monorepo with intelligent caching (local only, no cloud)
 - **WebSocket**: Real-time communication between client and server
 - **Type-Safe Events**: Full TypeScript support for Socket.io events
 - **Express 5**: Latest major version with improved performance
