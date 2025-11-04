@@ -106,7 +106,7 @@ export class PlanningCapability extends BaseCapability {
   private buildPrompts(userPrompt: string): { systemPrompt: string; userMessage: string } {
     const systemPrompt = `You are an expert full-stack application architect.
 
-Your task is to create a detailed architectural plan for a full-stack application based on user requirements.
+Your task is to create a concise architectural plan for a full-stack application based on user requirements.
 
 The application stack is:
 - **Database**: Prisma ORM + SQLite
@@ -124,6 +124,12 @@ IMPORTANT INSTRUCTIONS:
 5. Design React components with clear responsibilities
 6. Ensure the plan is coherent and all pieces work together
 7. After calling the tool, respond with a brief summary of the plan
+
+PLAN STYLE:
+- Keep descriptions brief (1-2 sentences focusing on WHAT and WHY, not HOW)
+- Limit key_features to 3-5 most important items only
+- Avoid excessive implementation details in the plan
+- Be concise - the plan guides code generation, it doesn't replace it
 
 Do NOT write any code - just create the architectural plan.`;
 

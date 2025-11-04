@@ -23,6 +23,10 @@ export function useReplayMode() {
   const isReplayModeActive = useReplayStore((state) => state.isReplayMode);
   const isPlaying = useReplayStore((state) => state.isPlaying);
   const replayCurrentTime = useReplayStore((state) => state.currentTime);
+  // Subscribe to data slices needed for replay computation
+  const timelineItems = useReplayStore((state) => state.timelineItems);
+  const sessionStartTime = useReplayStore((state) => state.sessionStartTime);
+  const replayFiles = useReplayStore((state) => state.files);
 
   // Replay playback timer - runs at 60 FPS when playing
   useEffect(() => {
@@ -63,29 +67,19 @@ export function useReplayMode() {
   }, [isReplayModeActive, isPlaying]);
 
   // Compute replay data using useMemo to avoid recreating objects on every render
-  // biome-ignore lint/correctness/useExhaustiveDependencies: replayCurrentTime is needed to trigger recomputation on time changes
   const replayData = useMemo(() => {
     if (!isReplayModeActive) {
       return { messages: [], toolCalls: [], toolResults: [], pipelineStages: [], files: [] };
     }
 
-    const state = useReplayStore.getState();
     return {
-      messages: getReplayMessages(state.timelineItems, state.sessionStartTime, state.currentTime),
-      toolCalls: getReplayToolCalls(state.timelineItems, state.sessionStartTime, state.currentTime),
-      toolResults: getReplayToolResults(
-        state.timelineItems,
-        state.sessionStartTime,
-        state.currentTime,
-      ),
-      pipelineStages: getReplayPipelineStages(
-        state.timelineItems,
-        state.sessionStartTime,
-        state.currentTime,
-      ),
-      files: getReplayFiles(state.files, state.sessionStartTime, state.currentTime),
+      messages: getReplayMessages(timelineItems, sessionStartTime, replayCurrentTime),
+      toolCalls: getReplayToolCalls(timelineItems, sessionStartTime, replayCurrentTime),
+      toolResults: getReplayToolResults(timelineItems, sessionStartTime, replayCurrentTime),
+      pipelineStages: getReplayPipelineStages(timelineItems, sessionStartTime, replayCurrentTime),
+      files: getReplayFiles(replayFiles, sessionStartTime, replayCurrentTime),
     };
-  }, [isReplayModeActive, replayCurrentTime]);
+  }, [isReplayModeActive, replayCurrentTime, timelineItems, sessionStartTime, replayFiles]);
 
   return {
     isReplayMode: isReplayModeActive,

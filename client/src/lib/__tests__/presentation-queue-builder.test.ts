@@ -394,11 +394,11 @@ describe('buildPresentationQueue', () => {
       const fileEvent = queue.find((e) => e.type === 'file-created');
       expect(fileEvent).toBeDefined();
       expect(fileEvent?.data?.fileName).toBe('test.ts');
-      expect(fileEvent?.duration).toBe(1000);
+      expect(fileEvent?.duration).toBe(350); // First file uses longer delay
     });
 
-    it('should create combo-milestone event at 5 files', () => {
-      const toolCalls: ToolCall[] = Array.from({ length: 5 }, (_, i) => ({
+    it('should create combo-milestone event at 10 files', () => {
+      const toolCalls: ToolCall[] = Array.from({ length: 10 }, (_, i) => ({
         id: `${i}`,
         name: 'writeFile',
         args: { path: `file${i}.ts` },
@@ -409,7 +409,7 @@ describe('buildPresentationQueue', () => {
 
       const comboEvent = queue.find((e) => e.type === 'combo-milestone');
       expect(comboEvent).toBeDefined();
-      expect(comboEvent?.data?.comboMilestone).toBe(5);
+      expect(comboEvent?.data?.comboMilestone).toBe(10);
     });
 
     it('should create combo-milestone events at 10, 20, 30 files', () => {
@@ -423,11 +423,10 @@ describe('buildPresentationQueue', () => {
       const queue = buildPresentationQueue([], toolCalls, []);
 
       const comboEvents = queue.filter((e) => e.type === 'combo-milestone');
-      expect(comboEvents).toHaveLength(4); // At 5, 10, 20, 30
-      expect(comboEvents[0].data?.comboMilestone).toBe(5);
-      expect(comboEvents[1].data?.comboMilestone).toBe(10);
-      expect(comboEvents[2].data?.comboMilestone).toBe(20);
-      expect(comboEvents[3].data?.comboMilestone).toBe(30);
+      expect(comboEvents).toHaveLength(3); // At 10, 20, 30
+      expect(comboEvents[0].data?.comboMilestone).toBe(10);
+      expect(comboEvents[1].data?.comboMilestone).toBe(20);
+      expect(comboEvents[2].data?.comboMilestone).toBe(30);
     });
 
     it('should extract fileName from different arg formats', () => {
@@ -505,7 +504,7 @@ describe('buildPresentationQueue', () => {
 
     it('should only count unique files toward combo milestones', () => {
       const toolCalls: ToolCall[] = [
-        ...Array.from({ length: 5 }, (_, i) => ({
+        ...Array.from({ length: 10 }, (_, i) => ({
           id: `${i}`,
           name: 'writeFile',
           args: { path: `file${i}.ts` },
@@ -513,27 +512,27 @@ describe('buildPresentationQueue', () => {
         })),
         // Duplicate writes (modifications)
         {
-          id: '5',
+          id: '10',
           name: 'writeFile',
           args: { path: 'file0.ts' },
-          timestamp: 1005,
+          timestamp: 1010,
         },
         {
-          id: '6',
+          id: '11',
           name: 'writeFile',
           args: { path: 'file1.ts' },
-          timestamp: 1006,
+          timestamp: 1011,
         },
       ];
 
       const queue = buildPresentationQueue([], toolCalls, []);
 
       const comboEvents = queue.filter((e) => e.type === 'combo-milestone');
-      expect(comboEvents).toHaveLength(1); // Only at 5 unique files
-      expect(comboEvents[0].data?.comboMilestone).toBe(5);
+      expect(comboEvents).toHaveLength(1); // Only at 10 unique files
+      expect(comboEvents[0].data?.comboMilestone).toBe(10);
 
       const fileEvents = queue.filter((e) => e.type === 'file-created');
-      expect(fileEvents).toHaveLength(5); // Only unique files
+      expect(fileEvents).toHaveLength(10); // Only unique files
     });
   });
 

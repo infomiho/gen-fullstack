@@ -1,5 +1,6 @@
 import type { PipelineStageEvent, ToolCall } from '@gen-fullstack/shared';
 import type { PresentationEvent } from '../stores/presentationStore';
+import { presentationTokens } from './presentation-tokens';
 
 /**
  * Type guards and interfaces for tool call arguments
@@ -224,12 +225,15 @@ export function parseWriteFileTool(
 
   events.push({
     type: 'file-created',
-    duration: 1000, // 1 second minimum for visibility
+    duration:
+      currentFileWriteCount === 0
+        ? presentationTokens.timing.fileCreatedFirstDelay
+        : presentationTokens.timing.fileCreatedDelay,
     data: { fileName: filePath || `file-${fileCount}` },
   });
 
-  // Show combo milestone right after milestone files (5, 10, 20, 30, etc.)
-  if (fileCount === 5 || fileCount === 10 || (fileCount >= 20 && fileCount % 10 === 0)) {
+  // Show combo milestone right after milestone files (10, 20, 30, etc.)
+  if (fileCount === 10 || (fileCount >= 20 && fileCount % 10 === 0)) {
     events.push({
       type: 'combo-milestone',
       duration: 2000,

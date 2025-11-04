@@ -110,6 +110,10 @@ export const presentationTokens = {
 
     // Combo timing
     comboWindow: 1000, // Time to maintain combo
+
+    // File creation animation timing
+    fileCreatedFirstDelay: 350, // First file (more visible)
+    fileCreatedDelay: 150, // Subsequent files (faster pace)
   },
 
   assets: {

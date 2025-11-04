@@ -1,5 +1,6 @@
 import type { Socket } from 'socket.io-client';
 import type { LLMMessage, PipelineStageEvent, ToolCall, ToolResult } from '@gen-fullstack/shared';
+import { useMemo } from 'react';
 import { useWebSocket } from './useWebSocket';
 import { useSessionWebSocket } from './useSessionWebSocket';
 import { useSessionData } from './useSessionData';
@@ -108,8 +109,11 @@ export function useSessionDataLayer(sessionId: string | undefined, sessionData: 
   // Replay mode data
   const { isReplayMode, replayData } = useReplayMode();
 
-  // Select data source based on replay mode
-  const currentData = selectDataSource(isReplayMode, replayData, persistedData);
+  // Select data source based on replay mode (memoized to prevent unnecessary re-renders)
+  const currentData = useMemo(
+    () => selectDataSource(isReplayMode, replayData, persistedData),
+    [isReplayMode, replayData, persistedData],
+  );
 
   return {
     // Data

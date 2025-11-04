@@ -658,7 +658,7 @@ describe('presentation-event-parsers', () => {
       expect(result).toHaveLength(1);
       expect(result[0]).toEqual({
         type: 'file-created',
-        duration: 1000,
+        duration: 350, // First file uses longer delay
         data: { fileName: 'test.ts' },
       });
       expect(seenFiles.has('test.ts')).toBe(true);
@@ -678,22 +678,22 @@ describe('presentation-event-parsers', () => {
       expect(result).toHaveLength(0); // No events for modification
     });
 
-    it('should add combo milestone at 5 files', () => {
+    it('should add combo milestone at 10 files', () => {
       const toolCall: ToolCall = {
-        id: '5',
+        id: '10',
         name: 'writeFile',
-        args: { path: 'file5.ts' },
+        args: { path: 'file10.ts' },
         timestamp: 1000,
       };
       const seenFiles = new Set<string>();
 
-      const result = parseWriteFileTool(toolCall, 4, seenFiles); // 4 existing, this is 5th
+      const result = parseWriteFileTool(toolCall, 9, seenFiles); // 9 existing, this is 10th
 
       expect(result).toHaveLength(2);
       expect(result[0].type).toBe('file-created');
       expect(
         (result[1] as Extract<PresentationEvent, { type: 'combo-milestone' }>).data.comboMilestone,
-      ).toBe(5);
+      ).toBe(10);
     });
 
     it('should add combo milestone at 10 files', () => {

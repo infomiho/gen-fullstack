@@ -21,6 +21,7 @@ interface ReplayTimelineItem {
     content?: string;
     name?: string;
     parameters?: Record<string, unknown>;
+    reason?: string;
     toolCallId?: string;
     toolName?: string;
     result?: string;
@@ -84,6 +85,7 @@ export function getReplayToolCalls(
       id: item.id,
       name: item.data.name as string,
       args: item.data.parameters as Record<string, unknown>,
+      reason: item.data.reason as string | undefined,
       timestamp: item.timestamp,
     }));
 }
