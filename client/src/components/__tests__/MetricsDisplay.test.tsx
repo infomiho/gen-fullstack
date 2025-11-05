@@ -73,4 +73,105 @@ describe('MetricsDisplay', () => {
     const monoElements = container.querySelectorAll('.font-mono');
     expect(monoElements).toHaveLength(4);
   });
+
+  describe('Model display', () => {
+    it('does not render model row when model is not provided', () => {
+      render(<MetricsDisplay totalTokens={5000} cost="0.0123" durationMs={12345} stepCount={25} />);
+      expect(screen.queryByText('Model')).not.toBeInTheDocument();
+    });
+
+    it('renders model row when model is provided', () => {
+      render(
+        <MetricsDisplay
+          model="gpt-5-mini"
+          totalTokens={5000}
+          cost="0.0123"
+          durationMs={12345}
+          stepCount={25}
+        />,
+      );
+      expect(screen.getByText('Model')).toBeInTheDocument();
+    });
+
+    it('displays GPT-5 Mini correctly', () => {
+      render(
+        <MetricsDisplay
+          model="gpt-5-mini"
+          totalTokens={5000}
+          cost="0.0123"
+          durationMs={12345}
+          stepCount={25}
+        />,
+      );
+      expect(screen.getByText('GPT-5 Mini')).toBeInTheDocument();
+    });
+
+    it('displays GPT-5 correctly', () => {
+      render(
+        <MetricsDisplay
+          model="gpt-5"
+          totalTokens={5000}
+          cost="0.0123"
+          durationMs={12345}
+          stepCount={25}
+        />,
+      );
+      expect(screen.getByText('GPT-5')).toBeInTheDocument();
+    });
+
+    it('displays Claude Sonnet 4.5 correctly', () => {
+      render(
+        <MetricsDisplay
+          model="claude-sonnet-4-5"
+          totalTokens={5000}
+          cost="0.0123"
+          durationMs={12345}
+          stepCount={25}
+        />,
+      );
+      expect(screen.getByText('Claude Sonnet 4.5')).toBeInTheDocument();
+    });
+
+    it('displays Claude Haiku 4.5 correctly', () => {
+      render(
+        <MetricsDisplay
+          model="claude-haiku-4-5"
+          totalTokens={5000}
+          cost="0.0123"
+          durationMs={12345}
+          stepCount={25}
+        />,
+      );
+      expect(screen.getByText('Claude Haiku 4.5')).toBeInTheDocument();
+    });
+
+    it('handles unknown model with fallback formatting', () => {
+      render(
+        <MetricsDisplay
+          model="unknown-model-123"
+          totalTokens={5000}
+          cost="0.0123"
+          durationMs={12345}
+          stepCount={25}
+        />,
+      );
+      // Fallback capitalizes each word
+      expect(screen.getByText('Unknown Model 123')).toBeInTheDocument();
+    });
+
+    it('uses monospace font for model value', () => {
+      const { container } = render(
+        <MetricsDisplay
+          model="gpt-5-mini"
+          totalTokens={5000}
+          cost="0.0123"
+          durationMs={12345}
+          stepCount={25}
+        />,
+      );
+      const monoElements = container.querySelectorAll('.font-mono');
+      // Should now have 5 monospace elements (model + 4 metrics)
+      expect(monoElements).toHaveLength(5);
+    });
+  });
 });

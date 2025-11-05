@@ -74,3 +74,64 @@ export const ZeroValues: Story = {
     stepCount: 0,
   },
 };
+
+// Model display examples
+export const WithGPT5Mini: Story = {
+  args: {
+    model: 'gpt-5-mini',
+    totalTokens: 12345,
+    cost: '0.0456',
+    durationMs: 45678,
+    stepCount: 42,
+  },
+};
+
+export const WithGPT5: Story = {
+  args: {
+    model: 'gpt-5',
+    totalTokens: 25000,
+    cost: '0.1234',
+    durationMs: 67890,
+    stepCount: 55,
+  },
+};
+
+export const WithClaudeSonnet: Story = {
+  args: {
+    model: 'claude-sonnet-4-5',
+    totalTokens: 18000,
+    cost: '0.0789',
+    durationMs: 54321,
+    stepCount: 38,
+  },
+};
+
+export const WithClaudeHaiku: Story = {
+  args: {
+    model: 'claude-haiku-4-5',
+    totalTokens: 8500,
+    cost: '0.0234',
+    durationMs: 23456,
+    stepCount: 28,
+  },
+};
+
+export const WithClaudeOpus: Story = {
+  args: {
+    model: 'claude-opus-4-1',
+    totalTokens: 45000,
+    cost: '0.2345',
+    durationMs: 98765,
+    stepCount: 75,
+  },
+};
+
+export const WithoutModel: Story = {
+  args: {
+    // No model provided (for backward compatibility with old sessions)
+    totalTokens: 12345,
+    cost: '0.0456',
+    durationMs: 45678,
+    stepCount: 42,
+  },
+};

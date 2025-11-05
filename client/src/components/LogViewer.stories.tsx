@@ -1,6 +1,6 @@
 import type { AppLog } from '@gen-fullstack/shared';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, userEvent, within } from '@storybook/test';
+import { expect, userEvent, within } from 'storybook/test';
 import { LogViewer } from './LogViewer';
 
 /**

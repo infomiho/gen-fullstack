@@ -29,8 +29,8 @@ export function CapabilitySection({
     <div>
       {/* Section header */}
       <div className="flex items-center gap-2 mb-4">
-        <h2 className={typography.sectionHeader}>AI Capabilities</h2>
-        <HoverInfo content="Select which AI capabilities to enable for your application generation. Capabilities can be combined for more sophisticated results." />
+        <h2 className={typography.sectionHeader}>Capabilities</h2>
+        <HoverInfo content="Select which capabilities to enable for your application generation. Capabilities can be combined for more sophisticated results." />
       </div>
 
       {/* Capability cards - wrapped grid layout */}

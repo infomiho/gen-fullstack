@@ -20,6 +20,8 @@ import { integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core
 export const sessions = sqliteTable('sessions', {
   id: text('id').primaryKey(),
   prompt: text('prompt').notNull(),
+  // Model used for generation (nullable for backward compatibility with existing sessions)
+  model: text('model'),
   // NEW: Store assembled prompts for debugging (nullable for backward compatibility)
   systemPrompt: text('system_prompt'),
   fullUserPrompt: text('full_user_prompt'),

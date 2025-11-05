@@ -10,6 +10,7 @@ import { UnifiedStatusSection } from './UnifiedStatusSection';
 interface SessionData {
   session: {
     prompt: string;
+    model?: string; // Model used for generation
     strategy: string;
     capabilityConfig: string; // JSON string of CapabilityConfig
     status: 'generating' | 'completed' | 'failed';
@@ -114,6 +115,7 @@ export function SessionSidebar({
             ariaLabel="Toggle metrics section"
           >
             <MetricsDisplay
+              model={sessionData.session.model}
               totalTokens={sessionData.session.totalTokens}
               cost={sessionData.session.cost || '0'}
               durationMs={sessionData.session.durationMs || 0}

@@ -33,6 +33,7 @@ export interface SessionData {
   session: {
     id: string;
     prompt: string;
+    model?: string; // Model used for generation (e.g., 'gpt-5-mini', 'claude-sonnet-4-5')
     strategy: string;
     capabilityConfig: string; // JSON string of CapabilityConfig
     status: 'generating' | 'completed' | 'failed';

@@ -57,6 +57,13 @@
       "when": 1761681670288,
       "tag": "0007_flawless_aqueduct",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1762359562634,
+      "tag": "0008_glossy_taskmaster",
+      "breakpoints": true
     }
   ]
 }

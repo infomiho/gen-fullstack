@@ -1,5 +1,6 @@
 import type { Server as SocketIOServer } from 'socket.io';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { DEFAULT_MODEL } from '@gen-fullstack/shared';
 import { databaseService } from '../../services/database.service.js';
 import type { CapabilityContext } from '../../types/index.js';
 import { UnifiedCodeGenerationCapability } from '../unified-code-generation.capability.js';
@@ -99,7 +100,7 @@ describe('UnifiedCodeGenerationCapability - Prompt Storage', () => {
     };
 
     capability = new UnifiedCodeGenerationCapability(
-      'openai/gpt-4o-mini' as any,
+      DEFAULT_MODEL, // 'gpt-5-mini'
       mockIo as SocketIOServer,
       config,
     );
@@ -181,7 +182,7 @@ describe('UnifiedCodeGenerationCapability - Prompt Storage', () => {
     };
 
     capability = new UnifiedCodeGenerationCapability(
-      'openai/gpt-4o-mini' as any,
+      DEFAULT_MODEL, // 'gpt-5-mini'
       mockIo as SocketIOServer,
       configWithTemplate,
     );
@@ -206,7 +207,7 @@ describe('UnifiedCodeGenerationCapability - Prompt Storage', () => {
     };
 
     capability = new UnifiedCodeGenerationCapability(
-      'openai/gpt-4o-mini' as any,
+      DEFAULT_MODEL, // 'gpt-5-mini'
       mockIo as SocketIOServer,
       configWithCompilerChecks,
     );
@@ -231,7 +232,7 @@ describe('UnifiedCodeGenerationCapability - Prompt Storage', () => {
     };
 
     capability = new UnifiedCodeGenerationCapability(
-      'openai/gpt-4o-mini' as any,
+      DEFAULT_MODEL, // 'gpt-5-mini'
       mockIo as SocketIOServer,
       configWithMultiple,
     );
@@ -267,6 +268,7 @@ describe('UnifiedCodeGenerationCapability - Prompt Storage', () => {
       return {
         id: 'test-session-id',
         prompt: 'Build a todo app',
+        model: null,
         systemPrompt: null,
         fullUserPrompt: null,
         capabilityConfig: '{}',

@@ -10,6 +10,7 @@ import { UnifiedOrchestrator } from './orchestrator/unified-orchestrator.js';
 import { databaseService } from './services/database.service.js';
 import { dockerService } from './services/docker.service.js';
 import { getSandboxPath, writeFile } from './services/filesystem.service.js';
+import type { ModelName } from './services/llm.service.js';
 import type { ClientToServerEvents, ServerToClientEvents } from './types/index.js';
 import {
   AppActionSchema,
@@ -197,13 +198,14 @@ export function setupWebSocket(httpServer: HTTPServer) {
         await databaseService.createSession({
           id: sessionId,
           prompt: validated.prompt,
+          model: validated.model,
           capabilityConfig: JSON.stringify(validated.config),
           status: 'generating',
         });
 
         socket.emit('session_started', { sessionId });
 
-        const orchestrator = new UnifiedOrchestrator(validated.model, io);
+        const orchestrator = new UnifiedOrchestrator(validated.model as ModelName, io);
 
         // Track active generation for cancellation support
         activeGenerations.set(sessionId, orchestrator);
