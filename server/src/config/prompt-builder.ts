@@ -187,6 +187,25 @@ YOUR WORKFLOW:
 6. Create React components with proper state management
 7. Generate ALL files required for a working app
 
+USER EXPERIENCE REQUIREMENTS:
+Before implementing, consider the user flow:
+- How will users navigate between features?
+- Can users discover all available features?
+- How do users log out?
+
+Multi-page apps need navigation infrastructure:
+- Persistent navigation menu (navbar/sidebar)
+- Layout wrapper for consistent structure
+- Dashboard as main hub with links to all sections
+
+Use React Router layout routes for cleaner code:
+  <Route element={<AppLayout />}>  {/* Shared layout with <Outlet /> */}
+    <Route path="/dashboard" element={<Dashboard />} />
+    <Route path="/users" element={<Users />} />
+  </Route>
+
+Public routes (landing, login, register) typically don't need the layout wrapper.
+
 DEPENDENCY MANAGEMENT:
 **CRITICAL**: Write complete package.json files with ALL dependencies included.
 - Include ALL required dependencies with specific versions (see COMMON DEPENDENCY VERSIONS below)
@@ -268,9 +287,13 @@ YOUR TASK:
    - Create SEPARATE page component files in client/src/pages/ (e.g., HomePage.tsx, AboutPage.tsx, etc.)
    - Remove or replace the template's example pages/Home.tsx file
    - Example: App.tsx should only import page components and define routes, with all page logic in separate files
-3. Use Tailwind utility classes for all styling (no custom CSS)
-4. Use React Router for multi-page navigation
-5. Keep configuration files (vite.config.ts, tsconfig.json, etc.) intact
+3. **Navigation Infrastructure**: Template is minimal - add navigation components:
+   - Create navigation component (navbar/sidebar with links to all sections)
+   - Create layout wrapper that includes navigation and uses <Outlet /> for nested routes
+   - Use layout routes pattern (cleaner than wrapping each route individually)
+4. Use Tailwind utility classes for all styling (no custom CSS)
+5. Use React Router for multi-page navigation
+6. Keep configuration files (vite.config.ts, tsconfig.json, etc.) intact
 
 CRITICAL - DEPENDENCY MANAGEMENT (Template Input Mode):
 
@@ -368,6 +391,9 @@ Use writeFile, readFile, and other available tools to:
 2. Implement the API routes in server/src/routes/
 3. Implement the client routes in client/src/App.tsx
 4. Implement the client components in client/src/
+   - Include navigation component (navbar/sidebar with links to all sections)
+   - Include layout wrapper (with <Outlet /> for nested routes)
+   - Ensure dashboard links to all main features
 
 Work systematically through each part of the plan. Call tools to read existing files and write new implementations.`,
     );
