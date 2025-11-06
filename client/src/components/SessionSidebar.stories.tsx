@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { SessionSidebar } from './SessionSidebar';
-import type { AppInfo } from '@gen-fullstack/shared';
+import type { AppInfo, GetSessionOutput } from '@gen-fullstack/shared';
 
 /**
  * SessionSidebar stories demonstrating different session states.
@@ -38,21 +38,51 @@ const mockAppStatusRunning: AppInfo = {
   serverUrl: 'http://localhost:5101',
 };
 
+// Helper to create mock session data with all required fields
+function createMockSessionData(overrides: Partial<GetSessionOutput['session']>): GetSessionOutput {
+  return {
+    session: {
+      id: 'test-session-id',
+      prompt: 'Build a todo app',
+      model: null,
+      systemPrompt: null,
+      fullUserPrompt: null,
+      capabilityConfig: JSON.stringify({
+        inputMode: 'prompt',
+        planning: false,
+        compilerChecks: false,
+        buildingBlocks: false,
+      }),
+      status: 'completed',
+      createdAt: new Date(),
+      updatedAt: null,
+      completedAt: null,
+      errorMessage: null,
+      inputTokens: null,
+      outputTokens: null,
+      totalTokens: null,
+      cost: null,
+      durationMs: null,
+      stepCount: null,
+      ...overrides,
+    },
+    timeline: [],
+    files: [],
+  };
+}
+
 export const Generating: Story = {
   args: {
-    sessionData: {
-      session: {
-        prompt: 'Build a todo app with React and Express',
-        strategy: 'naive',
-        capabilityConfig: JSON.stringify({
-          inputMode: 'prompt',
-          planning: true,
-          compilerChecks: true,
-          buildingBlocks: false,
-        }),
-        status: 'generating',
-      },
-    },
+    sessionData: createMockSessionData({
+      prompt: 'Build a todo app with React and Express',
+      capabilityConfig: JSON.stringify({
+        inputMode: 'prompt',
+        planning: true,
+        compilerChecks: true,
+        buildingBlocks: false,
+      }),
+      status: 'generating',
+    }),
     sessionId: 'test-session',
     appStatus: null,
     isGenerating: true,
@@ -65,23 +95,20 @@ export const Generating: Story = {
 
 export const CompletedWithMetrics: Story = {
   args: {
-    sessionData: {
-      session: {
-        prompt: 'Build a blog platform with user authentication and markdown support',
-        strategy: 'naive',
-        capabilityConfig: JSON.stringify({
-          inputMode: 'prompt',
-          planning: true,
-          compilerChecks: true,
-          buildingBlocks: true,
-        }),
-        status: 'completed',
-        totalTokens: 12345,
-        cost: '0.0456',
-        durationMs: 45678,
-        stepCount: 42,
-      },
-    },
+    sessionData: createMockSessionData({
+      prompt: 'Build a blog platform with user authentication and markdown support',
+      capabilityConfig: JSON.stringify({
+        inputMode: 'prompt',
+        planning: true,
+        compilerChecks: true,
+        buildingBlocks: true,
+      }),
+      status: 'completed',
+      totalTokens: 12345,
+      cost: '0.0456',
+      durationMs: 45678,
+      stepCount: 42,
+    }),
     sessionId: 'test-session',
     appStatus: null,
     isGenerating: false,
@@ -94,23 +121,20 @@ export const CompletedWithMetrics: Story = {
 
 export const CompletedWithAppRunning: Story = {
   args: {
-    sessionData: {
-      session: {
-        prompt: 'Create an e-commerce store with product catalog and shopping cart',
-        strategy: 'plan-first',
-        capabilityConfig: JSON.stringify({
-          inputMode: 'prompt',
-          planning: true,
-          compilerChecks: true,
-          buildingBlocks: false,
-        }),
-        status: 'completed',
-        totalTokens: 23456,
-        cost: '0.0789',
-        durationMs: 67890,
-        stepCount: 58,
-      },
-    },
+    sessionData: createMockSessionData({
+      prompt: 'Create an e-commerce store with product catalog and shopping cart',
+      capabilityConfig: JSON.stringify({
+        inputMode: 'prompt',
+        planning: true,
+        compilerChecks: true,
+        buildingBlocks: false,
+      }),
+      status: 'completed',
+      totalTokens: 23456,
+      cost: '0.0789',
+      durationMs: 67890,
+      stepCount: 58,
+    }),
     sessionId: 'test-session',
     appStatus: mockAppStatusRunning,
     isGenerating: false,
@@ -123,20 +147,17 @@ export const CompletedWithAppRunning: Story = {
 
 export const FailedWithError: Story = {
   args: {
-    sessionData: {
-      session: {
-        prompt: 'Build a real-time chat application',
-        strategy: 'naive',
-        capabilityConfig: JSON.stringify({
-          inputMode: 'prompt',
-          planning: false,
-          compilerChecks: true,
-          buildingBlocks: false,
-        }),
-        status: 'failed',
-        errorMessage: 'Failed to generate application: OpenAI API rate limit exceeded',
-      },
-    },
+    sessionData: createMockSessionData({
+      prompt: 'Build a real-time chat application',
+      capabilityConfig: JSON.stringify({
+        inputMode: 'prompt',
+        planning: false,
+        compilerChecks: true,
+        buildingBlocks: false,
+      }),
+      status: 'failed',
+      errorMessage: 'Failed to generate application: OpenAI API rate limit exceeded',
+    }),
     sessionId: 'test-session',
     appStatus: null,
     isGenerating: false,
@@ -149,19 +170,16 @@ export const FailedWithError: Story = {
 
 export const GeneratingDisconnected: Story = {
   args: {
-    sessionData: {
-      session: {
-        prompt: 'Build a weather dashboard with real-time updates',
-        strategy: 'template',
-        capabilityConfig: JSON.stringify({
-          inputMode: 'template',
-          planning: true,
-          compilerChecks: true,
-          buildingBlocks: true,
-        }),
-        status: 'generating',
-      },
-    },
+    sessionData: createMockSessionData({
+      prompt: 'Build a weather dashboard with real-time updates',
+      capabilityConfig: JSON.stringify({
+        inputMode: 'template',
+        planning: true,
+        compilerChecks: true,
+        buildingBlocks: true,
+      }),
+      status: 'generating',
+    }),
     sessionId: 'test-session',
     appStatus: null,
     isGenerating: true,
@@ -174,23 +192,20 @@ export const GeneratingDisconnected: Story = {
 
 export const WithTemplateMode: Story = {
   args: {
-    sessionData: {
-      session: {
-        prompt: 'Create a project management tool',
-        strategy: 'template',
-        capabilityConfig: JSON.stringify({
-          inputMode: 'template',
-          planning: false,
-          compilerChecks: false,
-          buildingBlocks: false,
-        }),
-        status: 'completed',
-        totalTokens: 8900,
-        cost: '0.0234',
-        durationMs: 34567,
-        stepCount: 28,
-      },
-    },
+    sessionData: createMockSessionData({
+      prompt: 'Create a project management tool',
+      capabilityConfig: JSON.stringify({
+        inputMode: 'template',
+        planning: false,
+        compilerChecks: false,
+        buildingBlocks: false,
+      }),
+      status: 'completed',
+      totalTokens: 8900,
+      cost: '0.0234',
+      durationMs: 34567,
+      stepCount: 28,
+    }),
     sessionId: 'test-session',
     appStatus: null,
     isGenerating: false,
@@ -203,23 +218,20 @@ export const WithTemplateMode: Story = {
 
 export const MinimalCapabilities: Story = {
   args: {
-    sessionData: {
-      session: {
-        prompt: 'Simple landing page',
-        strategy: 'naive',
-        capabilityConfig: JSON.stringify({
-          inputMode: 'prompt',
-          planning: false,
-          compilerChecks: false,
-          buildingBlocks: false,
-        }),
-        status: 'completed',
-        totalTokens: 2500,
-        cost: '0.0089',
-        durationMs: 12340,
-        stepCount: 15,
-      },
-    },
+    sessionData: createMockSessionData({
+      prompt: 'Simple landing page',
+      capabilityConfig: JSON.stringify({
+        inputMode: 'prompt',
+        planning: false,
+        compilerChecks: false,
+        buildingBlocks: false,
+      }),
+      status: 'completed',
+      totalTokens: 2500,
+      cost: '0.0089',
+      durationMs: 12340,
+      stepCount: 15,
+    }),
     sessionId: 'test-session',
     appStatus: null,
     isGenerating: false,
@@ -232,9 +244,8 @@ export const MinimalCapabilities: Story = {
 
 export const LongPrompt: Story = {
   args: {
-    sessionData: {
-      session: {
-        prompt: `Build a comprehensive social media platform with the following features:
+    sessionData: createMockSessionData({
+      prompt: `Build a comprehensive social media platform with the following features:
 - User authentication and authorization with JWT
 - User profiles with customizable avatars and bios
 - Post creation with rich text editor and image upload
@@ -246,20 +257,18 @@ export const LongPrompt: Story = {
 - Search functionality for users and posts
 - Admin dashboard for content moderation
 - Analytics and insights for user engagement`,
-        strategy: 'plan-first',
-        capabilityConfig: JSON.stringify({
-          inputMode: 'prompt',
-          planning: true,
-          compilerChecks: true,
-          buildingBlocks: true,
-        }),
-        status: 'completed',
-        totalTokens: 45678,
-        cost: '0.1234',
-        durationMs: 123456,
-        stepCount: 95,
-      },
-    },
+      capabilityConfig: JSON.stringify({
+        inputMode: 'prompt',
+        planning: true,
+        compilerChecks: true,
+        buildingBlocks: true,
+      }),
+      status: 'completed',
+      totalTokens: 45678,
+      cost: '0.1234',
+      durationMs: 123456,
+      stepCount: 95,
+    }),
     sessionId: 'test-session',
     appStatus: null,
     isGenerating: false,

@@ -12,7 +12,10 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "zod": "^3.24.1"
+    "@gen-fullstack/db": "workspace:*",
+    "drizzle-orm": "^0.44.6",
+    "drizzle-zod": "^0.8.3",
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "typescript": "^5.9.0"

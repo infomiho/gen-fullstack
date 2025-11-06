@@ -57,7 +57,9 @@ export const timelineItems = sqliteTable(
       .notNull()
       .references(() => sessions.id, { onDelete: 'cascade' }),
     timestamp: integer('timestamp', { mode: 'timestamp_ms' }).notNull(),
-    type: text('type').notNull(), // 'message' | 'tool_call' | 'tool_result' | 'pipeline_stage'
+    type: text('type')
+      .$type<'message' | 'tool_call' | 'tool_result' | 'pipeline_stage'>()
+      .notNull(),
     // Message fields (when type = 'message')
     messageId: text('message_id'), // Unique ID for LLM messages (for upserting streaming chunks)
     role: text('role'), // 'user' | 'assistant' | 'system'

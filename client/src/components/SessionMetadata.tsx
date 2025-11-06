@@ -10,9 +10,9 @@ import { CapabilityBadge } from './CapabilityBadge';
 
 interface SessionMetadataProps {
   capabilityConfig: string; // JSON string
-  status: 'generating' | 'completed' | 'failed';
-  createdAt: string;
-  durationMs?: number;
+  status: 'pending' | 'generating' | 'completed' | 'failed' | 'cancelled';
+  createdAt: string | Date;
+  durationMs?: number | null;
 }
 
 /**
@@ -29,8 +29,12 @@ export function SessionMetadata({
 }: SessionMetadataProps) {
   const config = parseCapabilityConfig(capabilityConfig);
   const activeCapabilities = getActiveCapabilities(config);
-  const relativeTime = formatRelativeTime(createdAt);
-  const duration = formatDuration(durationMs);
+  const createdAtString = createdAt instanceof Date ? createdAt.toISOString() : createdAt;
+  const relativeTime = formatRelativeTime(createdAtString);
+  const duration = formatDuration(durationMs ?? undefined);
+
+  // Map all possible session statuses to badge statuses
+  const badgeStatus = status === 'pending' || status === 'cancelled' ? 'generating' : status;
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
@@ -43,7 +47,7 @@ export function SessionMetadata({
       <div className="flex-1" />
 
       {/* Duration and time ago with dot separator */}
-      {durationMs !== undefined && durationMs > 0 ? (
+      {durationMs != null && durationMs > 0 ? (
         <span className={typography.caption}>
           {duration} · {relativeTime}
         </span>
@@ -52,7 +56,7 @@ export function SessionMetadata({
       )}
 
       {/* Status badge */}
-      <StatusBadge status={status} />
+      <StatusBadge status={badgeStatus} />
     </div>
   );
 }

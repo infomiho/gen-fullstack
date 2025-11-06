@@ -626,4 +626,85 @@ describe('WebSocket Handler Edge Cases', () => {
       }
     });
   });
+
+  describe('Multi-Provider Model Support', () => {
+    it('should start generation with Claude Haiku model', async () => {
+      let sessionStarted = false;
+      let sessionId: string | undefined;
+
+      clientSocket.on('session_started', (data: { sessionId: string }) => {
+        sessionStarted = true;
+        sessionId = data.sessionId;
+      });
+
+      // Start generation with Claude model
+      clientSocket.emit('start_generation', {
+        config: {
+          inputMode: 'naive' as const,
+          planning: false,
+          compilerChecks: false,
+          buildingBlocks: false,
+          maxIterations: 3,
+        },
+        model: 'claude-haiku-4-5' as const,
+        prompt: 'Build a simple todo app',
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      expect(sessionStarted).toBe(true);
+      expect(sessionId).toBeDefined();
+
+      // Cleanup
+      if (sessionId) {
+        await databaseService.deleteSession(sessionId);
+      }
+    });
+
+    it('should handle both GPT-5 and Claude models in sequence', async () => {
+      const sessionIds: string[] = [];
+
+      clientSocket.on('session_started', (data: { sessionId: string }) => {
+        sessionIds.push(data.sessionId);
+      });
+
+      // Start generation with GPT-5-mini
+      clientSocket.emit('start_generation', {
+        config: {
+          inputMode: 'naive' as const,
+          planning: false,
+          compilerChecks: false,
+          buildingBlocks: false,
+          maxIterations: 3,
+        },
+        model: 'gpt-5-mini' as const,
+        prompt: 'Test GPT-5',
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      // Start generation with Claude
+      clientSocket.emit('start_generation', {
+        config: {
+          inputMode: 'naive' as const,
+          planning: false,
+          compilerChecks: false,
+          buildingBlocks: false,
+          maxIterations: 3,
+        },
+        model: 'claude-haiku-4-5' as const,
+        prompt: 'Test Claude',
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      // Should have started both sessions
+      expect(sessionIds.length).toBe(2);
+
+      // Cleanup
+      for (const id of sessionIds) {
+        await databaseService.deleteSession(id);
+      }
+    });
+  });
 });

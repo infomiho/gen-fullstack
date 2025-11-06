@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useReplayStore } from '../stores/replay.store';
-import { env } from '../lib/env';
+import { orpc } from '../lib/orpc';
 
 /**
  * Custom hook for replay mode handlers
@@ -12,7 +12,7 @@ import { env } from '../lib/env';
  */
 export function useReplayModeHandlers(
   sessionId: string | undefined,
-  sessionStatus: 'generating' | 'completed' | 'failed',
+  sessionStatus: 'pending' | 'generating' | 'completed' | 'failed' | 'cancelled',
   showToast: (
     title: string,
     description?: string,
@@ -31,13 +31,7 @@ export function useReplayModeHandlers(
     }
 
     try {
-      const response = await fetch(`${env.VITE_API_URL}/api/sessions/${sessionId}/replay-data`);
-
-      if (!response.ok) {
-        throw new Error(`Failed to load replay data: ${response.statusText}`);
-      }
-
-      const data = await response.json();
+      const data = await orpc.sessions.getReplayData({ sessionId });
       enterReplay(sessionId, data);
     } catch (_error) {
       showToast('Error', 'Failed to load replay data', 'error');

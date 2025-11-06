@@ -4,7 +4,7 @@
 
 This is Gen Fullstack - an experimental LLM-powered full-stack application generator. It generates complete, working full-stack applications with:
 - **Client**: Vite + React 19 + TypeScript + Tailwind CSS 4 + React Router 7
-- **Server**: Express 5 + TypeScript + RESTful API
+- **Server**: Express 5 + TypeScript + oRPC (type-safe RPC)
 - **Database**: Prisma ORM + SQLite
 
 The system provides a real-time interface for generating applications using different capability configurations and tool-calling approaches, with Docker-based execution for immediate previewing.
@@ -59,15 +59,47 @@ The system uses a unified orchestrator pattern for code generation:
 
 ## Key Features
 
-### 1. Real-Time Communication
-- WebSocket-based bidirectional communication via Socket.IO
-- Events stream from server to client for:
-  - LLM responses and tool execution
-  - File updates and generation progress
-  - App execution status and logs
-  - Build events and error notifications
-  - Generation lifecycle (start, complete, error)
+### 1. Type-Safe API with oRPC
+The system uses a **hybrid API architecture** combining type-safe RPC for CRUD operations with WebSockets for real-time events:
+
+**oRPC for Session Management** (`@orpc/server` + `@orpc/client`):
+- **Type-safe procedures** without code generation - types inferred directly from server router
+- **Runtime validation** with Zod schemas at API boundaries
+- **4 session procedures**:
+  - `sessions.list` - List all sessions (with filters)
+  - `sessions.get` - Get session with full timeline and files
+  - `sessions.getReplayData` - Get replay-optimized data
+  - `sessions.delete` - Delete a session
+- **Schema definitions**: `shared/src/api-schemas.ts` - single source of truth for API types
+- **Router implementation**: `server/src/routers/sessions.router.ts` - procedure definitions
+- **Client setup**: `client/src/lib/orpc.ts` - auto-typed client instance
+- **Express integration**: Mounted at `/api/rpc` in `server/src/index.ts`
+
+**Type Flow**:
+```
+Server Router (Zod schemas) → Inferred Types → Client (RouterClient<T>)
+```
+
+**Usage Example**:
+```typescript
+// Client - fully typed, no manual type definitions needed
+import { orpc } from '../lib/orpc';
+
+const sessionData = await orpc.sessions.get({ sessionId: '123' });
+// sessionData is typed as GetSessionOutput automatically
+```
+
+**WebSocket for Real-Time Events** (Socket.IO):
+- Live generation progress and LLM streaming
+- Real-time file updates and tool execution
+- App execution logs and status changes
 - Event definitions: `server/src/websocket.ts` and `shared/src/index.ts`
+
+This hybrid approach provides:
+- **Type safety** for CRUD operations (oRPC)
+- **Real-time updates** for live events (Socket.IO)
+- **Zero runtime overhead** for type inference
+- **Single source of truth** for API types (Zod schemas)
 
 ### 2. Unified Timeline
 - Chronologically ordered display of all LLM messages and tool calls
@@ -78,7 +110,25 @@ The system uses a unified orchestrator pattern for code generation:
   - **Gray**: User messages and tool calls
   - **Amber**: System messages
 
-### 3. Capability-Based Generation
+### 3. Session Data Types
+All session-related types are centralized in the shared package:
+
+**Core Types** (`shared/src/index.ts`):
+- `Session` - Session metadata (prompt, status, metrics, timestamps)
+- `TimelineItem` - Unified timeline entry (messages, tool calls, results, pipeline stages)
+- `File` - Generated file data (path, content, timestamps)
+- `GetSessionOutput` - Complete session response (session + timeline + files)
+
+**Status Enums**:
+- **Session status**: `'pending' | 'generating' | 'completed' | 'failed' | 'cancelled'`
+- **App status**: `'stopped' | 'creating' | 'installing' | 'starting' | 'ready' | 'running' | 'failed'`
+
+**Null Handling**:
+- Database returns `null` for optional fields (Drizzle/SQLite)
+- Use `?? undefined` at usage sites to convert null to undefined when needed
+- Zod schemas use `.nullable()` for optional database fields (idiomatic pattern)
+
+### 4. Capability-Based Generation
 Flexible capability system with composable options:
 
 **Input Modes** (mutually exclusive):
@@ -98,7 +148,7 @@ Flexible capability system with composable options:
 
 All configurations generate the same monorepo structure (see Project Structure above).
 
-### 4. LLM Tools
+### 5. LLM Tools
 Tools available to the LLM, organized by capability configuration:
 
 **Base Tools** (always available):
@@ -129,7 +179,7 @@ Tools available to the LLM, organized by capability configuration:
 
 Tool definitions: `server/src/tools/index.ts`
 
-### 5. Design System
+### 6. Design System
 Centralized design tokens in `client/src/lib/design-tokens.ts`:
 - **Semantic colors**: Role-based color palette (assistant, user, system, tool)
 - **Typography**: Consistent text styles (header, label, body, caption, mono)
@@ -138,7 +188,7 @@ Centralized design tokens in `client/src/lib/design-tokens.ts`:
 - **Focus states**: Consistent focus ring styles
 - **Transitions**: Standard transition durations
 
-### 6. State Management
+### 7. State Management
 Client-side state managed with Zustand stores:
 - **App state** - App execution status, ports, logs
 - **Connection state** - WebSocket connection management

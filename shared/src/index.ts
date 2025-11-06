@@ -14,6 +14,12 @@ export * from './capabilities.js';
 export * from './constants.js';
 // Re-export tool names
 export * from './tool-names.js';
+// Re-export model metadata
+export * from './model-metadata.js';
+// Re-export API schemas
+export * from './api-schemas.js';
+// Re-export database schema (Drizzle tables and types)
+export * from '@gen-fullstack/db';
 
 // ============================================================================
 // Strategy Types
@@ -85,23 +91,29 @@ export type ImplementedStrategyType = (typeof IMPLEMENTED_STRATEGIES)[number]['v
 // Import CapabilityConfigSchema
 import { CapabilityConfigSchema } from './capabilities.js';
 
+// Import MODEL_IDS and DEFAULT_MODEL for schema
+import { DEFAULT_MODEL, MODEL_IDS } from './model-metadata.js';
+
 // Capability-based generation payload
 export const StartGenerationSchema = z.object({
   prompt: z.string().min(1),
   config: CapabilityConfigSchema,
-  model: z.enum(['gpt-5', 'gpt-5-mini', 'gpt-5-nano']).optional().default('gpt-5-mini'),
+  model: z
+    .enum(MODEL_IDS as [string, ...string[]])
+    .optional()
+    .default(DEFAULT_MODEL),
 });
 
 export type StartGenerationPayload = z.infer<typeof StartGenerationSchema>;
 
 export const AppActionSchema = z.object({
-  sessionId: z.string().uuid('Invalid session ID format'),
+  sessionId: z.uuid({ message: 'Invalid session ID format' }),
 });
 
 export type AppActionPayload = z.infer<typeof AppActionSchema>;
 
 export const SaveFileSchema = z.object({
-  sessionId: z.string().uuid('Invalid session ID format'),
+  sessionId: z.uuid({ message: 'Invalid session ID format' }),
   path: z
     .string()
     .min(1, 'Path cannot be empty')
@@ -115,7 +127,7 @@ export const SaveFileSchema = z.object({
 export type SaveFilePayload = z.infer<typeof SaveFileSchema>;
 
 export const SubscribeSessionSchema = z.object({
-  sessionId: z.string().uuid('Invalid session ID format'),
+  sessionId: z.uuid({ message: 'Invalid session ID format' }),
 });
 
 export type SubscribeSessionPayload = z.infer<typeof SubscribeSessionSchema>;

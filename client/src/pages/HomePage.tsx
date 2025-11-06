@@ -3,6 +3,7 @@ import { Send } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { CapabilitySection } from '../components/CapabilitySection';
+import { ModelSelector } from '../components/ModelSelector';
 import { PromptDisplay } from '../components/PromptDisplay';
 import { PromptInput } from '../components/PromptInput';
 import { SessionFilters, type SessionFiltersState } from '../components/SessionFilters';
@@ -10,28 +11,19 @@ import { SessionMetadata } from '../components/SessionMetadata';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { card, focus, spacing, transitions, typography } from '../lib/design-tokens';
-import { env } from '../lib/env';
 import { parseCapabilityConfig } from '../lib/format-utils';
+import { orpc } from '../lib/orpc';
 import { useGenerationConfigStore } from '../stores/generation-config.store';
 
 /**
  * Session list item from the API
+ *
+ * Note: We use the Session type from shared schemas for type safety.
+ * The API returns Date objects which we'll work with directly.
  */
-interface SessionListItem {
-  id: string;
-  prompt: string;
-  capabilityConfig: string; // JSON string of CapabilityConfig
-  status: 'generating' | 'completed' | 'failed';
-  createdAt: string;
-  updatedAt?: string;
-  completedAt?: string;
-  // Generation metrics
-  inputTokens?: number;
-  outputTokens?: number;
-  totalTokens?: number;
-  durationMs?: number;
-  stepCount?: number;
-}
+import type { Session } from '@gen-fullstack/shared';
+
+type SessionListItem = Session;
 
 /**
  * Session with pre-parsed capability config for performance
@@ -101,6 +93,8 @@ function HomePage() {
   const clearPromptDraft = useGenerationConfigStore((state) => state.clearPromptDraft);
   const capabilityConfig = useGenerationConfigStore((state) => state.capabilityConfig);
   const setCapabilityConfig = useGenerationConfigStore((state) => state.setCapabilityConfig);
+  const selectedModel = useGenerationConfigStore((state) => state.selectedModel);
+  const setSelectedModel = useGenerationConfigStore((state) => state.setSelectedModel);
 
   const [sessions, setSessions] = useState<SessionWithParsedConfig[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(true);
@@ -126,18 +120,16 @@ function HomePage() {
   useEffect(() => {
     const fetchSessions = async () => {
       try {
-        const response = await fetch(`${env.VITE_API_URL}/api/sessions`);
-        if (response.ok) {
-          const data = await response.json();
-          // Parse capability configs once to avoid repeated parsing during filtering
-          const sessionsWithParsedConfig: SessionWithParsedConfig[] = (data.sessions || []).map(
-            (session: SessionListItem) => ({
-              ...session,
-              parsedConfig: parseCapabilityConfig(session.capabilityConfig),
-            }),
-          );
-          setSessions(sessionsWithParsedConfig);
-        }
+        // Type-safe RPC call with auto-inferred return type
+        const data = await orpc.sessions.list();
+        // Parse capability configs once to avoid repeated parsing during filtering
+        const sessionsWithParsedConfig: SessionWithParsedConfig[] = (data.sessions || []).map(
+          (session: SessionListItem) => ({
+            ...session,
+            parsedConfig: parseCapabilityConfig(session.capabilityConfig),
+          }),
+        );
+        setSessions(sessionsWithParsedConfig);
       } catch (error) {
         // biome-ignore lint/suspicious/noConsole: Useful for debugging session fetch failures
         console.error('Failed to fetch sessions:', error);
@@ -152,7 +144,7 @@ function HomePage() {
   const handleGenerate = () => {
     if (promptDraft.trim()) {
       setIsSubmitting(true);
-      startGeneration(promptDraft, capabilityConfig, 'gpt-5-mini');
+      startGeneration(promptDraft, capabilityConfig, selectedModel);
       clearPromptDraft();
 
       // Safety timeout: Reset if navigation doesn't happen (error case)
@@ -199,6 +191,13 @@ function HomePage() {
             <CapabilitySection
               config={capabilityConfig}
               onConfigChange={setCapabilityConfig}
+              disabled={isSubmitting}
+            />
+
+            {/* Model Selector */}
+            <ModelSelector
+              selectedModel={selectedModel}
+              onModelChange={setSelectedModel}
               disabled={isSubmitting}
             />
 

@@ -12,7 +12,7 @@ const envSchema = z.object({
    * API server URL
    * @default 'http://localhost:3001'
    */
-  VITE_API_URL: z.string().url().default('http://localhost:3001'),
+  VITE_API_URL: z.url().default('http://localhost:3001'),
 });
 
 /**

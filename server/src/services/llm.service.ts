@@ -1,27 +1,34 @@
 import { openai } from '@ai-sdk/openai';
+import { anthropic } from '@ai-sdk/anthropic';
 import type { LanguageModel } from 'ai';
+import { MODEL_METADATA, type ModelId } from '@gen-fullstack/shared';
+import { createLogger } from '../lib/logger.js';
+
+const logger = createLogger({ service: 'llm-service' });
 
 /**
- * GPT-5 Model Configuration
+ * Multi-Provider Model Configuration
  *
- * Released: August 2025
- * Models available: gpt-5, gpt-5-mini, gpt-5-nano
+ * OpenAI GPT-5 Series:
+ * - Released: August 2025
+ * - Context: 272K input / 128K output tokens
+ * - Capabilities: 74.9% SWE-bench Verified, 94.6% AIME 2025
  *
- * Context: 272K input / 128K output tokens
- * Capabilities: 74.9% SWE-bench Verified, 94.6% AIME 2025
+ * Anthropic Claude 4.5 Series:
+ * - Released: October 2025
+ * - Context: 200K tokens
+ * - Capabilities: 73.3% SWE-bench Verified, fast inference
+ *
+ * Note: Model metadata (labels, descriptions, pricing) is now centralized
+ * in @gen-fullstack/shared/model-metadata to maintain consistency between
+ * client and server.
  */
-export const MODEL_CONFIG = {
-  /** Default model for most use cases - best balance of cost/performance */
-  default: 'gpt-5-mini', // $0.25/$2 per 1M tokens, excellent performance
 
-  /** Premium model for complex scenarios */
-  premium: 'gpt-5', // $1.25/$10 per 1M tokens, 74.9% SWE-bench Verified
-
-  /** Budget model for simple, rapid demos */
-  budget: 'gpt-5-nano', // $0.05/$0.40 per 1M tokens, ultra-fast
-} as const;
-
-export type ModelName = (typeof MODEL_CONFIG)[keyof typeof MODEL_CONFIG];
+/**
+ * Type alias for model identifiers
+ * Uses ModelId from shared package for consistency
+ */
+export type ModelName = ModelId;
 
 /**
  * Get a configured language model
@@ -34,57 +41,99 @@ export type ModelName = (typeof MODEL_CONFIG)[keyof typeof MODEL_CONFIG];
  * // Use default model (gpt-5-mini)
  * const model = getModel();
  *
- * // Use premium model
+ * // Use specific model
  * const premiumModel = getModel('gpt-5');
- *
- * // Use from config
- * const budgetModel = getModel(MODEL_CONFIG.budget);
+ * const claudeModel = getModel('claude-sonnet-4-5');
  * ```
  */
-export function getModel(modelName: ModelName = MODEL_CONFIG.default): LanguageModel {
+export function getModel(modelName: ModelName = 'gpt-5-mini'): LanguageModel {
   // GPT-5 models use the Responses API endpoint
   if (modelName.startsWith('gpt-5')) {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error(
+        `Cannot use ${modelName}: OPENAI_API_KEY environment variable is not configured. ` +
+          `Please add your OpenAI API key to the .env file.`,
+      );
+    }
     return openai.responses(modelName);
   }
-  // Other models use the standard Chat Completions API
+  // Claude models use the Anthropic provider
+  if (modelName.startsWith('claude-')) {
+    if (!process.env.ANTHROPIC_API_KEY) {
+      throw new Error(
+        `Cannot use ${modelName}: ANTHROPIC_API_KEY environment variable is not configured. ` +
+          `Please add your Anthropic API key to the .env file.`,
+      );
+    }
+    return anthropic(modelName);
+  }
+  // Fallback to standard OpenAI Chat Completions API
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error(
+      `Cannot use ${modelName}: OPENAI_API_KEY environment variable is not configured. ` +
+        `Please add your OpenAI API key to the .env file.`,
+    );
+  }
   return openai(modelName);
 }
 
 /**
- * Model pricing information for cost estimation
+ * Get pricing for a model (cost per token in USD)
+ * Pricing data comes from MODEL_METADATA in shared package
+ *
+ * @param modelName - Model identifier
+ * @returns Pricing object with input/output cost per token
  */
-export const MODEL_PRICING = {
-  'gpt-5': {
-    input: 1.25 / 1_000_000, // $1.25 per 1M tokens
-    output: 10 / 1_000_000, // $10 per 1M tokens
-  },
-  'gpt-5-mini': {
-    input: 0.25 / 1_000_000, // $0.25 per 1M tokens
-    output: 2 / 1_000_000, // $2 per 1M tokens
-  },
-  'gpt-5-nano': {
-    input: 0.05 / 1_000_000, // $0.05 per 1M tokens
-    output: 0.4 / 1_000_000, // $0.40 per 1M tokens
-  },
-} as const;
+function getModelPricing(modelName: ModelName): { input: number; output: number } | null {
+  const metadata = MODEL_METADATA[modelName];
+  if (!metadata) return null;
+
+  // Convert from "per 1M tokens" to "per token"
+  return {
+    input: metadata.pricing.input / 1_000_000,
+    output: metadata.pricing.output / 1_000_000,
+  };
+}
 
 /**
  * Calculate cost for a generation
  *
- * @param modelName - Model used
+ * @param modelName - Model used (must be a known model with pricing data)
  * @param inputTokens - Number of input tokens
  * @param outputTokens - Number of output tokens
  * @returns Cost in USD
+ *
+ * @throws {Error} If pricing data is not available for the specified model
+ *
+ * @remarks
+ * This function should never fail in normal operation because:
+ * - All models are defined in MODEL_METADATA (single source of truth)
+ * - Zod validation ensures only valid model IDs are accepted
+ * - TypeScript types enforce model ID constraints
+ *
+ * If this error occurs, it indicates a serious configuration issue that
+ * should be fixed immediately rather than silently using incorrect pricing.
  */
 export function calculateCost(
-  modelName: string,
+  modelName: ModelName,
   inputTokens: number,
   outputTokens: number,
 ): number {
-  const pricing = MODEL_PRICING[modelName as keyof typeof MODEL_PRICING];
+  const pricing = getModelPricing(modelName);
   if (!pricing) {
-    // Default to gpt-5-mini pricing if unknown model
-    return calculateCost(MODEL_CONFIG.default, inputTokens, outputTokens);
+    // Log error for debugging - this should never happen
+    logger.error(
+      { modelName, availableModels: Object.keys(MODEL_METADATA) },
+      'CRITICAL: No pricing data for model - this indicates a configuration error',
+    );
+
+    // Always throw - fail fast rather than silently using incorrect pricing
+    // This prevents financial discrepancies and makes bugs obvious
+    throw new Error(
+      `No pricing configured for model: ${modelName}. ` +
+        `This should never happen - all models must be defined in MODEL_METADATA. ` +
+        `Available models: ${Object.keys(MODEL_METADATA).join(', ')}`,
+    );
   }
 
   return inputTokens * pricing.input + outputTokens * pricing.output;

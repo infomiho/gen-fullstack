@@ -44,7 +44,7 @@ function sanitizeError(error: unknown): string {
 
   // Check for validation errors (safe to expose)
   if (error instanceof z.ZodError) {
-    return `Validation error: ${error.errors.map((e) => e.message).join(', ')}`;
+    return `Validation error: ${error.issues.map((e) => e.message).join(', ')}`;
   }
 
   // Safe error message patterns

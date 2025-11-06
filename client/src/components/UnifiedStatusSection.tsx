@@ -121,14 +121,16 @@ const ScreenReaderAnnouncements = ({
   status,
   appError,
 }: {
-  sessionStatus: 'generating' | 'completed' | 'failed';
+  sessionStatus: 'pending' | 'generating' | 'completed' | 'failed' | 'cancelled';
   status: AppInfo['status'] | 'stopped';
   appError?: string;
 }) => (
   <div className="sr-only" aria-live="polite" aria-atomic="true">
+    {sessionStatus === 'pending' && 'Generation pending'}
     {sessionStatus === 'generating' && 'Generation in progress'}
     {sessionStatus === 'completed' && 'Generation completed'}
     {sessionStatus === 'failed' && 'Generation failed'}
+    {sessionStatus === 'cancelled' && 'Generation cancelled'}
     {status === 'creating' && 'App container is being created'}
     {status === 'installing' && 'Installing app dependencies'}
     {status === 'starting' && 'Starting app servers'}
@@ -140,7 +142,7 @@ const ScreenReaderAnnouncements = ({
 );
 
 interface UnifiedStatusSectionProps {
-  sessionStatus: 'generating' | 'completed' | 'failed';
+  sessionStatus: 'pending' | 'generating' | 'completed' | 'failed' | 'cancelled';
   isOwnSession: boolean;
   currentSessionId: string | null;
   appStatus: AppInfo | null;
@@ -194,6 +196,10 @@ export function UnifiedStatusSection({
     );
   }
 
+  // Map session status for badge (pending/cancelled → generating)
+  const badgeSessionStatus =
+    sessionStatus === 'pending' || sessionStatus === 'cancelled' ? 'generating' : sessionStatus;
+
   return (
     <div className={spacing.controls}>
       <ScreenReaderAnnouncements
@@ -211,7 +217,7 @@ export function UnifiedStatusSection({
         <div className="flex items-center justify-between gap-3">
           <span className={typography.caption}>Generation</span>
           <StatusBadge
-            status={sessionStatus}
+            status={badgeSessionStatus}
             variant="session"
             showLiveIndicator={showLiveIndicator}
           />

@@ -206,5 +206,75 @@ describe('Generation Validation', () => {
         expect(result.data.config.maxIterations).toBe(2);
       }
     });
+
+    describe('Claude Model Support', () => {
+      it('should accept claude-haiku-4-5 model', () => {
+        const result = StartGenerationSchema.safeParse({
+          prompt: 'Build a todo app',
+          config: {
+            inputMode: 'naive',
+          },
+          model: 'claude-haiku-4-5',
+        });
+
+        expect(result.success).toBe(true);
+        if (result.success) {
+          expect(result.data.model).toBe('claude-haiku-4-5');
+        }
+      });
+
+      it('should accept claude-sonnet-4-5 model', () => {
+        const result = StartGenerationSchema.safeParse({
+          prompt: 'Build a todo app',
+          config: {
+            inputMode: 'naive',
+          },
+          model: 'claude-sonnet-4-5',
+        });
+
+        expect(result.success).toBe(true);
+        if (result.success) {
+          expect(result.data.model).toBe('claude-sonnet-4-5');
+        }
+      });
+
+      it('should accept claude-opus-4-1 model', () => {
+        const result = StartGenerationSchema.safeParse({
+          prompt: 'Build a todo app',
+          config: {
+            inputMode: 'naive',
+          },
+          model: 'claude-opus-4-1',
+        });
+
+        expect(result.success).toBe(true);
+        if (result.success) {
+          expect(result.data.model).toBe('claude-opus-4-1');
+        }
+      });
+
+      it('should accept Claude models with all capabilities', () => {
+        const result = StartGenerationSchema.safeParse({
+          prompt: 'Build a todo app',
+          config: {
+            inputMode: 'template',
+            templateOptions: {
+              templateName: 'vite-fullstack-base',
+            },
+            planning: true,
+            compilerChecks: true,
+            maxIterations: 3,
+          },
+          model: 'claude-haiku-4-5',
+        });
+
+        expect(result.success).toBe(true);
+        if (result.success) {
+          expect(result.data.model).toBe('claude-haiku-4-5');
+          expect(result.data.config.planning).toBe(true);
+          expect(result.data.config.compilerChecks).toBe(true);
+        }
+      });
+    });
   });
 });

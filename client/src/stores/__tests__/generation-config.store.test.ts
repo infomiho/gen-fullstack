@@ -33,6 +33,7 @@ describe('useGenerationConfigStore', () => {
         buildingBlocks: false,
         maxIterations: 3,
       });
+      expect(result.current.selectedModel).toBe('gpt-5-mini');
     });
   });
 
@@ -146,8 +147,61 @@ describe('useGenerationConfigStore', () => {
     });
   });
 
+  describe('Model Selection', () => {
+    it('should set selected model', () => {
+      const { result } = renderHook(() => useGenerationConfigStore());
+
+      act(() => {
+        result.current.setSelectedModel('gpt-5');
+      });
+
+      expect(result.current.selectedModel).toBe('gpt-5');
+    });
+
+    it('should update selected model multiple times', () => {
+      const { result } = renderHook(() => useGenerationConfigStore());
+
+      act(() => {
+        result.current.setSelectedModel('gpt-5');
+      });
+
+      expect(result.current.selectedModel).toBe('gpt-5');
+
+      act(() => {
+        result.current.setSelectedModel('claude-sonnet-4-5');
+      });
+
+      expect(result.current.selectedModel).toBe('claude-sonnet-4-5');
+    });
+
+    it('should handle switching between OpenAI and Anthropic models', () => {
+      const { result } = renderHook(() => useGenerationConfigStore());
+
+      // Start with OpenAI model
+      act(() => {
+        result.current.setSelectedModel('gpt-5');
+      });
+
+      expect(result.current.selectedModel).toBe('gpt-5');
+
+      // Switch to Anthropic model
+      act(() => {
+        result.current.setSelectedModel('claude-haiku-4-5');
+      });
+
+      expect(result.current.selectedModel).toBe('claude-haiku-4-5');
+
+      // Switch back to OpenAI model
+      act(() => {
+        result.current.setSelectedModel('gpt-5-nano');
+      });
+
+      expect(result.current.selectedModel).toBe('gpt-5-nano');
+    });
+  });
+
   describe('Reset Config', () => {
-    it('should reset prompt draft and capability config to initial state', () => {
+    it('should reset prompt draft, capability config, and selected model to initial state', () => {
       const { result } = renderHook(() => useGenerationConfigStore());
 
       // Modify state
@@ -160,10 +214,12 @@ describe('useGenerationConfigStore', () => {
           buildingBlocks: true,
           maxIterations: 5,
         });
+        result.current.setSelectedModel('claude-opus-4-1');
       });
 
       expect(result.current.promptDraft).toBe('Build a todo app');
       expect(result.current.capabilityConfig.inputMode).toBe('template');
+      expect(result.current.selectedModel).toBe('claude-opus-4-1');
 
       // Reset
       act(() => {
@@ -178,6 +234,7 @@ describe('useGenerationConfigStore', () => {
         buildingBlocks: false,
         maxIterations: 3,
       });
+      expect(result.current.selectedModel).toBe('gpt-5-mini');
     });
   });
 
@@ -302,6 +359,125 @@ describe('useGenerationConfigStore', () => {
       const parsed = JSON.parse(stored);
       expect(parsed.state.promptDraft).toBe('Restored prompt');
       expect(parsed.state.capabilityConfig.inputMode).toBe('template');
+    });
+
+    it('should persist selected model to localStorage', () => {
+      const { result } = renderHook(() => useGenerationConfigStore());
+
+      act(() => {
+        result.current.setSelectedModel('claude-sonnet-4-5');
+      });
+
+      // Check localStorage
+      const stored = localStorage.getItem('generation-config-store');
+      expect(stored).toBeTruthy();
+      if (!stored) return;
+
+      const parsed = JSON.parse(stored);
+      expect(parsed.state.selectedModel).toBe('claude-sonnet-4-5');
+    });
+
+    it('should update localStorage when model changes', () => {
+      const { result } = renderHook(() => useGenerationConfigStore());
+
+      // Initial model
+      act(() => {
+        result.current.setSelectedModel('gpt-5');
+      });
+
+      let stored = localStorage.getItem('generation-config-store');
+      expect(stored).toBeTruthy();
+      if (!stored) return;
+
+      let parsed = JSON.parse(stored);
+      expect(parsed.state.selectedModel).toBe('gpt-5');
+
+      // Change model again
+      act(() => {
+        result.current.setSelectedModel('claude-haiku-4-5');
+      });
+
+      stored = localStorage.getItem('generation-config-store');
+      expect(stored).toBeTruthy();
+      if (!stored) return;
+
+      parsed = JSON.parse(stored);
+      expect(parsed.state.selectedModel).toBe('claude-haiku-4-5');
+    });
+
+    it('should persist all state together including model', () => {
+      const { result } = renderHook(() => useGenerationConfigStore());
+
+      act(() => {
+        result.current.setPromptDraft('Build a chat app');
+        result.current.setCapabilityConfig({
+          inputMode: 'template',
+          planning: true,
+          compilerChecks: true,
+          buildingBlocks: false,
+          maxIterations: 5,
+        });
+        result.current.setSelectedModel('claude-opus-4-1');
+      });
+
+      // Check localStorage
+      const stored = localStorage.getItem('generation-config-store');
+      expect(stored).toBeTruthy();
+      if (!stored) return;
+
+      const parsed = JSON.parse(stored);
+      expect(parsed.state.promptDraft).toBe('Build a chat app');
+      expect(parsed.state.capabilityConfig.inputMode).toBe('template');
+      expect(parsed.state.capabilityConfig.planning).toBe(true);
+      expect(parsed.state.capabilityConfig.compilerChecks).toBe(true);
+      expect(parsed.state.capabilityConfig.maxIterations).toBe(5);
+      expect(parsed.state.selectedModel).toBe('claude-opus-4-1');
+    });
+
+    it('should restore model selection from localStorage across page loads', () => {
+      const { result: result1 } = renderHook(() => useGenerationConfigStore());
+
+      // Set model
+      act(() => {
+        result1.current.setSelectedModel('gpt-5-nano');
+      });
+
+      // Verify it was persisted
+      const stored = localStorage.getItem('generation-config-store');
+      expect(stored).toBeTruthy();
+      if (!stored) return;
+
+      const parsed = JSON.parse(stored);
+      expect(parsed.state.selectedModel).toBe('gpt-5-nano');
+
+      // Simulate new page load by creating a new hook instance
+      // The store should restore from localStorage
+      const { result: result2 } = renderHook(() => useGenerationConfigStore());
+
+      // Model should be restored from localStorage
+      expect(result2.current.selectedModel).toBe('gpt-5-nano');
+    });
+
+    it('should handle model persistence with default value', () => {
+      // Start fresh
+      localStorage.clear();
+
+      const { result } = renderHook(() => useGenerationConfigStore());
+
+      // Should have default model
+      expect(result.current.selectedModel).toBe('gpt-5-mini');
+
+      // After setting a different model, it should persist
+      act(() => {
+        result.current.setSelectedModel('claude-sonnet-4-5');
+      });
+
+      const stored = localStorage.getItem('generation-config-store');
+      expect(stored).toBeTruthy();
+      if (!stored) return;
+
+      const parsed = JSON.parse(stored);
+      expect(parsed.state.selectedModel).toBe('claude-sonnet-4-5');
     });
   });
 

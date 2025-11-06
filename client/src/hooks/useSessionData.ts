@@ -1,7 +1,9 @@
 import type {
+  File as SessionFile,
   FileUpdate,
   LLMMessage,
   PipelineStageEvent,
+  TimelineItem as SessionTimeline,
   ToolCall,
   ToolResult,
 } from '@gen-fullstack/shared';
@@ -19,44 +21,6 @@ function safeJsonParse<T>(json: string | undefined, fallback: T): T {
     console.warn('Failed to parse JSON:', json, error);
     return fallback;
   }
-}
-
-/**
- * Session data structure from the API
- */
-interface SessionTimeline {
-  id: number;
-  sessionId: string;
-  timestamp: Date;
-  type: 'message' | 'tool_call' | 'tool_result' | 'pipeline_stage';
-  // Message fields
-  messageId?: string;
-  role?: 'user' | 'assistant' | 'system';
-  content?: string;
-  // Tool call fields
-  toolCallId?: string;
-  toolName?: string;
-  toolArgs?: string;
-  toolReason?: string;
-  // Tool result fields
-  toolResultId?: string;
-  toolResultFor?: string;
-  result?: string;
-  isError?: boolean;
-  // Pipeline stage fields
-  stageId?: string;
-  stageType?: 'planning' | 'validation' | 'template_loading' | 'completing';
-  stageStatus?: 'started' | 'completed' | 'failed';
-  stageData?: string; // JSON string
-}
-
-interface SessionFile {
-  id: number;
-  sessionId: string;
-  path: string;
-  content: string;
-  createdAt: Date;
-  updatedAt: Date;
 }
 
 /**
@@ -83,8 +47,8 @@ function convertPersistedToolCalls(timeline: SessionTimeline[]): ToolCall[] {
     .map((item) => ({
       id: item.toolCallId as string,
       name: item.toolName as string,
-      args: safeJsonParse<Record<string, unknown>>(item.toolArgs, {}),
-      reason: item.toolReason,
+      args: safeJsonParse<Record<string, unknown>>(item.toolArgs ?? undefined, {}),
+      reason: item.toolReason ?? undefined,
       timestamp: new Date(item.timestamp).getTime(),
     }));
 }
@@ -114,7 +78,7 @@ function convertPersistedPipelineStages(timeline: SessionTimeline[]): PipelineSt
       type: item.stageType as 'planning' | 'validation' | 'template_loading' | 'completing',
       status: (item.stageStatus as 'started' | 'completed' | 'failed') || 'started',
       timestamp: new Date(item.timestamp).getTime(),
-      data: safeJsonParse<Record<string, unknown>>(item.stageData, {}),
+      data: safeJsonParse<Record<string, unknown>>(item.stageData ?? undefined, {}),
     }));
 }
 

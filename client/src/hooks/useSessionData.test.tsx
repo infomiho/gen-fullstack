@@ -7,13 +7,14 @@
 import type { FileUpdate, LLMMessage } from '@gen-fullstack/shared';
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import { createMockTimelineItem } from '../__tests__/test-helpers';
 import { useSessionData } from './useSessionData';
 
 describe('useSessionData', () => {
   describe('Data Conversion - Persisted to Client Format', () => {
     it('should convert persisted messages to client format', () => {
       const persistedTimeline = [
-        {
+        createMockTimelineItem({
           id: 1,
           sessionId: 'test-session',
           timestamp: new Date('2024-01-01T10:00:00Z'),
@@ -21,8 +22,7 @@ describe('useSessionData', () => {
           messageId: 'msg-1',
           role: 'system' as const,
           content: 'Starting generation...',
-          isError: false,
-        },
+        }),
       ];
 
       const { result } = renderHook(() =>
@@ -50,7 +50,7 @@ describe('useSessionData', () => {
 
     it('should convert persisted tool calls to client format', () => {
       const persistedTimeline = [
-        {
+        createMockTimelineItem({
           id: 1,
           sessionId: 'test-session',
           timestamp: new Date('2024-01-01T10:00:00Z'),
@@ -58,8 +58,7 @@ describe('useSessionData', () => {
           toolCallId: 'tool-1',
           toolName: 'writeFile',
           toolArgs: '{"path":"/test.txt","content":"hello"}',
-          isError: false,
-        },
+        }),
       ];
 
       const { result } = renderHook(() =>
@@ -87,7 +86,7 @@ describe('useSessionData', () => {
 
     it('should convert persisted tool results to client format', () => {
       const persistedTimeline = [
-        {
+        createMockTimelineItem({
           id: 1,
           sessionId: 'test-session',
           timestamp: new Date('2024-01-01T10:00:00Z'),
@@ -97,7 +96,7 @@ describe('useSessionData', () => {
           toolName: 'writeFile',
           result: 'File written successfully',
           isError: false,
-        },
+        }),
       ];
 
       const { result } = renderHook(() =>
@@ -160,7 +159,7 @@ describe('useSessionData', () => {
   describe('Data Merging - Active Session', () => {
     it('should merge persisted and live messages when isConnectedToRoom=true', () => {
       const persistedTimeline = [
-        {
+        createMockTimelineItem({
           id: 1,
           sessionId: 'test-session',
           timestamp: new Date('2024-01-01T10:00:00Z'),
@@ -168,8 +167,7 @@ describe('useSessionData', () => {
           messageId: 'msg-1',
           role: 'system' as const,
           content: 'Starting...',
-          isError: false,
-        },
+        }),
       ];
 
       const liveMessages: LLMMessage[] = [
@@ -202,7 +200,7 @@ describe('useSessionData', () => {
 
     it('should NOT merge when isActiveSession=false', () => {
       const persistedTimeline = [
-        {
+        createMockTimelineItem({
           id: 1,
           sessionId: 'test-session',
           timestamp: new Date('2024-01-01T10:00:00Z'),
@@ -210,8 +208,7 @@ describe('useSessionData', () => {
           messageId: 'msg-1',
           role: 'system' as const,
           content: 'Persisted',
-          isError: false,
-        },
+        }),
       ];
 
       const liveMessages: LLMMessage[] = [
@@ -244,7 +241,7 @@ describe('useSessionData', () => {
 
     it('should NOT merge when isOwnSession=false', () => {
       const persistedTimeline = [
-        {
+        createMockTimelineItem({
           id: 1,
           sessionId: 'test-session',
           timestamp: new Date('2024-01-01T10:00:00Z'),
@@ -252,8 +249,7 @@ describe('useSessionData', () => {
           messageId: 'msg-1',
           role: 'system' as const,
           content: 'Persisted',
-          isError: false,
-        },
+        }),
       ];
 
       const liveMessages: LLMMessage[] = [
@@ -288,7 +284,7 @@ describe('useSessionData', () => {
   describe('Data Deduplication', () => {
     it('should deduplicate messages by ID when merging', () => {
       const persistedTimeline = [
-        {
+        createMockTimelineItem({
           id: 1,
           sessionId: 'test-session',
           timestamp: new Date('2024-01-01T10:00:00Z'),
@@ -296,8 +292,7 @@ describe('useSessionData', () => {
           messageId: 'msg-1',
           role: 'system' as const,
           content: 'Persisted content',
-          isError: false,
-        },
+        }),
       ];
 
       const liveMessages: LLMMessage[] = [
@@ -384,7 +379,7 @@ describe('useSessionData', () => {
   describe('Data Sorting', () => {
     it('should sort merged messages by timestamp', () => {
       const persistedTimeline = [
-        {
+        createMockTimelineItem({
           id: 1,
           sessionId: 'test-session',
           timestamp: new Date('2024-01-01T10:00:02Z'), // Later
@@ -392,8 +387,7 @@ describe('useSessionData', () => {
           messageId: 'msg-1',
           role: 'system' as const,
           content: 'Third',
-          isError: false,
-        },
+        }),
       ];
 
       const liveMessages: LLMMessage[] = [
@@ -456,7 +450,7 @@ describe('useSessionData', () => {
 
     it('should handle malformed JSON in tool args', () => {
       const persistedTimeline = [
-        {
+        createMockTimelineItem({
           id: 1,
           sessionId: 'test-session',
           timestamp: new Date('2024-01-01T10:00:00Z'),
@@ -464,8 +458,7 @@ describe('useSessionData', () => {
           toolCallId: 'tool-1',
           toolName: 'writeFile',
           toolArgs: 'invalid json{{{',
-          isError: false,
-        },
+        }),
       ];
 
       const { result } = renderHook(() =>
@@ -488,16 +481,15 @@ describe('useSessionData', () => {
 
     it('should handle null toolArgs', () => {
       const persistedTimeline = [
-        {
+        createMockTimelineItem({
           id: 1,
           sessionId: 'test-session',
           timestamp: new Date('2024-01-01T10:00:00Z'),
           type: 'tool_call' as const,
           toolCallId: 'tool-1',
           toolName: 'writeFile',
-          toolArgs: null as any,
-          isError: false,
-        },
+          toolArgs: null,
+        }),
       ];
 
       const { result } = renderHook(() =>
@@ -520,7 +512,7 @@ describe('useSessionData', () => {
 
     it('should handle empty string result in tool results', () => {
       const persistedTimeline = [
-        {
+        createMockTimelineItem({
           id: 1,
           sessionId: 'test-session',
           timestamp: new Date('2024-01-01T10:00:00Z'),
@@ -530,7 +522,7 @@ describe('useSessionData', () => {
           toolName: 'writeFile',
           result: '',
           isError: false,
-        },
+        }),
       ];
 
       const { result } = renderHook(() =>
@@ -553,7 +545,7 @@ describe('useSessionData', () => {
 
     it('should handle null result in tool results', () => {
       const persistedTimeline = [
-        {
+        createMockTimelineItem({
           id: 1,
           sessionId: 'test-session',
           timestamp: new Date('2024-01-01T10:00:00Z'),
@@ -561,9 +553,9 @@ describe('useSessionData', () => {
           toolResultId: 'result-1',
           toolResultFor: 'tool-1',
           toolName: 'writeFile',
-          result: null as any,
+          result: null,
           isError: false,
-        },
+        }),
       ];
 
       const { result } = renderHook(() =>
@@ -587,7 +579,7 @@ describe('useSessionData', () => {
 
     it('should filter out invalid timeline items', () => {
       const persistedTimeline = [
-        {
+        createMockTimelineItem({
           id: 1,
           sessionId: 'test-session',
           timestamp: new Date('2024-01-01T10:00:00Z'),
@@ -595,17 +587,30 @@ describe('useSessionData', () => {
           messageId: 'msg-1',
           role: 'system' as const,
           content: 'Valid',
-          isError: false,
-        },
+        }),
         {
           id: 2,
           sessionId: 'test-session',
           timestamp: new Date('2024-01-01T10:00:01Z'),
           type: 'message' as const,
           // Missing role and content - should be filtered out
-          isError: false,
+          messageId: null,
+          role: null,
+          content: null,
+          toolCallId: null,
+          toolName: null,
+          toolArgs: null,
+          toolReason: null,
+          toolResultId: null,
+          toolResultFor: null,
+          result: null,
+          isError: null,
+          stageId: null,
+          stageType: null,
+          stageStatus: null,
+          stageData: null,
         } as any,
-        {
+        createMockTimelineItem({
           id: 3,
           sessionId: 'test-session',
           timestamp: new Date('2024-01-01T10:00:02Z'),
@@ -613,8 +618,7 @@ describe('useSessionData', () => {
           messageId: 'msg-3',
           role: 'assistant' as const,
           content: 'Also valid',
-          isError: false,
-        },
+        }),
       ];
 
       const { result } = renderHook(() =>

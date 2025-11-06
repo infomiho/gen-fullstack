@@ -3,9 +3,10 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
 import httpProxy from 'http-proxy';
+import { RPCHandler } from '@orpc/server/node';
 import { getEnv } from './config/env.js';
 import { serverLogger } from './lib/logger.js';
-import sessionRoutes from './routes/sessions.js';
+import { sessionsRouter } from './routers/sessions.router.js';
 import { databaseService } from './services/database.service.js';
 import { processService } from './services/process.service.js';
 import { setupWebSocket } from './websocket.js';
@@ -24,8 +25,26 @@ const CLIENT_URL = env.CLIENT_URL;
 app.use(cors({ origin: CLIENT_URL }));
 app.use(express.json());
 
-// API Routes
-app.use('/api/sessions', sessionRoutes);
+// oRPC Handler - mount at /api/rpc
+const rpcHandler = new RPCHandler(sessionsRouter);
+
+app.use('/api/rpc{/*path}', async (req, res, next) => {
+  try {
+    const { matched } = await rpcHandler.handle(req, res, {
+      prefix: '/api/rpc',
+      context: {}, // Initial context (can add user auth, headers, etc.)
+    });
+
+    if (matched) {
+      return; // oRPC handled the request
+    }
+
+    next(); // Pass to next middleware if no procedure matched
+  } catch (error) {
+    serverLogger.error({ error, path: req.path }, 'oRPC handler error');
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 // Create proxy for app previews
 const proxy = httpProxy.createProxyServer({

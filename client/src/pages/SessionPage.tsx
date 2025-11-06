@@ -24,91 +24,41 @@ import { useReplayModeHandlers } from '../hooks/useReplayModeHandlers';
 import { useSessionDataLayer } from '../hooks/useSessionDataLayer';
 import { useSessionLifecycle } from '../hooks/useSessionLifecycle';
 import { usePresentationQueue } from '../hooks/usePresentationQueue';
-import { env } from '../lib/env';
+import { orpc } from '../lib/orpc';
 
 /**
  * Session data structure from the API
+ *
+ * Note: We import types from shared package for type safety.
+ * These types are auto-inferred from the oRPC router.
  */
-export interface SessionData {
-  session: {
-    id: string;
-    prompt: string;
-    model?: string; // Model used for generation (e.g., 'gpt-5-mini', 'claude-sonnet-4-5')
-    strategy: string;
-    capabilityConfig: string; // JSON string of CapabilityConfig
-    status: 'generating' | 'completed' | 'failed';
-    createdAt: Date;
-    updatedAt?: Date;
-    completedAt?: Date;
-    errorMessage?: string;
-    inputTokens?: number;
-    outputTokens?: number;
-    totalTokens?: number;
-    cost?: string;
-    durationMs?: number;
-    stepCount?: number;
-  };
-  timeline: Array<{
-    id: number;
-    sessionId: string;
-    timestamp: Date;
-    type: 'message' | 'tool_call' | 'tool_result' | 'pipeline_stage';
-    // Message fields
-    messageId?: string;
-    role?: 'user' | 'assistant' | 'system';
-    content?: string;
-    // Tool call fields
-    toolCallId?: string;
-    toolName?: string;
-    toolArgs?: string;
-    toolReason?: string;
-    // Tool result fields
-    toolResultId?: string;
-    toolResultFor?: string;
-    result?: string;
-    isError?: boolean;
-    // Pipeline stage fields
-    stageId?: string;
-    stageType?: 'planning' | 'validation' | 'template_loading' | 'completing';
-    stageStatus?: 'started' | 'completed' | 'failed';
-    stageData?: string; // JSON string
-  }>;
-  files: Array<{
-    id: number;
-    sessionId: string;
-    path: string;
-    content: string;
-    createdAt: Date;
-    updatedAt: Date;
-  }>;
-}
+import type { GetSessionOutput } from '@gen-fullstack/shared';
+
+export type SessionData = GetSessionOutput;
 
 /**
  * Client-side loader for session data
  *
- * Fetches session, timeline, and files from the REST API
+ * Fetches session, timeline, and files using type-safe oRPC client
  */
 export async function clientLoader({ params }: LoaderFunctionArgs) {
   const sessionId = params.sessionId as string;
 
   try {
-    const response = await fetch(`${env.VITE_API_URL}/api/sessions/${sessionId}`);
-
-    if (!response.ok) {
-      if (response.status === 404) {
-        throw data('Session not found', { status: 404 });
-      }
-      throw data('Failed to load session', { status: response.status });
-    }
-
-    const sessionData: SessionData = await response.json();
+    // Type-safe RPC call with auto-inferred return type
+    const sessionData = await orpc.sessions.get({ sessionId });
     return sessionData;
   } catch (error) {
-    // Handle network errors
-    if (error instanceof TypeError && error.message.includes('fetch')) {
-      throw new Error('Unable to connect to the server. Please check your internet connection.');
+    // Handle oRPC errors
+    if (error instanceof Error) {
+      if (error.message.includes('not found')) {
+        throw data('Session not found', { status: 404 });
+      }
+      if (error.message.includes('connect') || error.message.includes('network')) {
+        throw new Error('Unable to connect to the server. Please check your internet connection.');
+      }
+      throw new Error(error.message);
     }
-    // Re-throw data() errors
     throw error;
   }
 }
@@ -216,7 +166,7 @@ function SessionPage() {
     persistedData.toolCalls,
     persistedData.pipelineStages,
     capabilityConfig,
-    sessionData.session.durationMs,
+    sessionData.session.durationMs ?? undefined,
   );
 
   // Handle presentation playback (auto-advance through overlays)

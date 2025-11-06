@@ -19,7 +19,8 @@ gen-fullstack/
 
 - Node.js 18+
 - pnpm 8+
-- OpenAI API key
+- OpenAI API key (required)
+- Anthropic API key (optional, for Claude models)
 
 ### Installation
 
@@ -35,7 +36,9 @@ pnpm install
 ```bash
 cd server
 cp .env.example .env
-# Edit .env and add your OPENAI_API_KEY
+# Edit .env and add your API keys:
+# - OPENAI_API_KEY (required for GPT models)
+# - ANTHROPIC_API_KEY (optional for Claude models)
 ```
 
 **Client:**
@@ -93,6 +96,24 @@ The system supports flexible capability configurations:
 
 Examples: Naive + Planning, Template + Compiler Checks, or any combination you need.
 
+## AI Models
+
+The system supports multiple AI providers and models:
+
+### OpenAI GPT-5 Series
+- **GPT-5** - Premium model for complex scenarios ($1.25 / $10 per 1M tokens)
+- **GPT-5 Mini** (default) - Best balance of cost/performance ($0.25 / $2 per 1M tokens)
+- **GPT-5 Nano** - Budget model for simple demos ($0.05 / $0.40 per 1M tokens)
+
+### Anthropic Claude 4.x Series
+- **Claude Opus 4.1** - Most capable Claude model ($15 / $75 per 1M tokens)
+- **Claude Sonnet 4.5** - Balanced model with great coding performance ($3 / $15 per 1M tokens)
+- **Claude Haiku 4.5** - Fast and economical, 4-5x faster than Sonnet ($1 / $5 per 1M tokens)
+
+Pricing format: `input / output` per 1M tokens (USD).
+
+All model metadata (pricing, descriptions, capabilities) is centralized in the shared package to maintain consistency between client and server. You can select your preferred model in the UI before starting generation.
+
 ## Development
 
 This project uses **Nx** for monorepo management with **local caching only** (no Nx Cloud). All commands leverage Nx's intelligent caching - running the same command twice will be instant if no files changed.
@@ -149,7 +170,7 @@ pnpm format        # Format code with Prettier
 - **Backend**: Node.js 22+, Express 5.0, Socket.io 4.8, TypeScript 5.9
 - **Frontend**: React 19.2, Vite 7.1, Tailwind CSS 4.1, TypeScript 5.9
 - **Monorepo**: pnpm 9+ workspaces + Nx 22 (local caching only)
-- **LLM**: Vercel AI SDK 5.0 with GPT-5-mini model
+- **LLM**: Vercel AI SDK 5.0 with multi-provider support (OpenAI GPT-5 series, Anthropic Claude 4.x series)
 - **Validation**: Zod 3.24
 - **Testing**: Vitest 3.2 with @testing-library/react 16
 

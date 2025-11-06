@@ -23,9 +23,10 @@ import {
   sessions,
   type TimelineItem,
   timelineItems,
-} from '../db/schema.js';
+  type PipelineStageStatus,
+  type PipelineStageType,
+} from '@gen-fullstack/shared';
 import { databaseLogger } from '../lib/logger.js';
-import type { PipelineStageStatus, PipelineStageType } from '@gen-fullstack/shared';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

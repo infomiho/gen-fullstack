@@ -1,4 +1,4 @@
-import type { AppInfo } from '@gen-fullstack/shared';
+import type { AppInfo, GetSessionOutput } from '@gen-fullstack/shared';
 import { useUIStore } from '../stores/ui.store';
 import { Alert } from './Alert';
 import { CapabilitiesList } from './CapabilitiesList';
@@ -7,23 +7,8 @@ import { MetricsDisplay } from './MetricsDisplay';
 import { PromptDisplay } from './PromptDisplay';
 import { UnifiedStatusSection } from './UnifiedStatusSection';
 
-interface SessionData {
-  session: {
-    prompt: string;
-    model?: string; // Model used for generation
-    strategy: string;
-    capabilityConfig: string; // JSON string of CapabilityConfig
-    status: 'generating' | 'completed' | 'failed';
-    totalTokens?: number;
-    cost?: string;
-    durationMs?: number;
-    stepCount?: number;
-    errorMessage?: string;
-  };
-}
-
 interface SessionSidebarProps {
-  sessionData: SessionData;
+  sessionData: GetSessionOutput;
   sessionId: string | undefined;
   appStatus: AppInfo | null;
   isGenerating: boolean;
@@ -115,8 +100,8 @@ export function SessionSidebar({
             ariaLabel="Toggle metrics section"
           >
             <MetricsDisplay
-              model={sessionData.session.model}
-              totalTokens={sessionData.session.totalTokens}
+              model={sessionData.session.model ?? undefined}
+              totalTokens={sessionData.session.totalTokens || 0}
               cost={sessionData.session.cost || '0'}
               durationMs={sessionData.session.durationMs || 0}
               stepCount={sessionData.session.stepCount || 0}

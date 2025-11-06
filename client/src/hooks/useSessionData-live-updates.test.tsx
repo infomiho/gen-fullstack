@@ -7,12 +7,13 @@
 import type { FileUpdate, LLMMessage } from '@gen-fullstack/shared';
 import { renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import { createMockTimelineItem } from '../__tests__/test-helpers';
 import { useSessionData } from './useSessionData';
 
 describe('useSessionData - Live Updates', () => {
   it('should re-render when live WebSocket messages update', async () => {
     const persistedTimeline = [
-      {
+      createMockTimelineItem({
         id: 1,
         sessionId: 'test-session',
         timestamp: new Date('2024-01-01T10:00:00Z'),
@@ -20,8 +21,7 @@ describe('useSessionData - Live Updates', () => {
         messageId: 'msg-1',
         role: 'system' as const,
         content: 'Starting generation...',
-        isError: false,
-      },
+      }),
     ];
 
     // Initial render with no live data
@@ -127,7 +127,7 @@ describe('useSessionData - Live Updates', () => {
     // instead of calling useWebSocket internally
 
     const persistedTimeline = [
-      {
+      createMockTimelineItem({
         id: 1,
         sessionId: 'test-session',
         timestamp: new Date('2024-01-01T10:00:00Z'),
@@ -135,8 +135,7 @@ describe('useSessionData - Live Updates', () => {
         messageId: 'msg-1',
         role: 'system' as const,
         content: 'Persisted',
-        isError: false,
-      },
+      }),
     ];
 
     const liveMessages: LLMMessage[] = [

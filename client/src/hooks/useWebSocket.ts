@@ -7,6 +7,7 @@ import type {
   GenerationMetrics,
   LLMMessage,
   PipelineStageEvent,
+  StartGenerationPayload,
   ToolCall,
   ToolResult,
 } from '@gen-fullstack/shared';
@@ -35,7 +36,7 @@ interface UseWebSocketReturn {
   startGeneration: (
     prompt: string,
     config: CapabilityConfig,
-    model?: 'gpt-5' | 'gpt-5-mini' | 'gpt-5-nano',
+    model?: StartGenerationPayload['model'],
   ) => void;
   stopGeneration: () => void;
   clearMessages: () => void;
@@ -304,7 +305,7 @@ export function useWebSocket(navigate?: NavigateFunction): UseWebSocketReturn {
   }, [setSocket, setConnected, notifyTruncation, notifyConnectionError]);
 
   const startGeneration = useCallback(
-    (prompt: string, config: CapabilityConfig, model?: 'gpt-5' | 'gpt-5-mini' | 'gpt-5-nano') => {
+    (prompt: string, config: CapabilityConfig, model?: StartGenerationPayload['model']) => {
       if (socket) {
         useGenerationStore.getState().reset();
         useGenerationStore.getState().setGenerating(true);

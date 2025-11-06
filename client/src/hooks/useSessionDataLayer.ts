@@ -14,7 +14,7 @@ function getSessionStatus(
   socket: Socket | null,
   isSubscribed: boolean,
   isGeneratingWebSocket: boolean,
-  sessionStatus: 'generating' | 'completed' | 'failed',
+  sessionStatus: 'pending' | 'generating' | 'completed' | 'failed' | 'cancelled',
 ) {
   const isActiveSession = socket ? isGeneratingWebSocket : sessionStatus === 'generating';
   const isConnectedToRoom = Boolean(socket?.connected && isSubscribed);

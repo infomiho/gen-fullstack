@@ -561,13 +561,13 @@ Example:
       .enum(['root', 'client', 'server'])
       .describe('Which package.json to update (root, client, or server)'),
     dependencies: z
-      .record(z.string())
+      .record(z.string(), z.string())
       .nullable()
       .describe(
         'Dependencies to add with versions (e.g., {"express": "^5.0.0"}). Must provide this OR devDependencies.',
       ),
     devDependencies: z
-      .record(z.string())
+      .record(z.string(), z.string())
       .nullable()
       .describe(
         'Dev dependencies to add with versions (e.g., {"typescript": "^5.0.0"}). Must provide this OR dependencies.',

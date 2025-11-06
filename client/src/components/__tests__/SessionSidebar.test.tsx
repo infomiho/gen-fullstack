@@ -3,7 +3,7 @@ import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SessionSidebar } from '../SessionSidebar';
 import { useUIStore } from '../../stores/ui.store';
-import type { AppInfo } from '@gen-fullstack/shared';
+import type { AppInfo, GetSessionOutput } from '@gen-fullstack/shared';
 
 describe('SessionSidebar', () => {
   // Reset UI store before each test
@@ -14,10 +14,13 @@ describe('SessionSidebar', () => {
     });
   });
 
-  const mockSessionData = {
+  const mockSessionData: GetSessionOutput = {
     session: {
+      id: 'test-session-id',
       prompt: 'Build a todo app',
-      strategy: 'naive',
+      model: null,
+      systemPrompt: null,
+      fullUserPrompt: null,
       capabilityConfig: JSON.stringify({
         inputMode: 'prompt',
         planning: true,
@@ -25,11 +28,19 @@ describe('SessionSidebar', () => {
         buildingBlocks: false,
       }),
       status: 'completed' as const,
+      createdAt: new Date(),
+      updatedAt: null,
+      completedAt: null,
+      errorMessage: null,
+      inputTokens: null,
+      outputTokens: null,
       totalTokens: 5000,
       cost: '0.0123',
       durationMs: 12345,
       stepCount: 25,
     },
+    timeline: [],
+    files: [],
   };
 
   const mockAppStatus: AppInfo = {
@@ -78,22 +89,26 @@ describe('SessionSidebar', () => {
   });
 
   it('does not render metrics for generating sessions', () => {
-    const generatingSessionData = {
+    const generatingSessionData: GetSessionOutput = {
       session: {
         ...mockSessionData.session,
         status: 'generating' as const,
       },
+      timeline: [],
+      files: [],
     };
     render(<SessionSidebar {...defaultProps} sessionData={generatingSessionData} />);
     expect(screen.queryByText('Metrics')).not.toBeInTheDocument();
   });
 
   it('renders disconnection warning for active sessions', () => {
-    const generatingSessionData = {
+    const generatingSessionData: GetSessionOutput = {
       session: {
         ...mockSessionData.session,
         status: 'generating' as const,
       },
+      timeline: [],
+      files: [],
     };
     render(
       <SessionSidebar {...defaultProps} sessionData={generatingSessionData} isConnected={false} />,
@@ -107,12 +122,14 @@ describe('SessionSidebar', () => {
   });
 
   it('renders error message when present', () => {
-    const errorSessionData = {
+    const errorSessionData: GetSessionOutput = {
       session: {
         ...mockSessionData.session,
         status: 'failed' as const,
         errorMessage: 'Something went wrong',
       },
+      timeline: [],
+      files: [],
     };
     render(<SessionSidebar {...defaultProps} sessionData={errorSessionData} />);
     expect(screen.getByText('Something went wrong')).toBeInTheDocument();
@@ -127,11 +144,13 @@ describe('SessionSidebar', () => {
   });
 
   it('handles missing capability config gracefully', () => {
-    const noCapsSessionData = {
+    const noCapsSessionData: GetSessionOutput = {
       session: {
         ...mockSessionData.session,
         capabilityConfig: 'invalid json',
       },
+      timeline: [],
+      files: [],
     };
     render(<SessionSidebar {...defaultProps} sessionData={noCapsSessionData} />);
     expect(screen.queryByText('Capabilities')).not.toBeInTheDocument();
@@ -145,25 +164,29 @@ describe('SessionSidebar', () => {
   });
 
   it('formats cost with 4 decimal places', () => {
-    const costSessionData = {
+    const costSessionData: GetSessionOutput = {
       session: {
         ...mockSessionData.session,
         cost: '1.23',
       },
+      timeline: [],
+      files: [],
     };
     render(<SessionSidebar {...defaultProps} sessionData={costSessionData} />);
     expect(screen.getByText('$1.2300')).toBeInTheDocument();
   });
 
   it('handles missing optional metrics fields', () => {
-    const minimalSessionData = {
+    const minimalSessionData: GetSessionOutput = {
       session: {
         ...mockSessionData.session,
         totalTokens: 1000,
-        cost: undefined,
-        durationMs: undefined,
-        stepCount: undefined,
+        cost: null,
+        durationMs: null,
+        stepCount: null,
       },
+      timeline: [],
+      files: [],
     };
     render(<SessionSidebar {...defaultProps} sessionData={minimalSessionData} />);
     expect(screen.getByText('$0.0000')).toBeInTheDocument();
