@@ -67,7 +67,7 @@ export async function clientLoader({ params }: LoaderFunctionArgs) {
  * Helper: Determine active tab from URL parameter
  */
 function getActiveTab(tab: string | undefined) {
-  const validTabs = ['timeline', 'files', 'preview'] as const;
+  const validTabs = ['timeline', 'files', 'preview', 'pipeline'] as const;
   type ValidTab = (typeof validTabs)[number];
 
   function isValidTab(value: string | undefined): value is ValidTab {
@@ -217,6 +217,7 @@ function SessionPage() {
             isReplayMode={isReplayMode}
             appStatus={appStatus}
             appLogs={appLogs}
+            capabilityConfig={capabilityConfig}
             onSaveFile={saveFile}
           />
         </div>
